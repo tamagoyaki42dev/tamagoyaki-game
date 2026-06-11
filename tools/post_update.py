@@ -12,7 +12,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 def get_last_commit_message():
     result = subprocess.run(
         ["git", "log", "-1", "--pretty=%s"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8",
         cwd=os.path.dirname(__file__)
     )
     return result.stdout.strip()
