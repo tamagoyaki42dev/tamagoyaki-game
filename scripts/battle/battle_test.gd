@@ -22,26 +22,24 @@ func _make_party() -> Array:
 	var w = CharacterData.new()
 	w.char_name = "アーサー"
 	w.job       = CharacterJob.Type.WARRIOR
-	w.hp_max    = 120; w.attack = 15; w.defense = 8; w.speed = 8
+	w.hp_max    = 35; w.attack = 20; w.speed = 15
 
-	var c = CharacterData.new()
-	c.char_name = "エレナ"
-	c.job       = CharacterJob.Type.CLERIC
-	c.hp_max    = 80;  c.attack = 6;  c.defense = 5; c.speed = 7
+	var e = CharacterData.new()
+	e.char_name = "エレナ"
+	e.job       = CharacterJob.Type.CLERIC
+	e.hp_max    = 18; e.attack = 8; e.speed = 6
+	e.def_bonus = 20; e.row_regen = 15
 
-	var s = CharacterData.new()
-	s.char_name = "リム"
-	s.job       = CharacterJob.Type.SCOUT
-	s.hp_max    = 70;  s.attack = 12; s.defense = 3; s.speed = 14
+	var r = CharacterData.new()
+	r.char_name = "リム"
+	r.job       = CharacterJob.Type.WITCH
+	r.hp_max    = 22; r.attack = 10; r.speed = 16
+	r.atk_bonus = 14
 
-	return [w, c, s]
+	return [w, e, r]
 
 func _make_enemies() -> Array:
-	return [
-		EnemyGenerator.generate(1),
-		EnemyGenerator.generate(1),
-		EnemyGenerator.generate(1, 1.0),  # 確定極振り
-	]
+	return [EnemyGenerator.generate()]
 
 func _on_started(pg: RotationGrid, eg: RotationGrid) -> void:
 	print("=== バトル開始 ===")
@@ -61,4 +59,4 @@ func _on_died(unit: BattleUnit) -> void:
 	print("  *** %s 戦死 ***" % unit.unit_name)
 
 func _on_ended(player_won: bool, _loot: Array) -> void:
-	print("\n=== %s ===" % ("勝利！" if player_won else "全滅..."))
+	print("\n=== %s ===" % ("勝利！" if player_won else "撤退..."))

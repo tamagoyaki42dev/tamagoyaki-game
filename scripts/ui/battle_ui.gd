@@ -18,7 +18,8 @@ var LOG_X: float
 # ── ノード参照 ────────────────────────────────────────────────────────────────
 var _root: Control
 var _log_lbl: RichTextLabel
-var _turn_btn: Button
+var _rotate_btn: Button
+var _stay_btn: Button
 var _status_lbl: Label
 var _manager: BattleManager
 var _cards: Dictionary = {}   # BattleUnit → {ctrl, hp_bar, hp_lbl}
@@ -64,14 +65,23 @@ func _build_ui() -> void:
 	# ターン数表示
 	_status_lbl = _lbl(_root, "Turn 0", Vector2(LOG_X * 0.5 - 60, SH * 0.5 - 46), 22)
 
-	# 次のターンボタン
-	_turn_btn = Button.new()
-	_turn_btn.text = "次のターン →"
-	_turn_btn.position = Vector2(LOG_X * 0.5 - 90, SH * 0.5 - 12)
-	_turn_btn.size = Vector2(180, 46)
-	_turn_btn.add_theme_font_size_override("font_size", 18)
-	_turn_btn.pressed.connect(_on_turn_pressed)
-	_root.add_child(_turn_btn)
+	# ローテーションボタン
+	_rotate_btn = Button.new()
+	_rotate_btn.text = "ローテーション"
+	_rotate_btn.position = Vector2(LOG_X * 0.5 - 188, SH * 0.5 - 12)
+	_rotate_btn.size = Vector2(180, 46)
+	_rotate_btn.add_theme_font_size_override("font_size", 16)
+	_rotate_btn.pressed.connect(_on_rotate_pressed)
+	_root.add_child(_rotate_btn)
+
+	# ステイボタン（デフォルト操作）
+	_stay_btn = Button.new()
+	_stay_btn.text = "ステイ"
+	_stay_btn.position = Vector2(LOG_X * 0.5 + 4, SH * 0.5 - 12)
+	_stay_btn.size = Vector2(180, 46)
+	_stay_btn.add_theme_font_size_override("font_size", 16)
+	_stay_btn.pressed.connect(_on_stay_pressed)
+	_root.add_child(_stay_btn)
 
 	# バトルログ
 	_log_lbl = RichTextLabel.new()
@@ -167,16 +177,20 @@ func _on_rotated() -> void:
 	_rebuild_positions()
 
 func _on_battle_ended(won: bool, _loot: Array) -> void:
-	_turn_btn.disabled = true
+	_rotate_btn.disabled = true
+	_stay_btn.disabled = true
 	if won:
 		_status_lbl.text = "勝利！"
 		_log("\n[color=#ffff55][b]=== 勝利！ ===[/b][/color]")
 	else:
-		_status_lbl.text = "全滅..."
-		_log("\n[color=#ff4444][b]=== 全滅... ===[/b][/color]")
+		_status_lbl.text = "撤退..."
+		_log("\n[color=#ff4444][b]=== 撤退... ===[/b][/color]")
 
-func _on_turn_pressed() -> void:
-	_manager.advance_turn()
+func _on_rotate_pressed() -> void:
+	_manager.advance_turn(true)
+
+func _on_stay_pressed() -> void:
+	_manager.advance_turn(false)
 
 func _log(text: String) -> void:
 	_log_lbl.append_text(text + "\n")
@@ -215,20 +229,22 @@ func _start_battle() -> void:
 	_manager.start_battle(_make_party(), _make_enemies())
 
 func _make_party() -> Array:
+	# unit_spec.md 準拠の初期実装5職から3体（戦士・神官・魔女）
 	var w := CharacterData.new()
 	w.char_name = "アーサー"; w.job = CharacterJob.Type.WARRIOR
-	w.hp_max = 120; w.attack = 15; w.defense = 8; w.speed = 8
-	var c := CharacterData.new()
-	c.char_name = "エレナ"; c.job = CharacterJob.Type.CLERIC
-	c.hp_max = 80; c.attack = 6; c.defense = 5; c.speed = 7
-	var s := CharacterData.new()
-	s.char_name = "リム"; s.job = CharacterJob.Type.SCOUT
-	s.hp_max = 70; s.attack = 12; s.defense = 3; s.speed = 14
-	return [w, c, s]
+	w.hp_max = 35; w.attack = 20; w.speed = 15
+
+	var e := CharacterData.new()
+	e.char_name = "エレナ"; e.job = CharacterJob.Type.CLERIC
+	e.hp_max = 18; e.attack = 8; e.speed = 6
+	e.def_bonus = 20; e.row_regen = 15
+
+	var r := CharacterData.new()
+	r.char_name = "リム"; r.job = CharacterJob.Type.WITCH
+	r.hp_max = 22; r.attack = 10; r.speed = 16
+	r.atk_bonus = 14
+
+	return [w, e, r]
 
 func _make_enemies() -> Array:
-	return [
-		EnemyGenerator.generate(1),
-		EnemyGenerator.generate(1),
-		EnemyGenerator.generate(1, 0.5),
-	]
+	return [EnemyGenerator.generate()]

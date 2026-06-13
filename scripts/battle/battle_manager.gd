@@ -32,8 +32,8 @@ func start_battle(player_data: Array, enemy_data: Array) -> void:
 
 	battle_started.emit(player_grid, enemy_grid)
 
-# UIからターンを1つ進める（1ターン = 全員行動 + ローテーション）
-func advance_turn() -> void:
+# do_rotate=true でローテーション、false でステイ（仕様: デフォルトはステイ）
+func advance_turn(do_rotate: bool = false) -> void:
 	if is_over:
 		return
 
@@ -54,17 +54,19 @@ func advance_turn() -> void:
 
 		if not target.is_alive:
 			unit_died.emit(target)
+			# 味方1体でも倒れたら即撤退（battle_spec.md 勝敗条件）
+			if target.side == BattleUnit.Side.PLAYER:
+				_end_battle(false)
+				return
 
-	if player_grid.is_wiped():
-		_end_battle(false)
-		return
 	if enemy_grid.is_wiped():
 		_end_battle(true)
 		return
 
-	player_grid.rotate_forward()
-	enemy_grid.rotate_forward()
-	rotated.emit()
+	if do_rotate:
+		player_grid.rotate_forward()
+		enemy_grid.rotate_forward()
+		rotated.emit()
 
 # 完全情報開示用：現在グリッドでの行動順を返す（UIが戦闘前に表示できる）
 func build_timeline() -> Array:

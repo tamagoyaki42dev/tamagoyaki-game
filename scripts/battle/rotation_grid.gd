@@ -20,7 +20,7 @@ func add_unit(unit: BattleUnit) -> bool:
 	grid[row].append(unit)
 	return true
 
-# 前列→後列へ：前 ← 中 ← 後 ← 前（全員が前進する）
+# 前→後→中→前 のサイクル: 中列が前列に繰り上がり、元の前列は後列へ下がる
 func rotate_forward() -> void:
 	var temp = grid[0]
 	grid[0]  = grid[1]

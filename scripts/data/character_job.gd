@@ -1,25 +1,57 @@
 class_name CharacterJob
 
 enum Type {
-	WARRIOR,  # 前列特化・物理火力
-	CLERIC,   # 後列・回復担当
-	SUPPORT,  # 中列・補助担当
-	SCOUT,    # 速度特化・前列
+	WARRIOR,
+	KNIGHT,
+	GLADIATOR,
+	ILLUSIONIST,
+	ADVENTURER,
+	MONK,
+	CLERIC,
+	MAGE,
+	WITCH,
+	ARCHER,
+	VALKYRIE,
+	SHAMAN,
+	SHRINE_MAIDEN,
+	SAMURAI,
+	NINJA,
+	DARK_KNIGHT,
+	HOLY_KNIGHT,
 }
 
 static func get_display_name(type: Type) -> String:
 	match type:
-		Type.WARRIOR: return "戦士"
-		Type.CLERIC:  return "聖職者"
-		Type.SUPPORT: return "補佐"
-		Type.SCOUT:   return "斥候"
+		Type.WARRIOR:       return "戦士"
+		Type.KNIGHT:        return "騎士"
+		Type.GLADIATOR:     return "剣闘士"
+		Type.ILLUSIONIST:   return "幻術師"
+		Type.ADVENTURER:    return "冒険者"
+		Type.MONK:          return "僧侶"
+		Type.CLERIC:        return "神官"
+		Type.MAGE:          return "魔術師"
+		Type.WITCH:         return "魔女"
+		Type.ARCHER:        return "アーチャー"
+		Type.VALKYRIE:      return "ヴァルキリー"
+		Type.SHAMAN:        return "祈祷師"
+		Type.SHRINE_MAIDEN: return "巫女"
+		Type.SAMURAI:       return "サムライ"
+		Type.NINJA:         return "ニンジャ"
+		Type.DARK_KNIGHT:   return "魔騎士"
+		Type.HOLY_KNIGHT:   return "聖騎士"
 	return "不明"
 
-# 各ジョブが最もパフォーマンスを発揮する行（0=前列, 1=中列, 2=後列）
+static func is_female(type: Type) -> bool:
+	match type:
+		Type.CLERIC, Type.WITCH, Type.VALKYRIE, Type.SHRINE_MAIDEN, Type.NINJA, Type.HOLY_KNIGHT:
+			return true
+	return false
+
+# デフォルト配置列（0=前列, 1=中列, 2=後列）
 static func preferred_row(type: Type) -> int:
 	match type:
-		Type.WARRIOR: return 0
-		Type.CLERIC:  return 2
-		Type.SUPPORT: return 1
-		Type.SCOUT:   return 0
+		Type.KNIGHT, Type.MONK, Type.MAGE, Type.WITCH, Type.DARK_KNIGHT, Type.HOLY_KNIGHT:
+			return 1
+		Type.CLERIC:
+			return 2
 	return 0
