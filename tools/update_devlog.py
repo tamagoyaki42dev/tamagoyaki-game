@@ -44,8 +44,18 @@ def main():
         with open(devlog_path, "w", encoding="utf-8") as f:
             f.write(f"# Devlog {date_str}\n{entry}")
     else:
-        with open(devlog_path, "a", encoding="utf-8") as f:
-            f.write(entry)
+        with open(devlog_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        NEXT_SESSION_MARKER = "\n## 次のセッションでやること"
+        if NEXT_SESSION_MARKER in content:
+            idx = content.index(NEXT_SESSION_MARKER)
+            content = content[:idx] + entry + content[idx:]
+        else:
+            content += entry
+
+        with open(devlog_path, "w", encoding="utf-8") as f:
+            f.write(content)
 
     # 次のコミットに含まれるよう staging に追加
     subprocess.run(["git", "add", devlog_path], cwd=repo_root)
