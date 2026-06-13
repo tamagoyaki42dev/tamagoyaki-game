@@ -17,13 +17,12 @@
 
 ### プレイ環境
 
-- PC（ブラウザ / HTML5）
-- スマホ（縦画面・タップ操作）
+- PC（ブラウザ / HTML5）横画面
 
 ## 技術スタック
 
 - **エンジン**: Godot 4 (GDScript)
-- **データ**: SQLite（完全オフライン）
+- **データ**: Godot Resource + JSON（完全オフライン）
 - **ツール**: Python
 - **公開**: itch.io (HTML5)
 
