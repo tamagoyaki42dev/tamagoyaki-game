@@ -2,22 +2,33 @@ class_name EnemyData
 extends Resource
 
 enum StatType {
-	BALANCE,           # バランス（50%）
-	BERSERKER,         # バーサーカー（15%）
-	SPEED_STAR,        # スピードスター（15%）
-	TANK,              # タンク（10%）
-	ENHANCED_BALANCE,  # 強化バランス（10%）
+	BALANCE,
+	BERSERKER,
+	SPEED_STAR,
+	TANK,
+	ENHANCED_BALANCE,
 }
 
 enum ThoughtType {
-	RANDOM,         # きまぐれ
-	WEAK_TARGET,    # 弱者狙い
-	STRONG_TARGET,  # 強者狙い
-	CENTER_TARGET,  # 中央狙い
-	SUPPORT_TARGET, # 補助狙い
-	DYING_TARGET,   # 瀕死狙い
-	FEMALE_TARGET,  # 女性狙い
-	MALE_TARGET,    # 男性狙い
+	RANDOM,
+	WEAK_TARGET,
+	STRONG_TARGET,
+	CENTER_TARGET,
+	SUPPORT_TARGET,
+	DYING_TARGET,
+	FEMALE_TARGET,
+	MALE_TARGET,
+}
+
+enum ActionType {
+	NORMAL,   # 通常攻撃
+	DOUBLE,   # ×2連続
+	TRIPLE,   # ×3連続
+	QUAD,     # ×4連続
+	ROW,      # 列攻撃
+	STONE,    # 石化攻撃（未実装）
+	ABSORB,   # HP吸収（未実装）
+	CHARGE,   # 力を溜める
 }
 
 @export var enemy_name: String = ""
@@ -27,6 +38,28 @@ enum ThoughtType {
 @export var self_regen: int = 0
 @export var stat_type: StatType = StatType.BALANCE
 @export var thought_type: ThoughtType = ThoughtType.RANDOM
+@export var action_cycle: Array[int] = []
 
 func get_label() -> String:
 	return enemy_name
+
+func get_stat_type_name() -> String:
+	match stat_type:
+		StatType.BALANCE:          return "バランス"
+		StatType.BERSERKER:        return "バーサーカー"
+		StatType.SPEED_STAR:       return "スピードスター"
+		StatType.TANK:             return "タンク"
+		StatType.ENHANCED_BALANCE: return "強化バランス"
+	return "不明"
+
+static func get_action_label(action: int) -> String:
+	match action:
+		ActionType.NORMAL:  return "攻撃"
+		ActionType.DOUBLE:  return "連続攻撃"
+		ActionType.TRIPLE:  return "連続攻撃"
+		ActionType.QUAD:    return "連続攻撃"
+		ActionType.ROW:     return "全体攻撃"
+		ActionType.STONE:   return "石化攻撃"
+		ActionType.ABSORB:  return "HP吸収"
+		ActionType.CHARGE:  return "力を溜める"
+	return "攻撃"

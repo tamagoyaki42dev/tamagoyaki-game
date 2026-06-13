@@ -15,6 +15,7 @@ var atk_bonus: int = 0        # 攻撃補助力
 var def_bonus: int = 0        # 防御補助力
 var self_regen: int = 0       # 自回復
 var row_regen: int = 0        # 列回復
+var charge_multiplier: float = 1.0  # 力を溜める: 次の攻撃のATK倍率
 var source_data: Resource
 
 var is_alive: bool:

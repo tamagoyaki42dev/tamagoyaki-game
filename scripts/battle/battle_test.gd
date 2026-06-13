@@ -7,6 +7,7 @@ func _ready() -> void:
 
 	manager.battle_started.connect(_on_started)
 	manager.turn_started.connect(_on_turn)
+	manager.action_announced.connect(_on_action_announced)
 	manager.unit_acted.connect(_on_acted)
 	manager.unit_died.connect(_on_died)
 	manager.rotated.connect(func(): print("  -- ローテーション --"))
@@ -19,27 +20,43 @@ func _ready() -> void:
 		manager.advance_turn()
 
 func _make_party() -> Array:
-	var w = CharacterData.new()
-	w.char_name = "アーサー"
-	w.job       = CharacterJob.Type.WARRIOR
-	w.hp_max    = 35; w.attack = 20; w.speed = 15
+	var warrior = CharacterData.new()
+	warrior.char_name = "アーサー"; warrior.job = CharacterJob.Type.WARRIOR
+	warrior.hp_max = 35; warrior.attack = 20; warrior.speed = 15
 
-	var e = CharacterData.new()
-	e.char_name = "エレナ"
-	e.job       = CharacterJob.Type.CLERIC
-	e.hp_max    = 18; e.attack = 8; e.speed = 6
-	e.def_bonus = 20; e.row_regen = 15
+	var samurai = CharacterData.new()
+	samurai.char_name = "ライン"; samurai.job = CharacterJob.Type.SAMURAI
+	samurai.hp_max = 28; samurai.attack = 24; samurai.speed = 28
 
-	var r = CharacterData.new()
-	r.char_name = "リム"
-	r.job       = CharacterJob.Type.WITCH
-	r.hp_max    = 22; r.attack = 10; r.speed = 16
-	r.atk_bonus = 14
+	var archer = CharacterData.new()
+	archer.char_name = "ルカ"; archer.job = CharacterJob.Type.ARCHER
+	archer.hp_max = 24; archer.attack = 16; archer.speed = 12
+	archer.indirect_attack = 12
 
-	return [w, e, r]
+	var knight = CharacterData.new()
+	knight.char_name = "ガイ"; knight.job = CharacterJob.Type.KNIGHT
+	knight.hp_max = 30; knight.attack = 12; knight.speed = 8
+	knight.def_bonus = 12; knight.self_regen = 8
+
+	var witch = CharacterData.new()
+	witch.char_name = "リム"; witch.job = CharacterJob.Type.WITCH
+	witch.hp_max = 22; witch.attack = 10; witch.speed = 16
+	witch.atk_bonus = 14
+
+	var mage = CharacterData.new()
+	mage.char_name = "ソレン"; mage.job = CharacterJob.Type.MAGE
+	mage.hp_max = 20; mage.attack = 8; mage.speed = 5
+	mage.atk_bonus = 20; mage.def_bonus = 15; mage.row_regen = 10
+
+	var cleric = CharacterData.new()
+	cleric.char_name = "エレナ"; cleric.job = CharacterJob.Type.CLERIC
+	cleric.hp_max = 18; cleric.attack = 8; cleric.speed = 6
+	cleric.def_bonus = 20; cleric.row_regen = 15
+
+	return [warrior, samurai, archer, knight, witch, mage, cleric]
 
 func _make_enemies() -> Array:
-	return [EnemyGenerator.generate()]
+	return [EnemyGenerator.generate(EnemyData.StatType.TANK)]
 
 func _on_started(pg: RotationGrid, eg: RotationGrid) -> void:
 	print("=== バトル開始 ===")
@@ -49,6 +66,9 @@ func _on_started(pg: RotationGrid, eg: RotationGrid) -> void:
 func _on_turn(n: int, timeline: Array) -> void:
 	var order = timeline.map(func(u: BattleUnit) -> String: return u.unit_name)
 	print("\n[Turn %d] 行動順: %s" % [n, ", ".join(order)])
+
+func _on_action_announced(action_name: String) -> void:
+	print("  次ターン 敵: " + action_name)
 
 func _on_acted(attacker: BattleUnit, target: BattleUnit, damage: int) -> void:
 	print("  %s → %s: %d ダメージ (残HP %d/%d)" % [
