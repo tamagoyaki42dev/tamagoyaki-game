@@ -45,20 +45,31 @@ def main():
         sys.exit(1)
 
     repo_url = "https://github.com/tamagoyaki42dev/tamagoyaki-game"
-    text = f"【開発更新】{commit_msg}\n\n{repo_url}\n\n#indiedev #gamedev #たまごやきゲームス"
+    hashtags = "#indiedev #gamedev #たまごやきゲームス"
+    text = f"【開発更新】{commit_msg}\n\n{repo_url}\n\n{hashtags}"
 
-    # X の文字数制限（280文字）チェック
-    if len(text) > 280:
-        text = text[:277] + "..."
+    # X の文字数チェック（CJK文字は2文字扱い、URLは23文字固定）
+    def x_len(s):
+        url_placeholder = "https://github.com/tamagoyaki42dev/tamagoyaki-game"
+        s_no_url = s.replace(url_placeholder, "x" * 23)
+        return sum(2 if ord(c) > 0x2E7F else 1 for c in s_no_url)
+
+    x_char_count = x_len(text)
+    if x_char_count > 280:
+        print(f"X 文字数オーバー（{x_char_count}/280）。X への投稿をスキップします。")
+        post_x = False
+    else:
+        post_x = True
 
     print(f"投稿内容:\n{text}\n")
 
     errors = []
 
-    try:
-        post_to_x(text)
-    except Exception as e:
-        errors.append(f"X エラー: {e}")
+    if post_x:
+        try:
+            post_to_x(text)
+        except Exception as e:
+            errors.append(f"X エラー: {e}")
 
     try:
         post_to_bluesky(text)
