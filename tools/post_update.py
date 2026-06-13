@@ -44,6 +44,10 @@ def main():
         print("コミットメッセージが取得できませんでした")
         sys.exit(1)
 
+    if "[skip-sns]" in commit_msg:
+        print("[skip-sns] タグを検出。SNS投稿をスキップします。")
+        sys.exit(0)
+
     repo_url = "https://github.com/tamagoyaki42dev/tamagoyaki-game"
     hashtags = "#indiedev #gamedev #たまごやきゲームス"
     text = f"【開発更新】{commit_msg}\n\n{repo_url}\n\n{hashtags}"
