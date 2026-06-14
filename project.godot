@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="ローテーションハクスラ"
-run/main_scene="uid://od4abi2y8odu"
+run/main_scene="res://scenes/formation.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://scripts/game_state.gd"
 
 [display]
 

@@ -3,10 +3,10 @@
 extends Node
 
 # ── レイアウト（_readyで実際のビューポートサイズから計算）────────────────────
-const CARD_W   := 160.0
-const CARD_H   := 95.0
-const CARD_GAP := 12.0
-const ROW_GAP  := 10.0
+const CARD_W   := 190.0
+const CARD_H   := 115.0
+const CARD_GAP := 14.0
+const ROW_GAP  := 12.0
 
 var SW: float
 var SH: float
@@ -30,7 +30,7 @@ func _ready() -> void:
 	SH       = vp.y
 	GRID_X   = SW * 0.22
 	ENEMY_Y0 = SH * 0.05
-	PLAYER_Y0 = SH * 0.53
+	PLAYER_Y0 = SH * 0.58
 	LOG_X    = SW * 0.70
 	_build_ui()
 	_start_battle()
@@ -68,9 +68,9 @@ func _build_ui() -> void:
 		_lbl(_root, ["前","中","後"][i], Vector2(340, py), 15, Color(0.55, 0.55, 0.65))
 
 	# ターン表示エリア（中央帯）
-	_panel(_root, Vector2(0, SH * 0.5 - 56), Vector2(LOG_X - 10, 68),
+	_panel(_root, Vector2(0, SH * 0.5 - 60), Vector2(LOG_X - 10, 96),
 		Color(0, 0, 0, 0.5), Color(0.2, 0.4, 0.7, 0.4))
-	_status_lbl = _lbl(_root, "Turn 0", Vector2(LOG_X * 0.5 - 60, SH * 0.5 - 46), 22)
+	_status_lbl = _lbl(_root, "Turn 0", Vector2(LOG_X * 0.5 - 52, SH * 0.5 - 52), 30, Color(0.95, 0.82, 0.3))
 
 	# ローテーションボタン（オレンジ）
 	_rotate_btn = Button.new()
@@ -97,9 +97,11 @@ func _build_ui() -> void:
 	# バトルログパネル
 	_panel(_root, Vector2(LOG_X, 8), Vector2(SW - LOG_X - 8, SH - 16),
 		Color(0.02, 0.03, 0.07, 0.88), Color(0.2, 0.3, 0.5))
+	_lbl(_root, "◆ BATTLE LOG ◆", Vector2(LOG_X + 12, 16), 12, Color(0.4, 0.55, 0.8))
+	_crect(_root, Vector2(LOG_X + 8, 34), Vector2(SW - LOG_X - 24, 1), Color(0.2, 0.3, 0.5))
 	_log_lbl = RichTextLabel.new()
-	_log_lbl.position = Vector2(LOG_X + 8, 16)
-	_log_lbl.size = Vector2(SW - LOG_X - 24, SH - 32)
+	_log_lbl.position = Vector2(LOG_X + 8, 38)
+	_log_lbl.size = Vector2(SW - LOG_X - 24, SH - 54)
 	_log_lbl.bbcode_enabled = true
 	_log_lbl.scroll_following = true
 	_root.add_child(_log_lbl)
@@ -112,6 +114,11 @@ func _build_cards(pg: RotationGrid, eg: RotationGrid) -> void:
 		var bg_col     := Color(0.15, 0.04, 0.04, 0.90) if is_enemy else Color(0.04, 0.08, 0.18, 0.90)
 		var border_col := Color(0.9, 0.25, 0.25) if is_enemy else Color(0.25, 0.55, 0.95)
 		var ctrl := _panel(_root, _card_pos(unit), Vector2(CARD_W, CARD_H), bg_col, border_col, 5)
+
+		# キャラ画像スロット（右端・画像が用意できたら TextureRect に差し替え）
+		var portrait_bg := Color(0.10, 0.03, 0.03, 0.8) if is_enemy else Color(0.03, 0.06, 0.14, 0.8)
+		_crect(ctrl, Vector2(CARD_W - 48, 0), Vector2(48, CARD_H), portrait_bg)
+		_lbl(ctrl, "?", Vector2(CARD_W - 32, CARD_H * 0.5 - 12), 20, Color(0.3, 0.3, 0.4))
 
 		# 名前
 		_lbl(ctrl, unit.unit_name, Vector2(6, 5), 15)
@@ -128,14 +135,18 @@ func _build_cards(pg: RotationGrid, eg: RotationGrid) -> void:
 				_lbl(ctrl, enemy_data.get_stat_type_name(),
 					Vector2(6, 22), 11, Color(1.0, 0.65, 0.55))
 
+		# ATK / SPD
+		_lbl(ctrl, "ATK %d" % unit.attack, Vector2(6, 38), 11, Color(1.0, 0.75, 0.3))
+		_lbl(ctrl, "SPD %d" % unit.speed,  Vector2(80, 38), 11, Color(0.5, 1.0, 0.6))
+
 		# HPバー背景
-		_crect(ctrl, Vector2(6, 42), Vector2(CARD_W - 12, 8), Color(0.08, 0.08, 0.10))
+		_crect(ctrl, Vector2(6, 57), Vector2(CARD_W - 60, 8), Color(0.08, 0.08, 0.10))
 
 		# HPバー本体
-		var hp_bar := _crect(ctrl, Vector2(6, 42), Vector2(CARD_W - 12, 8), Color(0.2, 0.75, 0.3))
+		var hp_bar := _crect(ctrl, Vector2(6, 57), Vector2(CARD_W - 60, 8), Color(0.2, 0.75, 0.3))
 
 		# HPテキスト
-		var hp_lbl := _lbl(ctrl, "%d/%d" % [unit.hp, unit.hp_max], Vector2(6, 54), 12)
+		var hp_lbl := _lbl(ctrl, "%d/%d" % [unit.hp, unit.hp_max], Vector2(6, 68), 12)
 
 		_cards[unit] = {panel = ctrl, hp_bar = hp_bar, hp_lbl = hp_lbl}
 
@@ -144,7 +155,7 @@ func _update_card(unit: BattleUnit) -> void:
 		return
 	var c = _cards[unit]
 	var ratio := float(unit.hp) / float(unit.hp_max)
-	c.hp_bar.size.x = (CARD_W - 12) * clampf(ratio, 0.0, 1.0)
+	c.hp_bar.size.x = (CARD_W - 60) * clampf(ratio, 0.0, 1.0)
 	c.hp_bar.color = _hp_color(ratio)
 	c.hp_lbl.text = "%d/%d" % [unit.hp, unit.hp_max]
 	if not unit.is_alive:
@@ -224,6 +235,8 @@ func _on_battle_ended(won: bool, _loot: Array) -> void:
 	else:
 		_status_lbl.text = "撤退..."
 		_log("\n[color=#ff4444][b]=== 撤退... ===[/b][/color]")
+	await get_tree().create_timer(2.5).timeout
+	get_tree().change_scene_to_file("res://scenes/formation.tscn")
 
 func _on_rotate_pressed() -> void:
 	_rotate_btn.disabled = true
@@ -303,46 +316,4 @@ func _start_battle() -> void:
 	_manager.unit_stone_cleared.connect(_on_unit_stone_cleared)
 	_manager.rotated.connect(_on_rotated)
 	_manager.battle_ended.connect(_on_battle_ended)
-	_manager.start_battle(_make_party(), _make_enemies())
-
-func _make_party() -> Array:
-	# 前列（3人）
-	var warrior := CharacterData.new()
-	warrior.char_name = "アーサー"; warrior.job = CharacterJob.Type.WARRIOR
-	warrior.hp_max = 35; warrior.attack = 20; warrior.speed = 15
-
-	var samurai := CharacterData.new()
-	samurai.char_name = "ライン"; samurai.job = CharacterJob.Type.SAMURAI
-	samurai.hp_max = 28; samurai.attack = 24; samurai.speed = 28
-
-	var archer := CharacterData.new()
-	archer.char_name = "ルカ"; archer.job = CharacterJob.Type.ARCHER
-	archer.hp_max = 24; archer.attack = 16; archer.speed = 12
-	archer.indirect_attack = 12
-
-	# 中列（3人）
-	var knight := CharacterData.new()
-	knight.char_name = "ガイ"; knight.job = CharacterJob.Type.KNIGHT
-	knight.hp_max = 30; knight.attack = 12; knight.speed = 8
-	knight.def_bonus = 12; knight.self_regen = 8
-
-	var witch := CharacterData.new()
-	witch.char_name = "リム"; witch.job = CharacterJob.Type.WITCH
-	witch.hp_max = 22; witch.attack = 10; witch.speed = 16
-	witch.atk_bonus = 14
-
-	var mage := CharacterData.new()
-	mage.char_name = "ソレン"; mage.job = CharacterJob.Type.MAGE
-	mage.hp_max = 20; mage.attack = 8; mage.speed = 5
-	mage.atk_bonus = 20; mage.def_bonus = 15; mage.row_regen = 10
-
-	# 後列（1人）
-	var cleric := CharacterData.new()
-	cleric.char_name = "エレナ"; cleric.job = CharacterJob.Type.CLERIC
-	cleric.hp_max = 18; cleric.attack = 8; cleric.speed = 6
-	cleric.def_bonus = 20; cleric.row_regen = 15
-
-	return [warrior, samurai, archer, knight, witch, mage, cleric]
-
-func _make_enemies() -> Array:
-	return [EnemyGenerator.generate(EnemyData.StatType.TANK)]
+	_manager.start_battle(GameState.get_battle_entries(), GameState.get_battle_enemy())

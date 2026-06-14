@@ -57,6 +57,9 @@
 ```
 tamagoyaki-game/
 ├── docs/          # 仕様書
+├── assets/        # 画像・音声素材
+│   ├── bg_arena.jpg          # バトル画面背景（AI生成）
+│   └── characters/pipo/      # ぴぽやキャラチップ（無料・商用可）
 ├── scenes/        # Godot シーン
 ├── scripts/       # GDScript
 ├── tools/         # Python ツール（自動投稿等）

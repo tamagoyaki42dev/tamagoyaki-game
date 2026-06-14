@@ -25,8 +25,18 @@ func start_battle(player_data: Array, enemy_data: Array) -> void:
 	is_over     = false
 	player_grid = RotationGrid.new()
 	enemy_grid  = RotationGrid.new()
-	for data in player_data:
-		player_grid.add_unit(BattleUnit.from_character(data))
+	# formation経由の場合はDict。row順→col順にソートして追加することで列番号を保持
+	var pd := player_data.duplicate()
+	if not pd.is_empty() and pd[0] is Dictionary:
+		pd.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return a["row"] < b["row"] if a["row"] != b["row"] else a["col"] < b["col"])
+	for item in pd:
+		if item is Dictionary:
+			var unit := BattleUnit.from_character(item["data"])
+			unit.row = item["row"]
+			player_grid.add_unit(unit)
+		else:
+			player_grid.add_unit(BattleUnit.from_character(item))
 	for i in enemy_data.size():
 		enemy_grid.add_unit(BattleUnit.from_enemy(enemy_data[i], 0, i))
 	battle_started.emit(player_grid, enemy_grid)
