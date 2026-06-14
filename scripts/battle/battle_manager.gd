@@ -11,6 +11,8 @@ signal unit_stone_cleared(unit: BattleUnit)
 signal rotated()
 signal action_announced(action_name: String)
 signal battle_ended(player_won: bool, loot: Array)
+signal attack_support_used(supporter: BattleUnit, attacker: BattleUnit)
+signal defense_support_used(supporter: BattleUnit, target: BattleUnit)
 
 const TURN_LIMIT = 100
 
@@ -106,6 +108,7 @@ func _execute_player_action(attacker: BattleUnit) -> void:
 	var bonus := 0
 	var is_row_attack := false
 	if mid:
+		attack_support_used.emit(mid, attacker)
 		bonus        = mid.atk_bonus
 		is_row_attack = mid.atk_bonus_is_row
 		mid.support_used = true
@@ -223,6 +226,7 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 	if is_first and attacker.side == BattleUnit.Side.ENEMY and target.side == BattleUnit.Side.PLAYER:
 		var mid := _get_mid_def_support(player_grid, target.col)
 		if mid:
+			defense_support_used.emit(mid, target)
 			def_support = mid.def_bonus
 			mid.support_used = true
 
