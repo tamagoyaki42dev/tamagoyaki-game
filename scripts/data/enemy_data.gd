@@ -26,8 +26,8 @@ enum ActionType {
 	TRIPLE,   # ×3連続
 	QUAD,     # ×4連続
 	ROW,      # 列攻撃
-	STONE,    # 石化攻撃（未実装）
-	ABSORB,   # HP吸収（未実装）
+	STONE,    # 石化攻撃
+	ABSORB,   # HP吸収（ダメージの50%を自己回復）
 	CHARGE,   # 力を溜める
 }
 

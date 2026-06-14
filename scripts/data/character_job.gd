@@ -47,6 +47,22 @@ static func is_female(type: Type) -> bool:
 			return true
 	return false
 
+static func crit_rate(type: Type) -> float:
+	match type:
+		Type.SAMURAI, Type.ILLUSIONIST:
+			return 0.1
+	return 0.05
+
+# 1回の攻撃ヒット数（巫女×4、ニンジャ×2）
+static func attack_hits(type: Type) -> int:
+	match type:
+		Type.SHRINE_MAIDEN: return 4
+		Type.NINJA:         return 2
+	return 1
+
+static func is_stone_attack(type: Type) -> bool:
+	return type == Type.SHAMAN
+
 # デフォルト配置列（0=前列, 1=中列, 2=後列）
 static func preferred_row(type: Type) -> int:
 	match type:

@@ -63,16 +63,19 @@ func _on_started(pg: RotationGrid, eg: RotationGrid) -> void:
 	print("味方: ", pg.get_all_alive().map(func(u: BattleUnit) -> String: return u.unit_name))
 	print("敵:   ", eg.get_all_alive().map(func(u: BattleUnit) -> String: return u.unit_name))
 
-func _on_turn(n: int, timeline: Array) -> void:
+func _on_turn(n: int, timeline: Array, enemy_action: String) -> void:
 	var order = timeline.map(func(u: BattleUnit) -> String: return u.unit_name)
 	print("\n[Turn %d] 行動順: %s" % [n, ", ".join(order)])
+	if enemy_action != "":
+		print("  敵の行動予告: " + enemy_action)
 
 func _on_action_announced(action_name: String) -> void:
 	print("  次ターン 敵: " + action_name)
 
-func _on_acted(attacker: BattleUnit, target: BattleUnit, damage: int) -> void:
-	print("  %s → %s: %d ダメージ (残HP %d/%d)" % [
-		attacker.unit_name, target.unit_name, damage, target.hp, target.hp_max
+func _on_acted(attacker: BattleUnit, target: BattleUnit, damage: int, is_crit: bool) -> void:
+	var crit_str := " [CRIT]" if is_crit else ""
+	print("  %s → %s: %d%s ダメージ (残HP %d/%d)" % [
+		attacker.unit_name, target.unit_name, damage, crit_str, target.hp, target.hp_max
 	])
 
 func _on_died(unit: BattleUnit) -> void:

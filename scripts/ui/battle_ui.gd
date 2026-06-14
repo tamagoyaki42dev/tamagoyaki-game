@@ -42,8 +42,15 @@ func _build_ui() -> void:
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
 
-	# 背景
-	_crect(_root, Vector2.ZERO, Vector2(SW, SH), Color(0.07, 0.08, 0.12))
+	# 背景画像
+	var bg := TextureRect.new()
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.texture = load("res://assets/bg_arena.jpg")
+	_root.add_child(bg)
+
+	# 暗めオーバーレイ（テキスト読みやすさ確保）
+	_crect(_root, Vector2.ZERO, Vector2(SW, SH), Color(0, 0, 0, 0.55))
 
 	# 縦分割ライン（バトルエリア / ログ）
 	_crect(_root, Vector2(LOG_X - 8, 0), Vector2(2, SH), Color(0.25, 0.25, 0.35))
@@ -181,10 +188,19 @@ func _on_action_announced(action_name: String) -> void:
 		_rotate_btn.disabled = false
 		_stay_btn.disabled = false
 
-func _on_unit_acted(attacker: BattleUnit, target: BattleUnit, dmg: int) -> void:
-	_log("  %s → [color=#ffcc44]%s[/color]: [b]%d[/b]  (%d/%d)" % [
-		attacker.unit_name, target.unit_name, dmg, target.hp, target.hp_max])
+func _on_unit_acted(attacker: BattleUnit, target: BattleUnit, dmg: int, is_crit: bool) -> void:
+	var crit_tag := " [color=#ffdd00][CRIT][/color]" if is_crit else ""
+	_log("  %s → [color=#ffcc44]%s[/color]: [b]%d[/b]%s  (%d/%d)" % [
+		attacker.unit_name, target.unit_name, dmg, crit_tag, target.hp, target.hp_max])
 	_update_card(target)
+
+func _on_unit_petrified(unit: BattleUnit) -> void:
+	_log("  [color=#aa88ff]%s 石化[/color]" % unit.unit_name)
+	_update_card(unit)
+
+func _on_unit_stone_cleared(unit: BattleUnit) -> void:
+	_log("  [color=#ccaaff]%s 石化解除[/color]" % unit.unit_name)
+	_update_card(unit)
 
 func _on_unit_died(unit: BattleUnit) -> void:
 	_log("[color=#ff5555]  ✦ %s 戦死[/color]" % unit.unit_name)
@@ -252,6 +268,8 @@ func _start_battle() -> void:
 	_manager.unit_acted.connect(_on_unit_acted)
 	_manager.unit_died.connect(_on_unit_died)
 	_manager.unit_healed.connect(_on_unit_healed)
+	_manager.unit_petrified.connect(_on_unit_petrified)
+	_manager.unit_stone_cleared.connect(_on_unit_stone_cleared)
 	_manager.rotated.connect(_on_rotated)
 	_manager.battle_ended.connect(_on_battle_ended)
 	_manager.start_battle(_make_party(), _make_enemies())
