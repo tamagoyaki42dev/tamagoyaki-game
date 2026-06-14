@@ -1,0 +1,52 @@
+name: Deploy to itch.io
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GODOT_VERSION: "4.6"
+
+jobs:
+  export-and-deploy:
+    name: Export HTML5 and Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}.0
+          use-dotnet: false
+
+      - name: Install export templates
+        run: |
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$TEMPLATE_DIR"
+          wget -q -O /tmp/templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q /tmp/templates.tpz -d /tmp
+          mv /tmp/templates/* "$TEMPLATE_DIR/"
+
+      - name: Import project
+        run: godot --headless --import || true
+
+      - name: Export HTML5
+        run: |
+          mkdir -p build/web
+          godot --headless --export-release "Web" "$PWD/build/web/index.html"
+
+      - name: Install butler
+        run: |
+          curl -L -o butler.zip "https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default"
+          unzip butler.zip
+          chmod +x butler
+
+      - name: Push to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.ITCHIO_API_KEY }}
+        run: |
+          ./butler push build/web "${{ secrets.ITCHIO_GAME_URL }}:html5" \
+            --userversion "${{ github.run_number }}"
