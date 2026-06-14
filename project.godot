@@ -15,15 +15,10 @@ run/main_scene="res://scenes/formation.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
-[autoload]
-
-GameState="*res://scripts/game_state.gd"
-
 [display]
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
-window/size/resizable=true
 window/size/mode=2
 window/stretch/mode="canvas_items"
 

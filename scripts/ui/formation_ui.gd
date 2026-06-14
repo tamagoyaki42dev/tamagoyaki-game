@@ -22,6 +22,7 @@ var _enemy_lbl: Label
 var _selected: CharacterData = null
 
 func _ready() -> void:
+	GameState.ensure_init()
 	var vp := get_viewport().get_visible_rect().size
 	SW = vp.x
 	SH = vp.y
