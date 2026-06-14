@@ -219,7 +219,7 @@ func _build_detail_content() -> void:
 	_lbl(_detail_root, cd.char_name, Vector2(lx, y), 26)
 	y += 42.0
 
-	var gender := "♀" if CharacterJob.is_female(cd.job) else "♂"
+	var gender := "女" if CharacterJob.is_female(cd.job) else "男"
 	_lbl(_detail_root, "%s  %s" % [CharacterJob.get_display_name(cd.job), gender],
 		Vector2(lx, y), 15, Color(0.65, 0.75, 1.00))
 	y += 36.0
