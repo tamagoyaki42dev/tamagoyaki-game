@@ -38,15 +38,12 @@ jobs:
           mkdir -p build/web
           godot --headless --export-release "Web" "$PWD/build/web/index.html"
 
-      - name: Install butler
-        run: |
-          curl -L -o butler.zip "https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default"
-          unzip butler.zip
-          chmod +x butler
-
       - name: Push to itch.io
-        env:
-          BUTLER_API_KEY: ${{ secrets.ITCHIO_API_KEY }}
-        run: |
-          ./butler push build/web "${{ secrets.ITCHIO_GAME_URL }}:html5" \
-            --userversion "${{ github.run_number }}"
+        uses: Ayowel/butler-to-itch.io@v1.0.0
+        with:
+          butler_key: ${{ secrets.ITCHIO_API_KEY }}
+          itch_user: tamagoyaki42dev
+          itch_game: tamagoyakigames
+          version: ${{ github.run_number }}
+          files: |
+            html5:build/web
