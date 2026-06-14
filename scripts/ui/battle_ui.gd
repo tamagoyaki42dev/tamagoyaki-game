@@ -52,48 +52,54 @@ func _build_ui() -> void:
 	# 暗めオーバーレイ（テキスト読みやすさ確保）
 	_crect(_root, Vector2.ZERO, Vector2(SW, SH), Color(0, 0, 0, 0.55))
 
-	# 縦分割ライン（バトルエリア / ログ）
-	_crect(_root, Vector2(LOG_X - 8, 0), Vector2(2, SH), Color(0.25, 0.25, 0.35))
+	# 縦分割ライン
+	_crect(_root, Vector2(LOG_X - 8, 0), Vector2(2, SH), Color(0.25, 0.55, 1.0, 0.5))
 
-	# 横分割ライン（敵エリア / 味方エリア）
-	_crect(_root, Vector2(0, SH * 0.5), Vector2(LOG_X - 10, 2), Color(0.3, 0.3, 0.4, 0.4))
+	# 横分割ライン
+	_crect(_root, Vector2(0, SH * 0.5), Vector2(LOG_X - 10, 1), Color(0.25, 0.5, 0.9, 0.35))
 
 	# セクションヘッダ
 	_lbl(_root, "[ 敵 ]",  Vector2(40, ENEMY_Y0), 20, Color(1.0, 0.45, 0.45))
 	_lbl(_root, "[ 味方 ]", Vector2(40, PLAYER_Y0 - 28), 20, Color(0.45, 0.75, 1.0))
 
-	# 行ラベル（味方のみ：前→後）。敵は行の概念なし
+	# 行ラベル（味方のみ：前→後）
 	for i in 3:
 		var py := PLAYER_Y0 + (i * (CARD_H + ROW_GAP)) + 30
-		_lbl(_root, ["前","中","後"][i], Vector2(340, py), 15, Color(0.55, 0.55, 0.55))
+		_lbl(_root, ["前","中","後"][i], Vector2(340, py), 15, Color(0.55, 0.55, 0.65))
 
-	# ターン数表示
+	# ターン表示エリア（中央帯）
+	_panel(_root, Vector2(0, SH * 0.5 - 56), Vector2(LOG_X - 10, 68),
+		Color(0, 0, 0, 0.5), Color(0.2, 0.4, 0.7, 0.4))
 	_status_lbl = _lbl(_root, "Turn 0", Vector2(LOG_X * 0.5 - 60, SH * 0.5 - 46), 22)
 
-	# ローテーションボタン
+	# ローテーションボタン（オレンジ）
 	_rotate_btn = Button.new()
 	_rotate_btn.text = "ローテーション"
 	_rotate_btn.position = Vector2(LOG_X * 0.5 - 188, SH * 0.5 - 12)
 	_rotate_btn.size = Vector2(180, 46)
 	_rotate_btn.add_theme_font_size_override("font_size", 16)
-	_rotate_btn.disabled = true  # Turn 1 自動実行中は無効
+	_rotate_btn.disabled = true
 	_rotate_btn.pressed.connect(_on_rotate_pressed)
+	_style_button(_rotate_btn, Color(1.0, 0.55, 0.1))
 	_root.add_child(_rotate_btn)
 
-	# ステイボタン（デフォルト操作）
+	# ステイボタン（シアン）
 	_stay_btn = Button.new()
 	_stay_btn.text = "ステイ"
 	_stay_btn.position = Vector2(LOG_X * 0.5 + 4, SH * 0.5 - 12)
 	_stay_btn.size = Vector2(180, 46)
 	_stay_btn.add_theme_font_size_override("font_size", 16)
-	_stay_btn.disabled = true  # Turn 1 自動実行中は無効
+	_stay_btn.disabled = true
 	_stay_btn.pressed.connect(_on_stay_pressed)
+	_style_button(_stay_btn, Color(0.3, 0.7, 1.0))
 	_root.add_child(_stay_btn)
 
-	# バトルログ
+	# バトルログパネル
+	_panel(_root, Vector2(LOG_X, 8), Vector2(SW - LOG_X - 8, SH - 16),
+		Color(0.02, 0.03, 0.07, 0.88), Color(0.2, 0.3, 0.5))
 	_log_lbl = RichTextLabel.new()
-	_log_lbl.position = Vector2(LOG_X, 16)
-	_log_lbl.size = Vector2(SW - LOG_X - 16, SH - 32)
+	_log_lbl.position = Vector2(LOG_X + 8, 16)
+	_log_lbl.size = Vector2(SW - LOG_X - 24, SH - 32)
 	_log_lbl.bbcode_enabled = true
 	_log_lbl.scroll_following = true
 	_root.add_child(_log_lbl)
@@ -103,14 +109,9 @@ func _build_ui() -> void:
 func _build_cards(pg: RotationGrid, eg: RotationGrid) -> void:
 	for unit in pg.get_all_alive() + eg.get_all_alive():
 		var is_enemy: bool = unit.side == BattleUnit.Side.ENEMY
-		var ctrl := Control.new()
-		ctrl.position = _card_pos(unit)
-		ctrl.size = Vector2(CARD_W, CARD_H)
-		_root.add_child(ctrl)
-
-		# 背景
-		_crect(ctrl, Vector2.ZERO, Vector2(CARD_W, CARD_H),
-			Color(0.18, 0.10, 0.10) if is_enemy else Color(0.09, 0.12, 0.22))
+		var bg_col     := Color(0.15, 0.04, 0.04, 0.90) if is_enemy else Color(0.04, 0.08, 0.18, 0.90)
+		var border_col := Color(0.9, 0.25, 0.25) if is_enemy else Color(0.25, 0.55, 0.95)
+		var ctrl := _panel(_root, _card_pos(unit), Vector2(CARD_W, CARD_H), bg_col, border_col, 5)
 
 		# 名前
 		_lbl(ctrl, unit.unit_name, Vector2(6, 5), 15)
@@ -128,13 +129,13 @@ func _build_cards(pg: RotationGrid, eg: RotationGrid) -> void:
 					Vector2(6, 22), 11, Color(1.0, 0.65, 0.55))
 
 		# HPバー背景
-		_crect(ctrl, Vector2(6, 42), Vector2(CARD_W - 12, 11), Color(0.18, 0.18, 0.18))
+		_crect(ctrl, Vector2(6, 42), Vector2(CARD_W - 12, 8), Color(0.08, 0.08, 0.10))
 
 		# HPバー本体
-		var hp_bar := _crect(ctrl, Vector2(6, 42), Vector2(CARD_W - 12, 11), Color(0.2, 0.75, 0.3))
+		var hp_bar := _crect(ctrl, Vector2(6, 42), Vector2(CARD_W - 12, 8), Color(0.2, 0.75, 0.3))
 
 		# HPテキスト
-		var hp_lbl := _lbl(ctrl, "%d/%d" % [unit.hp, unit.hp_max], Vector2(6, 57), 13)
+		var hp_lbl := _lbl(ctrl, "%d/%d" % [unit.hp, unit.hp_max], Vector2(6, 54), 12)
 
 		_cards[unit] = {panel = ctrl, hp_bar = hp_bar, hp_lbl = hp_lbl}
 
@@ -238,6 +239,36 @@ func _log(text: String) -> void:
 	_log_lbl.append_text(text + "\n")
 
 # ════════════════════════════════ ヘルパー ════════════════════════════════════
+
+func _make_stylebox(bg: Color, border: Color, radius: int = 4, border_w: int = 1) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = border
+	s.set_border_width_all(border_w)
+	s.set_corner_radius_all(radius)
+	return s
+
+func _panel(parent: Node, pos: Vector2, sz: Vector2,
+		bg: Color, border: Color, radius: int = 4) -> Panel:
+	var p := Panel.new()
+	p.position = pos
+	p.size = sz
+	p.add_theme_stylebox_override("panel", _make_stylebox(bg, border, radius))
+	parent.add_child(p)
+	return p
+
+func _style_button(btn: Button, border_col: Color) -> void:
+	var dark_bg := Color(border_col.r * 0.10, border_col.g * 0.10, border_col.b * 0.10, 0.88)
+	var mid_bg  := Color(border_col.r * 0.22, border_col.g * 0.22, border_col.b * 0.22, 0.92)
+	btn.add_theme_stylebox_override("normal",   _make_stylebox(dark_bg, border_col, 6, 2))
+	btn.add_theme_stylebox_override("hover",    _make_stylebox(mid_bg, border_col.lightened(0.3), 6, 2))
+	btn.add_theme_stylebox_override("pressed",  _make_stylebox(mid_bg, border_col.lightened(0.5), 6, 2))
+	btn.add_theme_stylebox_override("disabled", _make_stylebox(Color(0.05, 0.05, 0.08, 0.5), Color(0.2, 0.2, 0.25), 6, 1))
+	btn.add_theme_stylebox_override("focus",    _make_stylebox(mid_bg, border_col.lightened(0.3), 6, 2))
+	btn.add_theme_color_override("font_color",          Color.WHITE)
+	btn.add_theme_color_override("font_hover_color",    Color.WHITE)
+	btn.add_theme_color_override("font_pressed_color",  Color.WHITE)
+	btn.add_theme_color_override("font_disabled_color", Color(0.35, 0.35, 0.4))
 
 func _crect(parent: Node, pos: Vector2, size: Vector2, color: Color) -> ColorRect:
 	var r := ColorRect.new()
