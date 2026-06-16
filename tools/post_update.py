@@ -26,11 +26,10 @@ def get_last_commit_message():
 
 
 def find_godot():
-    path = os.getenv("GODOT_PATH")
-    if path and os.path.exists(path):
+    path = os.getenv("GODOT_PATH", "").strip()
+    if path:
         return path
-    found = shutil.which("godot") or shutil.which("godot4")
-    return found
+    return shutil.which("godot") or shutil.which("godot4")
 
 
 def capture_screenshot():
@@ -62,12 +61,16 @@ def preview_and_confirm(text, has_screenshot):
     print(text)
     print("━" * 40)
     if has_screenshot:
-        print(f"\n📷 スクショ: {SCREENSHOT}")
+        print(f"\nスクショ: {SCREENSHOT}")
         os.startfile(SCREENSHOT)
     else:
         print("\n（スクショなし）")
     print()
-    answer = input("この内容で投稿しますか？ [y/N]: ").strip().lower()
+    try:
+        answer = input("この内容で投稿しますか？ [y/N]: ").strip().lower()
+    except EOFError:
+        print("非インタラクティブ環境を検出。手動で tools/post_update.py を実行してください。")
+        return False
     return answer == "y"
 
 
