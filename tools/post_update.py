@@ -39,8 +39,15 @@ def capture_screenshot():
         return False
 
     if SCREENSHOT.exists():
-        print("既存スクショを再利用します。")
-        return True
+        # 最新コミットより新しければ再利用、古ければ撮り直し
+        commit_time = subprocess.run(
+            ["git", "log", "-1", "--pretty=%ct"],
+            capture_output=True, text=True, cwd=PROJECT_DIR
+        ).stdout.strip()
+        if commit_time and SCREENSHOT.stat().st_mtime >= int(commit_time):
+            print("既存スクショを再利用します。")
+            return True
+        SCREENSHOT.unlink()
 
     print("Godot 起動中（スクショ撮影）...", flush=True)
     subprocess.run([
