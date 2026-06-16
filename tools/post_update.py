@@ -38,9 +38,11 @@ def capture_screenshot():
         print("Godot が見つかりません。.env に GODOT_PATH を設定してください。スクショなしで続行します。")
         return False
 
-    SCREENSHOT.unlink(missing_ok=True)
-    print("Godot 起動中（スクショ撮影）...", flush=True)
+    if SCREENSHOT.exists():
+        print("既存スクショを再利用します。")
+        return True
 
+    print("Godot 起動中（スクショ撮影）...", flush=True)
     subprocess.run([
         godot,
         "--path", str(PROJECT_DIR),
