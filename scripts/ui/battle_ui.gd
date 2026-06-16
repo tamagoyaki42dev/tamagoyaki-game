@@ -22,6 +22,7 @@ var _enemy_action_lbl: Label
 var _manager: BattleManager
 var _cards: Dictionary = {}   # BattleUnit → {panel, hp_bar, hp_lbl}
 var _anim_queue: Array = []
+var _arena_vp: SubViewport
 
 func _ready() -> void:
 	var vp := get_viewport().get_visible_rect().size
@@ -33,6 +34,50 @@ func _ready() -> void:
 	LOG_X     = SW * 0.70
 	_build_ui()
 	_start_battle()
+
+# ══════════════════════════════════ 3Dアリーナ ═══════════════════════════════
+
+func _build_3d_arena() -> void:
+	_arena_vp = SubViewport.new()
+	_arena_vp.size = Vector2i(int(LOG_X - 10), int(SH * 0.48))
+	_arena_vp.transparent_bg = true
+	_arena_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(_arena_vp)
+
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 4.0
+	cam.look_at_from_position(Vector3(4, 4, 4), Vector3(0, 1.4, 0), Vector3.UP)
+	_arena_vp.add_child(cam)
+
+	var env_node := WorldEnvironment.new()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.7, 0.7, 0.8)
+	env.ambient_light_energy = 0.8
+	env_node.environment = env
+	_arena_vp.add_child(env_node)
+
+	var light := DirectionalLight3D.new()
+	light.light_energy = 1.5
+	light.look_at_from_position(Vector3(3, 6, 3), Vector3(0, 0, 0), Vector3.UP)
+	_arena_vp.add_child(light)
+
+	var mesh_res = load("res://assets/obj/base2.obj")
+	if mesh_res:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh_res
+		_arena_vp.add_child(mi)
+
+	var tex_rect := TextureRect.new()
+	tex_rect.texture = _arena_vp.get_texture()
+	tex_rect.position = Vector2.ZERO
+	tex_rect.size = Vector2(LOG_X - 10, SH * 0.48)
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(tex_rect)
 
 # ══════════════════════════════════ UI構築 ════════════════════════════════════
 
@@ -46,6 +91,8 @@ func _build_ui() -> void:
 	bg.size         = Vector2(LOG_X - 10, SH)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(bg)
+
+	_build_3d_arena()
 
 	_crect(_root, Vector2.ZERO, Vector2(SW, SH), Color(0, 0, 0, 0.35))
 	_crect(_root, Vector2(LOG_X - 8, 0), Vector2(2, SH), Color(0.25, 0.55, 1.0, 0.5))

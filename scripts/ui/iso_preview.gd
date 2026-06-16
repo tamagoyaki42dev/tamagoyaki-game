@@ -33,6 +33,7 @@ var _enemy_body: ColorRect
 var _enemy_hp_bar: ColorRect
 var _enemy_bar_w: float
 var _player_bodies: Array = []  # {body: ColorRect, center: Vector2}
+var _arena_vp: SubViewport
 var _log: RichTextLabel
 var _enemy_cycle: Array = ["攻撃", "全体攻撃", "力を溜める", "×2連続"]
 var _enemy_slot: int = 3
@@ -95,13 +96,19 @@ func _ready() -> void:
 			if idx >= names.size():
 				break
 			var hue := float(abs(hash(names[idx])) % 360) / 360.0
-			_add_player_sprite(
-				_iso(c, r), names[idx], float(hp_r[idx]),
-				Color.from_hsv(hue, 0.60, 0.65),
-				r * 4 + c,
-				roundi(float(max_hp[idx]) * float(hp_r[idx])), int(max_hp[idx]),
-				r, c
-			)
+			if idx == 0:
+				_add_3d_player_sprite(_iso(c, r), r * 4 + c,
+					names[idx], float(hp_r[idx]),
+					roundi(float(max_hp[idx]) * float(hp_r[idx])), int(max_hp[idx]),
+					r, c)
+			else:
+				_add_player_sprite(
+					_iso(c, r), names[idx], float(hp_r[idx]),
+					Color.from_hsv(hue, 0.60, 0.65),
+					r * 4 + c,
+					roundi(float(max_hp[idx]) * float(hp_r[idx])), int(max_hp[idx]),
+					r, c
+				)
 			idx += 1
 
 	# 敵（絶対座標で指定・PANEL_X に連動しない）
@@ -157,6 +164,85 @@ func _rect(center: Vector2, w: float, h: float, color: Color, z: int) -> void:
 	r.color    = color
 	r.z_index  = z
 	_root.add_child(r)
+
+func _add_3d_player_sprite(center: Vector2, z_idx: int,
+		unit_name: String, hp_ratio: float, cur_hp: int, max_hp: int,
+		row: int, col: int) -> void:
+	const VP_W := 180
+	const VP_H := 240
+	_arena_vp = SubViewport.new()
+	_arena_vp.size = Vector2i(VP_W, VP_H)
+	_arena_vp.transparent_bg = true
+	_arena_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(_arena_vp)
+
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 3.5
+	cam.look_at_from_position(Vector3(4, 4, 4), Vector3(0, 1.4, 0), Vector3.UP)
+	_arena_vp.add_child(cam)
+
+	var env_node := WorldEnvironment.new()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.7, 0.7, 0.8)
+	env.ambient_light_energy = 0.8
+	env_node.environment = env
+	_arena_vp.add_child(env_node)
+
+	var light := DirectionalLight3D.new()
+	light.light_energy = 1.5
+	light.look_at_from_position(Vector3(3, 6, 3), Vector3(0, 0, 0), Vector3.UP)
+	_arena_vp.add_child(light)
+
+	var mesh_res = load("res://assets/obj/base2.obj")
+	if mesh_res:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh_res
+		mi.rotation_degrees.y = 90  # 右上（敵方向）を向く
+		_arena_vp.add_child(mi)
+
+	var tex := TextureRect.new()
+	tex.texture = _arena_vp.get_texture()
+	tex.size = Vector2(VP_W, VP_H)
+	tex.position = center - Vector2(VP_W * 0.5, VP_H * 0.60)
+	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex.stretch_mode = TextureRect.STRETCH_SCALE
+	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tex.z_index = z_idx
+	_root.add_child(tex)
+
+	# 名前（帽子のすぐ上）
+	var name_lbl := _lbl(_root, unit_name,
+		center - Vector2(SP_W * 0.5, VP_H * 0.44),
+		17, Color(0.88, 0.92, 1.0))
+	name_lbl.z_index = z_idx
+
+	# HP バー（足元の少し下）
+	var bx := center.x - SP_W * 0.5
+	var by := center.y + 49.0
+	var hp_bg := ColorRect.new()
+	hp_bg.size     = Vector2(SP_W, 5)
+	hp_bg.position = Vector2(bx, by)
+	hp_bg.color    = Color(0.07, 0.07, 0.09)
+	hp_bg.z_index  = z_idx
+	_root.add_child(hp_bg)
+	var hp_bar := ColorRect.new()
+	hp_bar.size     = Vector2(SP_W * hp_ratio, 5)
+	hp_bar.position = Vector2(bx, by)
+	hp_bar.color    = _hp_color(hp_ratio)
+	hp_bar.z_index  = z_idx
+	_root.add_child(hp_bar)
+
+	# _player_bodies に登録して rotate アニメーションに参加させる
+	# body/accent は tex を共用（TextureRect も position プロパティを持つ）
+	_player_bodies.append({
+		"body": tex, "accent": tex,
+		"name_lbl": name_lbl,
+		"hp_bg": hp_bg, "hp_bar": hp_bar,
+		"center": center, "row": row, "col": col
+	})
 
 func _add_player_sprite(center: Vector2, unit_name: String, hp_ratio: float,
 		color: Color, z: int, cur_hp: int, max_hp: int, row: int, col: int) -> void:
