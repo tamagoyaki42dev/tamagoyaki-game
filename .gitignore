@@ -13,6 +13,10 @@ __pycache__/
 .venv/
 venv/
 
+# 自動生成スクショ（SNS投稿後に削除されるが念のため）
+tools/screenshot.png
+tools/screenshot_trigger
+
 # OS
 .DS_Store
 Thumbs.db

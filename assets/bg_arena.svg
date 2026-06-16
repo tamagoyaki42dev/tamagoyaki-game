@@ -1,0 +1,223 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1344 1080" width="1344" height="1080">
+<defs>
+
+  <!-- 石テクスチャ（フラクタルノイズ × soft-light） -->
+  <filter id="stone" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035 0.065" numOctaves="5" seed="7" result="noise"/>
+    <feColorMatrix in="noise" type="saturate" values="0" result="gray"/>
+    <feBlend in="SourceGraphic" in2="gray" mode="soft-light"/>
+  </filter>
+
+  <!-- トーチのグロー（ぼかし） -->
+  <filter id="torchBlur" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="18"/>
+  </filter>
+
+  <!-- 月光スポットのブラー -->
+  <filter id="moonBlur" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="32"/>
+  </filter>
+
+  <!-- 夜空グラデ -->
+  <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#020103"/>
+    <stop offset="100%" stop-color="#100806"/>
+  </linearGradient>
+
+  <!-- 壁グラデ（上から下へ暗く、トーチ光で中央を明るく） -->
+  <linearGradient id="wallG" x1="0" y1="151" x2="0" y2="580" gradientUnits="userSpaceOnUse">
+    <stop offset="0%"   stop-color="#c89060"/>
+    <stop offset="25%"  stop-color="#b07848"/>
+    <stop offset="70%"  stop-color="#6a4820"/>
+    <stop offset="100%" stop-color="#3c2410"/>
+  </linearGradient>
+
+  <!-- 壁のラジアルライト（トーチ2本の光が壁を照らす） -->
+  <radialGradient id="wallLightL" cx="14%" cy="65%" r="40%">
+    <stop offset="0%"   stop-color="#e8a050" stop-opacity="0.28"/>
+    <stop offset="100%" stop-color="#e8a050" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="wallLightR" cx="86%" cy="65%" r="40%">
+    <stop offset="0%"   stop-color="#e8a050" stop-opacity="0.28"/>
+    <stop offset="100%" stop-color="#e8a050" stop-opacity="0"/>
+  </radialGradient>
+
+  <!-- 壁の左右影 -->
+  <linearGradient id="shadowL" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%"   stop-color="#000" stop-opacity="0.55"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+  </linearGradient>
+  <linearGradient id="shadowR" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%"   stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="0.55"/>
+  </linearGradient>
+
+  <!-- アーチ内部グラデ（奥行き感） -->
+  <linearGradient id="archG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#080503"/>
+    <stop offset="100%" stop-color="#1a100a"/>
+  </linearGradient>
+
+  <!-- 仕切り壁グラデ -->
+  <linearGradient id="ledgeG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#8a6840"/>
+    <stop offset="30%"  stop-color="#705030"/>
+    <stop offset="100%" stop-color="#402810"/>
+  </linearGradient>
+
+  <!-- 床グラデ -->
+  <linearGradient id="floorG" x1="0" y1="660" x2="0" y2="1080" gradientUnits="userSpaceOnUse">
+    <stop offset="0%"   stop-color="#9a7848"/>
+    <stop offset="100%" stop-color="#6a5030"/>
+  </linearGradient>
+
+  <!-- 月光スポット -->
+  <radialGradient id="moonSpot" cx="50%" cy="50%" r="50%">
+    <stop offset="0%"   stop-color="#d8c070" stop-opacity="0.52"/>
+    <stop offset="35%"  stop-color="#c0a850" stop-opacity="0.22"/>
+    <stop offset="70%"  stop-color="#a08030" stop-opacity="0.06"/>
+    <stop offset="100%" stop-color="#806020" stop-opacity="0"/>
+  </radialGradient>
+
+  <!-- ビネット -->
+  <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+    <stop offset="55%"  stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="0.6"/>
+  </radialGradient>
+
+  <!-- 床の遠近感（手前ほど暗く） -->
+  <linearGradient id="floorFog" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="0.35"/>
+  </linearGradient>
+
+</defs>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 夜空 -->
+<!-- ═══════════════════════════════════════════ -->
+<rect width="1344" height="1080" fill="url(#skyG)"/>
+
+<!-- 遠くの街灯 -->
+<circle cx="62"   cy="52"  r="2.4" fill="#f0c060" opacity="0.72"/>
+<circle cx="148"  cy="35"  r="1.6" fill="#e8b848" opacity="0.58"/>
+<circle cx="268"  cy="68"  r="2.0" fill="#f0cc70" opacity="0.65"/>
+<circle cx="390"  cy="42"  r="1.4" fill="#d8a838" opacity="0.50"/>
+<circle cx="490"  cy="80"  r="1.8" fill="#f0c060" opacity="0.62"/>
+<circle cx="580"  cy="28"  r="1.2" fill="#fff0a0" opacity="0.38"/>
+<circle cx="680"  cy="58"  r="2.2" fill="#f0c868" opacity="0.70"/>
+<circle cx="790"  cy="38"  r="1.5" fill="#e8b040" opacity="0.55"/>
+<circle cx="880"  cy="72"  r="2.0" fill="#f0cc60" opacity="0.62"/>
+<circle cx="980"  cy="45"  r="1.6" fill="#d8b040" opacity="0.52"/>
+<circle cx="1080" cy="62"  r="2.3" fill="#e8c058" opacity="0.68"/>
+<circle cx="1180" cy="30"  r="1.4" fill="#f0c870" opacity="0.50"/>
+<circle cx="1280" cy="55"  r="1.8" fill="#e8b848" opacity="0.60"/>
+<circle cx="185"  cy="22"  r="1.0" fill="#ffffff" opacity="0.28"/>
+<circle cx="540"  cy="18"  r="0.9" fill="#ffffff" opacity="0.24"/>
+<circle cx="840"  cy="15"  r="1.2" fill="#ffffff" opacity="0.32"/>
+<circle cx="1120" cy="20"  r="1.0" fill="#ffffff" opacity="0.26"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 奥の石壁ベース -->
+<!-- ═══════════════════════════════════════════ -->
+<rect x="0" y="151" width="1344" height="429" fill="url(#wallG)"/>
+<!-- テクスチャ重ね -->
+<rect x="0" y="151" width="1344" height="429" fill="url(#wallG)" filter="url(#stone)" opacity="0.80"/>
+<!-- トーチ光が壁を照らす -->
+<rect x="0" y="151" width="1344" height="429" fill="url(#wallLightL)"/>
+<rect x="0" y="151" width="1344" height="429" fill="url(#wallLightR)"/>
+<!-- 壁の両側影 -->
+<rect x="0"    y="151" width="220" height="429" fill="url(#shadowL)"/>
+<rect x="1124" y="151" width="220" height="429" fill="url(#shadowR)"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- クレネレーション（凸凹城壁）  -->
+<!-- 1344/14 = 96px 刻み、偶数=石・奇数=空 -->
+<!-- ═══════════════════════════════════════════ -->
+<!-- 石のマーロン（偶数: 0,2,4,6,8,10,12） -->
+<rect x="1"    y="93" width="94" height="61" fill="url(#wallG)" filter="url(#stone)"/>
+<rect x="193"  y="93" width="94" height="61" fill="url(#wallG)" filter="url(#stone)"/>
+<rect x="385"  y="93" width="94" height="61" fill="url(#wallG)" filter="url(#stone)"/>
+<rect x="577"  y="93" width="94" height="61" fill="url(#wallG)" filter="url(#stone)"/>
+<rect x="769"  y="93" width="94" height="61" fill="url(#wallG)" filter="url(#stone)"/>
+<rect x="961"  y="93" width="94" height="61" fill="url(#wallG)" filter="url(#stone)"/>
+<rect x="1153" y="93" width="94" height="61" fill="url(#wallG)" filter="url(#stone)"/>
+<!-- 空のクレネル（奇数: 空の色で上書き） -->
+<rect x="97"   y="93" width="94" height="58" fill="url(#skyG)"/>
+<rect x="289"  y="93" width="94" height="58" fill="url(#skyG)"/>
+<rect x="481"  y="93" width="94" height="58" fill="url(#skyG)"/>
+<rect x="673"  y="93" width="94" height="58" fill="url(#skyG)"/>
+<rect x="865"  y="93" width="94" height="58" fill="url(#skyG)"/>
+<rect x="1057" y="93" width="94" height="58" fill="url(#skyG)"/>
+<rect x="1249" y="93" width="94" height="58" fill="url(#skyG)"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- アーチ開口部（5つ）                         -->
+<!-- hw=90, base=573, top=170, mid=298, ry=128  -->
+<!-- centers: 134.4, 403.2, 672, 940.8, 1209.6 -->
+<!-- ═══════════════════════════════════════════ -->
+<path d="M 44.4  573 L  44.4 298 A 90 128 0 0 0  224.4 298 L  224.4 573 Z" fill="url(#archG)"/>
+<path d="M 313.2 573 L 313.2 298 A 90 128 0 0 0  493.2 298 L  493.2 573 Z" fill="url(#archG)"/>
+<path d="M 582   573 L 582   298 A 90 128 0 0 0  762   298 L  762   573 Z" fill="url(#archG)"/>
+<path d="M 850.8 573 L 850.8 298 A 90 128 0 0 0 1030.8 298 L 1030.8 573 Z" fill="url(#archG)"/>
+<path d="M 1119.6 573 L 1119.6 298 A 90 128 0 0 0 1299.6 298 L 1299.6 573 Z" fill="url(#archG)"/>
+
+<!-- アーチの縁（石のフレーム） -->
+<!-- 柱（各アーチの両脇に暗い細帯） -->
+<rect x="38"    y="298" width="8"  height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="218"   y="298" width="8"  height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="307"   y="298" width="8"  height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="487"   y="298" width="8"  height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="576"   y="298" width="8"  height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="756"   y="298" width="8"  height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="844.8" y="298" width="8"  height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="1024.8" y="298" width="8" height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="1113.6" y="298" width="8" height="275" fill="#2a1808" opacity="0.65"/>
+<rect x="1293.6" y="298" width="8" height="275" fill="#2a1808" opacity="0.65"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- トーチ                                      -->
+<!-- ═══════════════════════════════════════════ -->
+<!-- 左トーチ (x=190, y=460) -->
+<ellipse cx="190" cy="448" rx="75" ry="70" fill="#ff8820" filter="url(#torchBlur)" opacity="0.65"/>
+<rect    x="183"  y="452" width="14" height="22" fill="#3c2210" rx="3"/>
+<polygon points="190,428 183,452 197,452" fill="#ff9020"/>
+<polygon points="191,436 186,452 196,452" fill="#ffe880" opacity="0.90"/>
+
+<!-- 右トーチ (x=1154, y=460) -->
+<ellipse cx="1154" cy="448" rx="75" ry="70" fill="#ff8820" filter="url(#torchBlur)" opacity="0.65"/>
+<rect    x="1147" y="452" width="14" height="22" fill="#3c2210" rx="3"/>
+<polygon points="1154,428 1147,452 1161,452" fill="#ff9020"/>
+<polygon points="1155,436 1150,452 1160,452" fill="#ffe880" opacity="0.90"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 手前の仕切り壁                              -->
+<!-- ═══════════════════════════════════════════ -->
+<rect x="0" y="600" width="1344" height="95" fill="url(#ledgeG)"/>
+<rect x="0" y="600" width="1344" height="95" fill="url(#ledgeG)" filter="url(#stone)" opacity="0.70"/>
+<!-- 上端ハイライト -->
+<rect x="0" y="600" width="1344" height="3" fill="#c09a60" opacity="0.75"/>
+<!-- 下端影 -->
+<rect x="0" y="665" width="1344" height="30" fill="#000" opacity="0.20"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- アリーナ床（砂地）                          -->
+<!-- ═══════════════════════════════════════════ -->
+<rect x="0" y="660" width="1344" height="420" fill="url(#floorG)"/>
+<rect x="0" y="660" width="1344" height="420" fill="url(#floorG)" filter="url(#stone)" opacity="0.55"/>
+
+<!-- 月光スポット（楕円グロー） -->
+<ellipse cx="610" cy="845" rx="295" ry="190" fill="url(#moonSpot)" filter="url(#moonBlur)"/>
+<ellipse cx="610" cy="845" rx="160" ry="100" fill="url(#moonSpot)"/>
+
+<!-- 三日月の影 -->
+<ellipse cx="770" cy="800" rx="215" ry="105" fill="#2e1e0a" opacity="0.28"/>
+
+<rect x="0" y="660" width="1344" height="420" fill="url(#floorFog)"/>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- ビネット                                    -->
+<!-- ═══════════════════════════════════════════ -->
+<rect width="1344" height="1080" fill="url(#vignette)"/>
+
+</svg>

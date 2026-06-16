@@ -41,13 +41,13 @@ func _build_ui() -> void:
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_root)
 
-	var bg := TextureRect.new()
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	bg.texture = load("res://assets/bg_arena.jpg")
+	var bg := ArenaBg.new()
+	bg.position     = Vector2.ZERO
+	bg.size         = Vector2(LOG_X - 10, SH)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(bg)
 
-	_crect(_root, Vector2.ZERO, Vector2(SW, SH), Color(0, 0, 0, 0.55))
+	_crect(_root, Vector2.ZERO, Vector2(SW, SH), Color(0, 0, 0, 0.35))
 	_crect(_root, Vector2(LOG_X - 8, 0), Vector2(2, SH), Color(0.25, 0.55, 1.0, 0.5))
 	_crect(_root, Vector2(0, SH * 0.5), Vector2(LOG_X - 10, 1), Color(0.25, 0.5, 0.9, 0.35))
 
