@@ -291,8 +291,7 @@ func _apply_healing(unit: BattleUnit, amount: int) -> void:
 	unit.hp = mini(unit.hp_max, unit.hp + amount)
 	var healed := unit.hp - old_hp
 	var overheal := amount - healed
-	if healed > 0:
-		unit_healed.emit(unit, healed)
+	unit_healed.emit(unit, healed)  # HP満タンでも発火（healed=0 = MAX表示用）
 	if overheal > 0:
 		unit.charge_excess += overheal
 

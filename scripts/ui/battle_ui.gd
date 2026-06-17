@@ -342,7 +342,7 @@ func _build_player_sprites(units: Array) -> void:
 		var center := _iso(unit.col + 0.5, unit.row + 0.5)
 		var z      := unit.row * 4 + unit.col
 		var ratio  := float(unit.hp) / float(unit.hp_max)
-		_unit_nodes[unit] = _add_3d_sprite(center, unit.unit_name, ratio, z, 180.0, 0.6)
+		_unit_nodes[unit] = _add_3d_sprite(center, unit.unit_name, ratio, z, 180.0, 0.8)
 
 
 func _add_3d_sprite(center: Vector2, unit_name: String, hp_ratio: float, z: int,
@@ -389,26 +389,24 @@ func _add_3d_sprite(center: Vector2, unit_name: String, hp_ratio: float, z: int,
 	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(group)
 
-	var dw    := VP_W * display_scale
-	var dh    := VP_H * display_scale
-	var above := dh * 0.60  # キャラがcenterより上に出る量
-	var below := dh * 0.40  # キャラがcenterより下に出る量
+	var dw := VP_W * display_scale
+	var dh := VP_H * display_scale
 
 	var tex := TextureRect.new()
 	tex.texture = vp.get_texture()
 	tex.size = Vector2(dw, dh)
-	tex.position = Vector2(-dw * 0.5, -above)  # グループローカル座標
+	tex.position = Vector2(-dw * 0.65, -dh * 0.8)
 	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tex.stretch_mode = TextureRect.STRETCH_SCALE
 	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	group.add_child(tex)
 
-	var bar_y  := below + 4.0
+	var tex_bottom := -dh * 0.8 + dh
+	var bar_y      := tex_bottom + 2.0
 	var hp_bg  := _crect(group, Vector2(-SP_W * 0.5, bar_y), Vector2(SP_W, 5), Color(0.07, 0.07, 0.09))
 	var hp_bar := _crect(group, Vector2(-SP_W * 0.5, bar_y), Vector2(SP_W * hp_ratio, 5), _hp_color(hp_ratio))
-	var name_lbl := _lbl(group, unit_name, Vector2(-SP_W * 0.5, bar_y + 10.0), 14, Color(0.88, 0.92, 1.0))
 
-	return {"body": group, "accent": group, "name_lbl": name_lbl,
+	return {"body": group, "accent": group, "name_lbl": group,
 			"hp_bg": hp_bg, "hp_bar": hp_bar,
 			"center": center, "is_3d": true, "bar_w": SP_W}
 
@@ -419,7 +417,7 @@ func _build_enemy_sprites(units: Array) -> void:
 		var z      := 100 + i
 		var ratio  := float(unit.hp) / float(unit.hp_max)
 
-		_unit_nodes[unit] = _add_3d_sprite(center, unit.unit_name, ratio, z, 0.0, 1.5)
+		_unit_nodes[unit] = _add_3d_sprite(center, unit.unit_name, ratio, z, 0.0, 1.8)
 
 		var bx := center.x - SP_W * 0.5
 		var by := center.y + 57.0
@@ -537,7 +535,7 @@ func _play_event(event: Dictionary) -> void:
 			var order: String = " → ".join((event["timeline"] as Array).map(
 				func(u: BattleUnit) -> String: return u.unit_name))
 			_log("\n[color=#cccccc][Turn %d][/color]  %s" % [event["n"], order])
-			await get_tree().create_timer(0.15).timeout
+			await get_tree().create_timer(0.40).timeout
 
 		"rotated":
 			_phase_lbl.text = "Rotate!"
@@ -602,22 +600,24 @@ func _play_attack_anim(attacker: BattleUnit, target: BattleUnit,
 	var body_a  = entry_a["body"]
 	var orig: Vector2 = body_a.position
 
-	var nudge := Vector2(70, -35) if attacker.side == BattleUnit.Side.PLAYER \
-		else Vector2(-55, 28)
+	var nudge := Vector2(90, -45) if attacker.side == BattleUnit.Side.PLAYER \
+		else Vector2(-70, 35)
 	var tw := create_tween()
-	tw.tween_property(body_a, "position", orig + nudge, 0.10).set_ease(Tween.EASE_OUT)
-	tw.tween_property(body_a, "position", orig, 0.16).set_ease(Tween.EASE_IN)
+	tw.tween_property(body_a, "position", orig + nudge, 0.13).set_ease(Tween.EASE_OUT)
+	tw.tween_property(body_a, "position", orig, 0.22).set_ease(Tween.EASE_IN)
 
-	await get_tree().create_timer(0.08).timeout
+	await get_tree().create_timer(0.11).timeout
 
 	var entry_t = _unit_nodes[target]
-	_flash_body(entry_t, _hit_color(attacker))
+	var hit_col := _hit_color(attacker)
+	_flash_body(entry_t, hit_col)
+	_spawn_unit_glow(entry_t["center"], hit_col, 95.0, 0.35)
 	_spawn_damage_float_iso(entry_t["center"], dmg, is_crit)
 	if is_crit:
 		_spawn_crit_text_iso(entry_t["center"])
 
 	_update_unit(target)
-	await get_tree().create_timer(0.48).timeout
+	await get_tree().create_timer(0.70).timeout
 
 func _hit_color(attacker: BattleUnit) -> Color:
 	if attacker.side == BattleUnit.Side.ENEMY:
@@ -633,47 +633,52 @@ func _flash_body(entry: Dictionary, color: Color) -> void:
 	if entry.get("is_3d", false):
 		var tw := create_tween()
 		tw.tween_property(body, "modulate",
-			Color(color.r * 1.6 + 0.2, color.g * 1.2 + 0.1, color.b * 1.2 + 0.1), 0.07)
-		tw.tween_property(body, "modulate", Color.WHITE, 0.25)
+			Color(color.r * 2.2 + 0.4, color.g * 1.4 + 0.2, color.b * 1.4 + 0.2), 0.06)
+		tw.tween_property(body, "modulate", Color.WHITE, 0.32)
 	else:
 		var rect: ColorRect = body
 		var orig: Color = rect.color
 		var tw := create_tween()
-		tw.tween_property(rect, "color", color, 0.07)
-		tw.tween_property(rect, "color", orig, 0.22)
+		tw.tween_property(rect, "color", color, 0.06)
+		tw.tween_property(rect, "color", orig, 0.28)
 
 func _spawn_damage_float_iso(center: Vector2, dmg: int, is_crit: bool) -> void:
 	var lbl := Label.new()
 	lbl.text = str(dmg)
-	lbl.add_theme_font_size_override("font_size", 34 if is_crit else 22)
+	lbl.add_theme_font_size_override("font_size", 52 if is_crit else 34)
 	lbl.add_theme_color_override("font_color",
-		Color(1.0, 0.9, 0.15) if is_crit else Color(1.0, 0.95, 0.85))
+		Color(1.0, 0.9, 0.08) if is_crit else Color(1.0, 0.95, 0.85))
 	if _font:
 		lbl.add_theme_font_override("font", _font)
-	var start := center + Vector2(-10, -30)
+	var start := center + Vector2(-14, -30)
 	lbl.position = start
+	lbl.scale    = Vector2(0.1, 0.1)
 	lbl.z_index  = 50
 	_root.add_child(lbl)
 	var tw := create_tween()
-	tw.tween_property(lbl, "position", start + Vector2(randf_range(-8, 8), -65), 0.75)
-	tw.parallel().tween_property(lbl, "modulate:a", 0.0, 0.75).set_delay(0.22)
+	tw.tween_property(lbl, "scale", Vector2(1.35, 1.35), 0.10).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "scale", Vector2(1.0, 1.0), 0.08)
+	tw.tween_property(lbl, "position", start + Vector2(randf_range(-12, 12), -90), 1.0)
+	tw.parallel().tween_property(lbl, "modulate:a", 0.0, 1.0).set_delay(0.35)
 	tw.tween_callback(lbl.queue_free)
 
 func _spawn_crit_text_iso(center: Vector2) -> void:
+	_spawn_unit_glow(center, Color(1.0, 0.88, 0.0), 120.0, 0.45)
+
 	var lbl := Label.new()
 	lbl.text = "Critical!"
-	lbl.add_theme_font_size_override("font_size", 20)
-	lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.1))
+	lbl.add_theme_font_size_override("font_size", 30)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.90, 0.05))
 	if _font:
 		lbl.add_theme_font_override("font", _font)
-	lbl.position = center + Vector2(-30, -55)
-	lbl.scale    = Vector2(0.4, 0.4)
+	lbl.position = center + Vector2(-42, -70)
+	lbl.scale    = Vector2(0.3, 0.3)
 	lbl.z_index  = 51
 	_root.add_child(lbl)
 	var tw := create_tween()
-	tw.tween_property(lbl, "scale", Vector2(1.2, 1.2), 0.12).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lbl, "scale", Vector2(1.0, 1.0), 0.08)
-	tw.tween_property(lbl, "modulate:a", 0.0, 0.5).set_delay(0.12)
+	tw.tween_property(lbl, "scale", Vector2(1.4, 1.4), 0.14).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "scale", Vector2(1.1, 1.1), 0.10)
+	tw.tween_property(lbl, "modulate:a", 0.0, 0.55).set_delay(0.15)
 	tw.tween_callback(lbl.queue_free)
 
 # ── 補助・回復アニメーション ──────────────────────────────────
@@ -684,9 +689,11 @@ func _play_atk_support_anim(supporter: BattleUnit, attacker: BattleUnit) -> void
 		await get_tree().create_timer(0.1).timeout
 		return
 	_flash_body(_unit_nodes[supporter], Color(1.0, 0.5, 0.1, 0.72))
+	_spawn_unit_glow(_unit_nodes[supporter]["center"], Color(1.0, 0.55, 0.1), 105.0, 0.55)
 	if _unit_nodes.has(attacker):
-		_spawn_float_lbl_iso(attacker, "攻撃補助", Color(1.0, 0.55, 0.15), 14)
-	await get_tree().create_timer(0.42).timeout
+		_spawn_float_lbl_iso(attacker, "攻撃補助！", Color(1.0, 0.65, 0.15), 20)
+		_spawn_unit_glow(_unit_nodes[attacker]["center"], Color(1.0, 0.75, 0.1), 85.0, 0.50)
+	await get_tree().create_timer(0.65).timeout
 
 func _play_def_support_anim(supporter: BattleUnit, target: BattleUnit) -> void:
 	_log("  [color=#4488ff]%s 守護 → %s[/color]" % [supporter.unit_name, target.unit_name])
@@ -694,19 +701,27 @@ func _play_def_support_anim(supporter: BattleUnit, target: BattleUnit) -> void:
 		await get_tree().create_timer(0.1).timeout
 		return
 	_flash_body(_unit_nodes[supporter], Color(0.2, 0.55, 1.0, 0.72))
+	_spawn_unit_glow(_unit_nodes[supporter]["center"], Color(0.2, 0.55, 1.0), 105.0, 0.55)
 	if _unit_nodes.has(target):
-		_spawn_float_lbl_iso(target, "守護", Color(0.4, 0.75, 1.0), 15)
-	await get_tree().create_timer(0.45).timeout
+		_spawn_float_lbl_iso(target, "守護！", Color(0.4, 0.78, 1.0), 20)
+		_spawn_unit_glow(_unit_nodes[target]["center"], Color(0.3, 0.65, 1.0), 85.0, 0.50)
+	await get_tree().create_timer(0.65).timeout
 
 func _play_heal_anim(unit: BattleUnit, amount: int) -> void:
-	_log("  [color=#55ff99]%s +%d[/color]" % [unit.unit_name, amount])
+	if amount <= 0:
+		_log("  [color=#44dd88]%s 回復（MAX）[/color]" % unit.unit_name)
+	else:
+		_log("  [color=#55ff99]%s +%d[/color]" % [unit.unit_name, amount])
 	if not _unit_nodes.has(unit):
 		await get_tree().create_timer(0.1).timeout
 		return
-	_flash_body(_unit_nodes[unit], Color(0.2, 1.0, 0.4, 0.45))
-	_spawn_float_lbl_iso(unit, "+%d" % amount, Color(0.4, 1.0, 0.6), 18)
+	var center: Vector2 = _unit_nodes[unit]["center"]
+	_flash_body(_unit_nodes[unit], Color(0.15, 1.0, 0.45, 0.55))
+	_spawn_unit_glow(center, Color(0.2, 1.0, 0.45), 105.0, 0.50)
+	var txt := "回復" if amount <= 0 else "+%d" % amount
+	_spawn_float_lbl_iso(unit, txt, Color(0.35, 1.0, 0.55), 20)
 	_update_unit(unit)
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.45).timeout
 
 # ── ヘルパー ─────────────────────────────────────────────────
 
@@ -729,6 +744,21 @@ func _spawn_float_lbl_iso(unit: BattleUnit, text: String,
 	tw.tween_property(lbl, "position", start + Vector2(0, -42), 0.6)
 	tw.parallel().tween_property(lbl, "modulate:a", 0.0, 0.6).set_delay(0.15)
 	tw.tween_callback(lbl.queue_free)
+
+func _spawn_unit_glow(center: Vector2, glow_color: Color,
+		radius: float = 90.0, duration: float = 0.35) -> void:
+	var rect := ColorRect.new()
+	var w := radius * 2.2
+	var h := radius * 1.5
+	rect.size = Vector2(w, h)
+	rect.position = center - Vector2(w * 0.5, h * 0.55)
+	rect.color = Color(glow_color.r, glow_color.g, glow_color.b, 0.45)
+	rect.z_index = 48
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(rect)
+	var tw := create_tween()
+	tw.tween_property(rect, "color:a", 0.0, duration)
+	tw.tween_callback(rect.queue_free)
 
 func _log(text: String) -> void:
 	_log_lbl.append_text(text + "\n")
