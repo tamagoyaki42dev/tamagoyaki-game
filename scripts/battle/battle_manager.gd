@@ -37,6 +37,7 @@ func start_battle(player_data: Array, enemy_data: Array) -> void:
 			var unit := BattleUnit.from_character(item["data"])
 			unit.row = item["row"]
 			player_grid.add_unit(unit)
+			unit.col = item["col"]  # 編成colを保持（add_unitが配列インデックスで上書きするため再設定）
 		else:
 			player_grid.add_unit(BattleUnit.from_character(item))
 	for i in enemy_data.size():
@@ -50,7 +51,8 @@ func advance_turn(do_rotate: bool = false) -> void:
 	if do_rotate:
 		player_grid.rotate_forward()
 		for unit: BattleUnit in player_grid.get_all_alive():
-			unit.support_used = false
+			unit.atk_support_used = false
+			unit.def_support_used = false
 			unit.is_petrified = false
 		for unit: BattleUnit in enemy_grid.get_all_alive():
 			unit.is_petrified = false
@@ -111,7 +113,7 @@ func _execute_player_action(attacker: BattleUnit) -> void:
 		attack_support_used.emit(mid, attacker)
 		bonus        = mid.atk_bonus
 		is_row_attack = mid.atk_bonus_is_row
-		mid.support_used = true
+		mid.atk_support_used = true
 	var base_atk := attacker.attack + bonus
 
 	if is_row_attack:
@@ -228,7 +230,7 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 		if mid:
 			defense_support_used.emit(mid, target)
 			def_support = mid.def_bonus
-			mid.support_used = true
+			mid.def_support_used = true
 
 	var actual: int = max(0, raw - def_support)
 
@@ -390,14 +392,14 @@ func _get_opp_front(grid: RotationGrid) -> Array:
 # 攻撃補助: 同縦マスのみ（攻補(列)も同縦マスがトリガー。効果だけが列攻撃化）
 func _get_mid_atk_support(grid: RotationGrid, attacker_col: int) -> BattleUnit:
 	for unit: BattleUnit in grid.get_row(1):
-		if not unit.support_used and unit.atk_bonus > 0 and unit.col == attacker_col:
+		if not unit.atk_support_used and unit.atk_bonus > 0 and unit.col == attacker_col:
 			return unit
 	return null
 
 # 防御補助: 同縦マスのみ
 func _get_mid_def_support(grid: RotationGrid, target_col: int) -> BattleUnit:
 	for unit: BattleUnit in grid.get_row(1):
-		if not unit.support_used and unit.def_bonus > 0 and unit.col == target_col:
+		if not unit.def_support_used and unit.def_bonus > 0 and unit.col == target_col:
 			return unit
 	return null
 

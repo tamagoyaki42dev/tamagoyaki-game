@@ -123,9 +123,9 @@ func _build_controls() -> void:
 
 func _refresh() -> void:
 	for child in _cards_root.get_children():
-		child.free()
+		child.queue_free()
 	for child in _detail_root.get_children():
-		child.free()
+		child.queue_free()
 	_build_grid_cards()
 	_build_bench_cards()
 	_build_detail_content()

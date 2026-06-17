@@ -33,7 +33,7 @@ func _sync_row_indices() -> void:
 		for col_idx in grid[row_idx].size():
 			var unit: BattleUnit = grid[row_idx][col_idx]
 			unit.row = row_idx
-			unit.col = col_idx
+			# unit.col は編成の縦列を表す固定値なのでローテーション後も変えない
 
 func get_front_row() -> Array:
 	return grid[0].filter(func(u: BattleUnit) -> bool: return u.is_alive)

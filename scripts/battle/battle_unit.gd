@@ -20,7 +20,8 @@ var attack_hits: int = 1       # 攻撃回数（巫女×4、ニンジャ×2）
 var crit_rate: float = 0.05    # クリティカル率
 var is_stone_attack: bool = false  # 石化攻撃か（祈祷師）
 var charge_multiplier: float = 1.0  # 力を溜める: 次の攻撃のATK倍率
-var support_used: bool = false      # 補助使用済み（ローテーションでリセット）
+var atk_support_used: bool = false  # 攻撃補助使用済み（ローテーションでリセット）
+var def_support_used: bool = false  # 防御補助使用済み（ローテーションでリセット）
 var is_petrified: bool = false      # 石化状態
 var charge_excess: int = 0          # クリティカルチャージ余剰回復量
 var source_data: Resource
