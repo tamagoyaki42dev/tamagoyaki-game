@@ -16,14 +16,14 @@
 
 ### プレイ環境
 
-- PC（ブラウザ / HTML5）横画面
+- PC（デスクトップ）横画面
 
 ## 技術スタック
 
 - **エンジン**: Godot 4 (GDScript)
 - **データ**: Godot Resource + JSON（完全オフライン）
 - **ツール**: Python
-- **公開**: itch.io (HTML5)
+- **公開**: itch.io / Steam（デスクトップビルドのみ）
 
 ## 開発ログ
 
