@@ -1,0 +1,69 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/battle/battle_scene.gd" id="1_bscn"]
+[ext_resource type="Script" path="res://scripts/ui/battle_ui.gd" id="2_bui"]
+
+[node name="BattleScene" type="Node"]
+script = ExtResource("1_bscn")
+
+[node name="World" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="World"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="World"]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="World"]
+light_energy = 1.5
+shadow_enabled = true
+
+[node name="PlayerGrid" type="Node3D" parent="World"]
+
+[node name="Slot_r0_c0" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Slot_r0_c1" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)
+
+[node name="Slot_r0_c2" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
+
+[node name="Slot_r0_c3" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 0)
+
+[node name="Slot_r1_c0" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
+
+[node name="Slot_r1_c1" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2)
+
+[node name="Slot_r1_c2" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
+
+[node name="Slot_r1_c3" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 2)
+
+[node name="Slot_r2_c0" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
+
+[node name="Slot_r2_c1" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 4)
+
+[node name="Slot_r2_c2" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 4)
+
+[node name="Slot_r2_c3" type="Marker3D" parent="World/PlayerGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 4)
+
+[node name="EnemyGrid" type="Node3D" parent="World"]
+
+[node name="ESlot_0" type="Marker3D" parent="World/EnemyGrid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, 2)
+
+[node name="Characters" type="Node3D" parent="World"]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="BattleUI" type="Control" parent="CanvasLayer"]
+script = ExtResource("2_bui")
+anchor_right = 1.0
+anchor_bottom = 1.0

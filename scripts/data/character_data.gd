@@ -40,8 +40,8 @@ static func from_job(type: CharacterJob.Type) -> CharacterData:
 		4:  [26, 12, 10,  0,  8,  true,  8,  6,  0],  # ADVENTURER
 		5:  [32, 10,  8,  0, 10,  true,  0,  0, 12],  # MONK
 		6:  [18,  8,  6,  0,  0, false, 20,  0, 15],  # CLERIC
-		7:  [20,  8,  5,  0, 20, false, 15,  0, 10],  # MAGE
-		8:  [22, 10, 16,  0, 14, false,  0,  0,  0],  # WITCH
+		7:  [20,  8,  5,  0, 20, false,  0,  0, 10],  # MAGE
+		8:  [22, 10, 16,  0, 14, false, 12,  0,  0],  # WITCH
 		9:  [24, 16, 12, 12,  0, false,  0,  0,  0],  # ARCHER
 		10: [18, 12, 18, 15,  0, false,  0,  8,  0],  # VALKYRIE
 		11: [24, 14,  5,  0,  0, false, 10,  8,  0],  # SHAMAN

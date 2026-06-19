@@ -322,7 +322,7 @@ func _selected_grid_pos() -> Vector2i:
 func _on_start_pressed() -> void:
 	if GameState.formation.is_empty():
 		return
-	get_tree().change_scene_to_file("res://scenes/node.tscn")
+	get_tree().change_scene_to_file("res://scenes/battle.tscn")
 
 # ══════════════════════════════════ ヘルパー ══════════════════════════════════
 

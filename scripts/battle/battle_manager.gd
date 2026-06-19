@@ -14,7 +14,10 @@ signal battle_ended(player_won: bool, loot: Array)
 signal attack_support_used(supporter: BattleUnit, attacker: BattleUnit)
 signal defense_support_used(supporter: BattleUnit, target: BattleUnit)
 
-const TURN_LIMIT = 100
+const TURN_LIMIT    = 100
+const ACTION_DELAY  : float = 1.0   # アクション後の待機
+const ROTATE_DELAY  : float = 0.9   # ローテーションアニメ待ち
+const SUPPORT_DELAY : float = 1.0   # 補助演出→攻撃の間隔
 
 var player_grid: RotationGrid
 var enemy_grid: RotationGrid
@@ -57,6 +60,7 @@ func advance_turn(do_rotate: bool = false) -> void:
 		for unit: BattleUnit in enemy_grid.get_all_alive():
 			unit.is_petrified = false
 		rotated.emit()
+		await get_tree().create_timer(ROTATE_DELAY).timeout
 	turn_number += 1
 	if turn_number > TURN_LIMIT:
 		_end_battle(false)
@@ -71,14 +75,16 @@ func advance_turn(do_rotate: bool = false) -> void:
 		if attacker.is_petrified:
 			continue
 		already_acted.append(attacker)
-		_do_unit_action(attacker)
+		await _do_unit_action(attacker)
+		await get_tree().create_timer(ACTION_DELAY).timeout
 		if is_over:
 			return
 		# 石化解除されたユニットが既にターンをスキップ済みなら即行動
 		for u: BattleUnit in _unpetrified_this_turn.duplicate():
 			if u.is_alive and not (u in already_acted):
 				already_acted.append(u)
-				_do_unit_action(u)
+				await _do_unit_action(u)
+				await get_tree().create_timer(ACTION_DELAY).timeout
 				if is_over:
 					return
 		_unpetrified_this_turn.clear()
@@ -91,9 +97,9 @@ func advance_turn(do_rotate: bool = false) -> void:
 
 func _do_unit_action(attacker: BattleUnit) -> void:
 	if attacker.side == BattleUnit.Side.ENEMY:
-		_execute_enemy_action(attacker)
+		await _execute_enemy_action(attacker)
 	else:
-		_execute_player_action(attacker)
+		await _execute_player_action(attacker)
 
 # ──────────────────── プレイヤー行動 ────────────────────
 
@@ -102,7 +108,7 @@ func _execute_player_action(attacker: BattleUnit) -> void:
 	if attacker.row == 1 and attacker.indirect_attack > 0 and _front_col_empty(player_grid, attacker.col):
 		var target := _pick_target(attacker)
 		if target:
-			_do_hits(attacker, target, attacker.indirect_attack, 1, false, false)
+			await _do_hits(attacker, target, attacker.indirect_attack, 1, false, false)
 		return
 
 	# 攻撃補助チェック
@@ -111,7 +117,8 @@ func _execute_player_action(attacker: BattleUnit) -> void:
 	var is_row_attack := false
 	if mid:
 		attack_support_used.emit(mid, attacker)
-		bonus        = mid.atk_bonus
+		await get_tree().create_timer(SUPPORT_DELAY).timeout
+		bonus         = mid.atk_bonus
 		is_row_attack = mid.atk_bonus_is_row
 		mid.atk_support_used = true
 	var base_atk := attacker.attack + bonus
@@ -127,14 +134,14 @@ func _execute_player_action(attacker: BattleUnit) -> void:
 			for target in enemies.duplicate():
 				if is_over or not target.is_alive:
 					continue
-				_do_single_hit(attacker, target, per_atk, i == 0,
+				await _do_single_hit(attacker, target, per_atk, i == 0,
 					attacker.is_stone_attack, false, had_charge and i == 0)
 		if had_charge:
 			attacker.charge_excess = 0
 	else:
 		var target := _pick_target(attacker)
 		if target:
-			_do_hits(attacker, target, base_atk, attacker.attack_hits, attacker.is_stone_attack, false)
+			await _do_hits(attacker, target, base_atk, attacker.attack_hits, attacker.is_stone_attack, false)
 
 # ──────────────────── 敵行動 ────────────────────
 
@@ -162,27 +169,27 @@ func _execute_enemy_action(attacker: BattleUnit) -> void:
 					if is_over or not target.is_alive: break
 					# 力を溜めるの倍率は最初の1撃のみ、2撃目以降は素のATK
 					var atk := eff_atk if i == 0 else attacker.attack
-					_do_single_hit(attacker, target, atk, i == 0, false, false, false)
+					await _do_single_hit(attacker, target, atk, i == 0, false, false, false)
 
 		EnemyData.ActionType.ROW:
 			for target in player_grid.get_front_row().duplicate():
 				if is_over: break
-				_do_single_hit(attacker, target, eff_atk, true, false, false, false)
+				await _do_single_hit(attacker, target, eff_atk, true, false, false, false)
 
 		EnemyData.ActionType.STONE:
 			var target := _pick_target(attacker)
 			if target:
-				_do_hits(attacker, target, eff_atk, 1, true, false)
+				await _do_hits(attacker, target, eff_atk, 1, true, false)
 
 		EnemyData.ActionType.ABSORB:
 			var target := _pick_target(attacker)
 			if target:
-				_do_hits(attacker, target, eff_atk, 1, false, true)
+				await _do_hits(attacker, target, eff_atk, 1, false, true)
 
 		_:  # NORMAL
 			var target := _pick_target(attacker)
 			if target:
-				_do_hits(attacker, target, eff_atk, 1, false, false)
+				await _do_hits(attacker, target, eff_atk, 1, false, false)
 
 # ──────────────────── ヒット処理 ────────────────────
 
@@ -193,7 +200,7 @@ func _do_hits(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 	for i in hits:
 		if is_over or not target.is_alive:
 			break
-		_do_single_hit(attacker, target, base_atk, i == 0, apply_stone, apply_absorb, had_charge and i == 0)
+		await _do_single_hit(attacker, target, base_atk, i == 0, apply_stone, apply_absorb, had_charge and i == 0)
 	if had_charge:
 		attacker.charge_excess = 0
 
@@ -223,7 +230,7 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 		elif target.row == 2 and player_grid.get_front_row().is_empty() and player_grid.get_row(1).is_empty():
 			raw *= 2
 
-	# 防御補助（最初のヒットのみ）
+	# 防御補助（最初のヒットのみ）→ 演出後に攻撃
 	var def_support := 0
 	if is_first and attacker.side == BattleUnit.Side.ENEMY and target.side == BattleUnit.Side.PLAYER:
 		var mid := _get_mid_def_support(player_grid, target.col)
@@ -231,6 +238,7 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 			defense_support_used.emit(mid, target)
 			def_support = mid.def_bonus
 			mid.def_support_used = true
+			await get_tree().create_timer(SUPPORT_DELAY).timeout
 
 	var actual: int = max(0, raw - def_support)
 
@@ -271,8 +279,8 @@ func _apply_back_row_healing(grid: RotationGrid) -> void:
 		if unit.self_regen > 0:
 			_apply_healing(unit, unit.self_regen)
 		if unit.row_regen > 0:
-			for other: BattleUnit in grid.get_all_alive():
-				if other != unit and other.col == unit.col:
+			for other: BattleUnit in grid.get_row(unit.row):
+				if other != unit:
 					_apply_healing(other, unit.row_regen)
 
 func _apply_enemy_healing() -> void:
