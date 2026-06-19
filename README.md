@@ -22,7 +22,7 @@
 
 - **エンジン**: Godot 4 (GDScript)
 - **データ**: Godot Resource + JSON（完全オフライン）
-- **ツール**: Python
+- **ツール**: Python / GUT（自動テスト）
 - **公開**: itch.io / Steam（デスクトップビルドのみ）
 
 ## 開発ログ

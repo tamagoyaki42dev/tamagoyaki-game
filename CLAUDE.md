@@ -4,7 +4,7 @@
 
 **スタジオ:** たまごやきゲームズ  
 **ジャンル:** ローテーションバトル × 世代継承 × 拠点整備  
-**エンジン:** Godot 4（標準版・GDScript）  
+**エンジン:** Godot 4 / GDScript  
 **公開先:** itch.io / Steam（デスクトップビルドのみ）
 
 ## ゲームコンセプト
@@ -29,20 +29,10 @@
 - 常時通信なし（完全オフライン）
 - インベントリ画面なし（装備はキャラ数値に直接加算・消滅）
 
-## 技術スタック
-
-| レイヤー | 技術 |
-|---|---|
-| ゲームエンジン | Godot 4 / GDScript |
-| データ管理 | Godot Resource + JSON（user://save.json） |
-| ツール系 | Python |
-| CI/CD | GitHub Actions |
-
 ## UI・操作方針
 
 - **横画面（1920×1080）**で設計・開発。スマホ対応は後回し
 - **マウス左クリック（タップ）のみ**で全操作完結
-- キーボードショートカットは後付けオプション
 - データパスは必ず `user://` を使う（絶対パス禁止）
 
 ## アーキテクチャ原則（What goes where）
@@ -75,17 +65,10 @@
 - これはプロトタイプ（3戦、基本戦闘と編成画面のみ）。凝った仕様は作りこまない
 - 演出は1個ずつ足す。複数同時追加禁止
 
-### 監査テンプレ
-プロジェクト全体を読んでから診断だけして（まだ変更しない）。
-Resource化/Autoload化/Signal化/@export化/シーン重複の観点で出す。
-問題を「影響度×修正コスト」で優先づけ、段階移行プランを出す。
+## グラフィック方針
 
-### 機能依頼テンプレ
-```
-[目的] [データ:Resource?] [状態:どこ] [通知:Signal]
-[どこ] [スコープと禁止] [まず設計案→承認後に実装]
-[@export値]
-```
+- アセットは全部Kenneyの同じファミリーで統一（敵・背景も）
+- 人型モーション = Mixamo / 非人型 = Godotアニメ
 
 ## 助言義務
 
@@ -93,38 +76,8 @@ Resource化/Autoload化/Signal化/@export化/シーン重複の観点で出す�
 - より強力・単純な標準機能があれば頼まれずとも推奨する
 - 「それGodotにXという標準機能がある」と気づいたら必ず指摘する
 - バージョン差・APIに確信がなければ推測せず、最新ドキュメントで裏取りしてから答える
-
-## グラフィック方針
-
-作業順：下地 → 演出土台 → 敵流用 → 背景は最後（手戻り防止）
-
-- 下地 = 地面＋影＋ライト＋背景色（5分で仮置き）
-- アセットは全部Kenneyの同じファミリーで統一（敵・背景も）
-- 人型モーション = Mixamo / 非人型 = Godotアニメ
-- 味方はKenney Mini Characters配置済み。次は敵→背景
-
-## 戦闘演出
-
-### 土台（共通BattleUnitスクリプト・Tweenで制御）
-- 攻撃：予備動作0.05m後退 → 0.3m前進0.12s → 戻り0.18s
-- 被弾：対象MeshのみShader uniform赤flash 0.08s ＋ 揺れ±0.05m ＋ 軽ノックバック  
-  ※実装前にKenneyキャラのマテリアル構造を確認すること
-- 撃破：scale=0＋傾き0.4s / squash&stretch / 着弾点にGPUParticles3D
-- 全数値 `@export`。全画面演出・カメラ操作・他ユニットへの影響は禁止
-
-### 化粧4つ（土台完成後に1個ずつ）
-
-| 演出 | 実装 |
-|--|--|
-| ★ヒットストップ | `Engine.time_scale=0.05` → `timer(ignore_time_scale)` → 1.0戻し |
-| ★カメラシェイク | `Camera3D h_offset/v_offset` を `FastNoiseLite` で（transform触らない） |
-| ★グロー/ブルーム | `WorldEnvironment glow_enabled` |
-| ★ダメージ数字 | `Label3D(billboard)` 上へpos Tween＋alphaフェード＋出現scaleパンチ |
-
-+α：HPバー追従（2枚重ね・背面遅延）/ Tween easing=`TRANS_BACK` / 背弾`OmniLight3D` / 軌跡=`GPUParticles trail_enabled`  
-火花：`one_shot` ＋ `explosiveness` ＋ `color_ramp`
-
-原則：対象・技法・数値・順序・禁止（全画面）・`@export`
+- **`await`・タイマー・Signal の連鎖を含むコードを変更するときは、実装前に必ず明示する：**
+  「この変更はテストで保護されません。実装後に〔具体的な動作〕を手動で確認してください」
 
 ## セッション開始時に必ずやること
 
@@ -133,36 +86,26 @@ Resource化/Autoload化/Signal化/@export化/シーン重複の観点で出す�
 
 ## 仕様書
 
-戦闘・敵・ユニット関連の実装・修正を行う際は、作業前に該当ファイルを参照すること。
+実装・修正を行う際は、作業前に該当ファイルを参照すること。
 
 | ファイル | 参照タイミング |
 |---|---|
 | `docs/battle_spec.md` | 戦闘ロジック・ローテーション・ダメージ計算・勝敗条件に触れるとき |
 | `docs/enemy_spec.md` | 敵生成・敵の行動・思考タイプに触れるとき |
 | `docs/unit_spec.md` | 職業・ステータス数値・バランスに触れるとき |
+| `docs/visual_spec.md` | 戦闘演出・グラフィック実装に触れるとき |
 | `docs/game_concept.md` | ゲームの根幹思想・内外構造に触れるとき |
 | `docs/godot_feature_map.md` | 使うべきGodot機能を確認するとき |
-
-## ファイル構成
-
-```
-tamagoyaki-game/
-├── docs/          # 仕様書・設計書
-├── assets/        # 画像・音声素材
-│   ├── bg_arena.jpg
-│   └── characters/kenney/    # Kenney Mini Characters（CC0）
-├── scenes/        # Godot シーン
-├── scripts/       # GDScript
-├── tools/         # Python ツール（自動投稿等）
-├── devlog/        # 開発日誌（GitHubに公開）
-├── .env           # APIキー（gitignore済み・コミット禁止）
-├── .env.example   # キーのテンプレート
-└── CLAUDE.md      # このファイル
-```
+| `docs/workflow.md` | 監査・機能依頼のテンプレートが必要なとき |
 
 ## コミット・SNS投稿フロー
 
 コミット前に以下を順番に確認・更新してからコミットメッセージ案を提案する：
+
+0. **テスト実行（必須）**
+   - GUT で全テスト（tests/ 以下）を実行し、全 Pass を確認
+   - `docs/visual_test_checklist.md` の全項目を目視確認
+   → どちらかが NG ならコミットしない
 
 1. **`devlog/今日の日付.md`** — 末尾に `## 次のセッションでやること` セクションを書く
 2. **`docs/battle_spec.md` / `docs/enemy_spec.md` / `docs/unit_spec.md`** — 今回の実装・決定で仕様書と乖離が生じていないか確認・更新

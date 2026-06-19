@@ -105,14 +105,14 @@ func _do_unit_action(attacker: BattleUnit) -> void:
 
 func _execute_player_action(attacker: BattleUnit) -> void:
 	# 間接攻撃（中列ユニットで同縦マスの前列が空いている場合）
-	if attacker.row == 1 and attacker.indirect_attack > 0 and _front_col_empty(player_grid, attacker.col):
+	if attacker.row == 1 and attacker.indirect_attack > 0 and not player_grid.has_front_unit_at_col(attacker.col):
 		var target := _pick_target(attacker)
 		if target:
 			await _do_hits(attacker, target, attacker.indirect_attack, 1, false, false)
 		return
 
 	# 攻撃補助チェック
-	var mid := _get_mid_atk_support(player_grid, attacker.col)
+	var mid := player_grid.get_unused_atk_supporter_at_col(attacker.col)
 	var bonus := 0
 	var is_row_attack := false
 	if mid:
@@ -211,17 +211,12 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 	if is_over or not target.is_alive:
 		return
 
-	# 倍率計算（全て乗算、端数は最後に切り上げ）
-	var mult := 1.0
 	var is_crit := randf() < attacker.crit_rate
-	if is_crit:
-		mult *= 1.5
-	if is_first and had_charge:
-		var cm := minf(4.0, float(attacker.hp_max + attacker.charge_excess) / float(attacker.hp_max) / 2.0)
-		mult *= cm
-	if target.is_petrified:
-		mult *= 1.5
-	var raw := ceili(float(base_atk) * mult)
+	var mult := BattleMath.calc_damage_multiplier(
+			is_crit, is_first, had_charge,
+			attacker.charge_excess, attacker.hp_max,
+			target.is_petrified)
+	var raw := BattleMath.calc_raw_damage(base_atk, mult)
 
 	# 前列空きによる2倍ダメージ（敵→味方のみ）
 	if attacker.side == BattleUnit.Side.ENEMY and target.side == BattleUnit.Side.PLAYER:
@@ -233,14 +228,14 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 	# 防御補助（最初のヒットのみ）→ 演出後に攻撃
 	var def_support := 0
 	if is_first and attacker.side == BattleUnit.Side.ENEMY and target.side == BattleUnit.Side.PLAYER:
-		var mid := _get_mid_def_support(player_grid, target.col)
+		var mid := player_grid.get_unused_def_supporter_at_col(target.col)
 		if mid:
 			defense_support_used.emit(mid, target)
 			def_support = mid.def_bonus
 			mid.def_support_used = true
 			await get_tree().create_timer(SUPPORT_DELAY).timeout
 
-	var actual: int = max(0, raw - def_support)
+	var actual := BattleMath.calc_actual_damage(raw, def_support)
 
 	# 石化判定（ダメージ0なら発動しない）
 	if apply_stone and actual > 0:
@@ -261,7 +256,7 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 
 	# HP吸収（実ダメージの50%を回復）
 	if apply_absorb and actual > 0:
-		var absorb := ceili(float(actual) * 0.5)
+		var absorb := BattleMath.calc_absorb_heal(actual)
 		attacker.hp = min(attacker.hp_max, attacker.hp + absorb)
 		unit_healed.emit(attacker, absorb)
 
@@ -295,13 +290,11 @@ func _apply_enemy_healing() -> void:
 func _apply_healing(unit: BattleUnit, amount: int) -> void:
 	if not unit.is_alive or amount <= 0:
 		return
-	var old_hp := unit.hp
-	unit.hp = mini(unit.hp_max, unit.hp + amount)
-	var healed := unit.hp - old_hp
-	var overheal := amount - healed
-	unit_healed.emit(unit, healed)  # HP満タンでも発火（healed=0 = MAX表示用）
-	if overheal > 0:
-		unit.charge_excess += overheal
+	var result := BattleMath.calc_healing(unit.hp, unit.hp_max, amount)
+	unit.hp += result["healed"]
+	unit_healed.emit(unit, result["healed"])  # HP満タンでも発火（healed=0 = MAX表示用）
+	if result["overheal"] > 0:
+		unit.charge_excess += result["overheal"]
 
 # ──────────────────── タイムライン ────────────────────
 
@@ -310,10 +303,10 @@ func build_timeline() -> Array:
 	all += player_grid.get_front_row()
 	all += enemy_grid.get_front_row()
 	for unit: BattleUnit in player_grid.get_row(1):
-		if unit.indirect_attack > 0 and _front_col_empty(player_grid, unit.col):
+		if unit.indirect_attack > 0 and not player_grid.has_front_unit_at_col(unit.col):
 			all.append(unit)
 	for unit: BattleUnit in enemy_grid.get_row(1):
-		if unit.indirect_attack > 0 and _front_col_empty(enemy_grid, unit.col):
+		if unit.indirect_attack > 0 and not enemy_grid.has_front_unit_at_col(unit.col):
 			all.append(unit)
 	var rng_map: Dictionary = {}
 	for unit: BattleUnit in all:
@@ -326,12 +319,6 @@ func build_timeline() -> Array:
 		return rng_map[a] < rng_map[b]
 	)
 	return all
-
-func _front_col_empty(grid: RotationGrid, col: int) -> bool:
-	for unit: BattleUnit in grid.get_front_row():
-		if unit.col == col:
-			return false
-	return true
 
 # ──────────────────── ターゲット選択 ────────────────────
 
@@ -393,22 +380,6 @@ func _get_opp_front(grid: RotationGrid) -> Array:
 	if candidates.is_empty(): candidates = grid.get_row(1)
 	if candidates.is_empty(): candidates = grid.get_all_alive()
 	return candidates
-
-# ──────────────────── 補助サポート ────────────────────
-
-# 攻撃補助: 同縦マスのみ（攻補(列)も同縦マスがトリガー。効果だけが列攻撃化）
-func _get_mid_atk_support(grid: RotationGrid, attacker_col: int) -> BattleUnit:
-	for unit: BattleUnit in grid.get_row(1):
-		if not unit.atk_support_used and unit.atk_bonus > 0 and unit.col == attacker_col:
-			return unit
-	return null
-
-# 防御補助: 同縦マスのみ
-func _get_mid_def_support(grid: RotationGrid, target_col: int) -> BattleUnit:
-	for unit: BattleUnit in grid.get_row(1):
-		if not unit.def_support_used and unit.def_bonus > 0 and unit.col == target_col:
-			return unit
-	return null
 
 # ──────────────────── ユーティリティ ────────────────────
 

@@ -53,3 +53,21 @@ func get_all_alive() -> Array:
 
 func is_wiped() -> bool:
 	return get_all_alive().is_empty()
+
+func has_front_unit_at_col(col: int) -> bool:
+	for unit: BattleUnit in get_front_row():
+		if unit.col == col:
+			return true
+	return false
+
+func get_unused_atk_supporter_at_col(col: int) -> BattleUnit:
+	for unit: BattleUnit in get_row(1):
+		if not unit.atk_support_used and unit.atk_bonus > 0 and unit.col == col:
+			return unit
+	return null
+
+func get_unused_def_supporter_at_col(col: int) -> BattleUnit:
+	for unit: BattleUnit in get_row(1):
+		if not unit.def_support_used and unit.def_bonus > 0 and unit.col == col:
+			return unit
+	return null
