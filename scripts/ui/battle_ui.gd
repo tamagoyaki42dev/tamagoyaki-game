@@ -4,6 +4,12 @@ extends Control
 const PANEL_W   := 420.0
 const LOG_SPLIT := 0.55
 
+const HP_YELLOW_THRESHOLD := 0.5
+const HP_RED_THRESHOLD    := 0.25
+const HP_COLOR_GREEN  := Color(0.15, 0.80, 0.30)
+const HP_COLOR_YELLOW := Color(0.90, 0.78, 0.05)
+const HP_COLOR_RED    := Color(0.85, 0.18, 0.10)
+
 var _font: Font = null
 var _manager: BattleManager = null
 var _enemy_data: EnemyData = null
@@ -16,7 +22,8 @@ var _rotate_btn: Button
 var _stay_btn: Button
 var _action_panel: Control = null
 
-var _party_bars: Dictionary = {}  # BattleUnit → ProgressBar
+var _party_bars: Dictionary = {}   # BattleUnit → ProgressBar
+var _bar_fills: Dictionary = {}    # BattleUnit → StyleBoxFlat
 
 @export var countdown_seconds: float = 3.0
 var _countdown_time: float = -1.0
@@ -162,7 +169,7 @@ func _build_party_panel(units: Array) -> void:
 		bar.value = float(unit.hp)
 		bar.show_percentage = false
 		var bar_fill := StyleBoxFlat.new()
-		bar_fill.bg_color = Color(0.15, 0.80, 0.30)
+		bar_fill.bg_color = HP_COLOR_GREEN
 		bar_fill.set_corner_radius_all(2)
 		bar.add_theme_stylebox_override("fill", bar_fill)
 		var bar_bg := StyleBoxFlat.new()
@@ -171,6 +178,7 @@ func _build_party_panel(units: Array) -> void:
 		bar.add_theme_stylebox_override("background", bar_bg)
 		entry.add_child(bar)
 		_party_bars[unit] = bar
+		_bar_fills[unit] = bar_fill
 
 func _build_btn(text: String, pos: Vector2, sz: Vector2,
 		color: Color, cb: Callable) -> Button:
@@ -197,7 +205,18 @@ func _build_btn(text: String, pos: Vector2, sz: Vector2,
 func _update_hp(unit: BattleUnit) -> void:
 	if not _party_bars.has(unit):
 		return
-	(_party_bars[unit] as ProgressBar).value = float(unit.hp)
+	var bar := _party_bars[unit] as ProgressBar
+	bar.value = float(unit.hp)
+	var fill := _bar_fills.get(unit) as StyleBoxFlat
+	if fill:
+		fill.bg_color = _get_hp_color(clampf(float(unit.hp) / float(unit.hp_max), 0.0, 1.0))
+
+func _get_hp_color(pct: float) -> Color:
+	if pct < HP_RED_THRESHOLD:
+		return HP_COLOR_RED
+	if pct < HP_YELLOW_THRESHOLD:
+		return HP_COLOR_YELLOW
+	return HP_COLOR_GREEN
 
 func _log_add(text: String) -> void:
 	_log.append_text(text + "\n")

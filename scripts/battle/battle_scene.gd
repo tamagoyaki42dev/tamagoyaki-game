@@ -3,6 +3,12 @@ extends Node
 
 const CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
 
+const HP_YELLOW_THRESHOLD := 0.5
+const HP_RED_THRESHOLD    := 0.25
+const HP_COLOR_GREEN  := Color(0.15, 0.80, 0.30, 1.0)
+const HP_COLOR_YELLOW := Color(0.90, 0.78, 0.05, 1.0)
+const HP_COLOR_RED    := Color(0.85, 0.18, 0.10, 1.0)
+
 # カメラ
 @export var camera_target: Vector3     = Vector3(3.0, 0.0, 2.0)
 @export var camera_distance: float     = 15.0
@@ -54,13 +60,19 @@ void fragment() {
 # billboardで常にカメラを向くため親ノードの回転に依存しない
 const _HP_BAR_CODE := """
 shader_type spatial;
-render_mode unshaded, cull_disabled, billboard, depth_draw_never;
+render_mode unshaded, cull_disabled, depth_test_disabled;
 uniform float health_pct : hint_range(0.0, 1.0) = 1.0;
 uniform vec4  bar_color  : source_color = vec4(0.15, 0.85, 0.3, 1.0);
+void vertex() {
+	mat4 mv = VIEW_MATRIX * MODEL_MATRIX;
+	mv[0] = vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0);
+	mv[1] = vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0);
+	mv[2] = vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0);
+	POSITION = PROJECTION_MATRIX * mv * vec4(VERTEX, 1.0);
+}
 void fragment() {
 	if (UV.x > health_pct) { discard; }
 	ALBEDO = bar_color.rgb;
-	ALPHA  = bar_color.a;
 }
 """
 
@@ -214,6 +226,14 @@ func _update_hp_bar(unit: BattleUnit) -> void:
 		return
 	var pct := clampf(float(unit.hp) / float(unit.hp_max), 0.0, 1.0)
 	mat.set_shader_parameter("health_pct", pct)
+	mat.set_shader_parameter("bar_color", _get_hp_color(pct))
+
+func _get_hp_color(pct: float) -> Color:
+	if pct < HP_RED_THRESHOLD:
+		return HP_COLOR_RED
+	if pct < HP_YELLOW_THRESHOLD:
+		return HP_COLOR_YELLOW
+	return HP_COLOR_GREEN
 
 func _spawn_char(marker: Marker3D, y_rot: float) -> Node3D:
 	var res: PackedScene = load(CHAR_PATH)
