@@ -1,7 +1,8 @@
 class_name BattleScene
 extends Node
 
-const CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
+const CHAR_PATH  := "res://assets/characters/kenney/character-male-a.glb"
+const NEXT_SCENE := "res://scenes/formation.tscn"
 
 const HP_YELLOW_THRESHOLD := 0.5
 const HP_RED_THRESHOLD    := 0.25
@@ -81,6 +82,9 @@ const ROW_NAMES := ["前", "中", "後"]
 
 # ローテーション
 @export var rotate_duration: float     = 0.55   # s
+
+# 戦闘終了
+@export var battle_end_delay: float    = 2.5    # s
 
 # 戦場グリッド表示
 @export var grid_cell_size: Vector2      = Vector2(1.85, 1.85)
@@ -293,7 +297,7 @@ static func _make_row_label(text: String, pos: Vector3, font_size: int,
 	lbl.position = pos
 	return lbl
 
-func _spawn_damage_label(pos: Vector3, text: String, color: Color) -> void:
+func _spawn_floating_label(pos: Vector3, text: String, color: Color) -> void:
 	var lbl := _make_label3d(text, dmg_font_size, dmg_pixel_size, color)
 	lbl.outline_size = 6
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
@@ -340,21 +344,24 @@ static func _make_support_label(text: String, pos: Vector3, font_size: int,
 	lbl.scale = Vector3.ZERO
 	return lbl
 
+func _animate_floating_label(lbl: Label3D, rise: float, duration: float) -> void:
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(lbl, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "position",
+		lbl.position + Vector3(0.0, rise, 0.0), duration).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "modulate:a", 0.0,
+		duration * 0.55).set_delay(duration * 0.45)
+	await get_tree().create_timer(duration + 0.1).timeout
+	if is_instance_valid(lbl):
+		lbl.queue_free()
+
 func _spawn_atk_support_label(pos: Vector3) -> void:
 	var lbl := BattleScene._make_support_label(
 		"ATK Up", pos, supp_font_size, dmg_pixel_size, supp_label_color, supp_label_offset)
 	if _label_font:
 		lbl.font = _label_font
 	_characters.add_child(lbl)
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(lbl, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lbl, "position",
-		lbl.position + Vector3(0.0, supp_rise, 0.0), supp_duration).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lbl, "modulate:a", 0.0,
-		supp_duration * 0.55).set_delay(supp_duration * 0.45)
-	await get_tree().create_timer(supp_duration + 0.1).timeout
-	if is_instance_valid(lbl):
-		lbl.queue_free()
+	_animate_floating_label(lbl, supp_rise, supp_duration)
 
 func _spawn_def_support_label(pos: Vector3) -> void:
 	var lbl := BattleScene._make_support_label(
@@ -362,15 +369,7 @@ func _spawn_def_support_label(pos: Vector3) -> void:
 	if _label_font:
 		lbl.font = _label_font
 	_characters.add_child(lbl)
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(lbl, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lbl, "position",
-		lbl.position + Vector3(0.0, def_rise, 0.0), def_duration).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lbl, "modulate:a", 0.0,
-		def_duration * 0.55).set_delay(def_duration * 0.45)
-	await get_tree().create_timer(def_duration + 0.1).timeout
-	if is_instance_valid(lbl):
-		lbl.queue_free()
+	_animate_floating_label(lbl, def_rise, def_duration)
 
 func _make_bg_bar() -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
@@ -509,7 +508,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 	if ch_t:
 		var dmg_text := "-%d" % dmg if dmg > 0 else "0"
 		var dmg_color := Color(1.0, 0.85, 0.15) if is_crit else Color(1.0, 0.92, 0.85)
-		_spawn_damage_label(ch_t.global_position, dmg_text, dmg_color)
+		_spawn_floating_label(ch_t.global_position, dmg_text, dmg_color)
 		if is_crit:
 			_spawn_critical_label(ch_t.global_position)
 		_update_hp_bar(target)
@@ -545,7 +544,7 @@ func _on_unit_healed(unit: BattleUnit, amount: int) -> void:
 	var ch: Node3D = _unit_nodes.get(unit) as Node3D
 	if ch:
 		var text := "+%d" % amount if amount > 0 else "MAX"
-		_spawn_damage_label(ch.global_position, text, heal_label_color)
+		_spawn_floating_label(ch.global_position, text, heal_label_color)
 		_do_flash(ch, heal_flash_color, heal_flash_duration)
 
 func _on_rotated() -> void:
@@ -600,31 +599,30 @@ func _on_row_heal_batch(entries: Array) -> void:
 		_process_row_heal_queue()
 
 func _process_row_heal_queue() -> void:
-	if _row_heal_queue.is_empty():
-		_row_heal_animating = false
-		_row_heal_units.clear()
-		_manager.row_heal_anim_done.emit()  # 全バッチ完了 → マネージャーのawaitを解除
-		return
 	_row_heal_animating = true
-	var entries: Array = _row_heal_queue.pop_front()
-	var sorted: Array = entries.duplicate()
-	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return (a["unit"] as BattleUnit).col > (b["unit"] as BattleUnit).col)
-	for e: Dictionary in sorted:
-		var unit: BattleUnit = e["unit"] as BattleUnit
-		var amount: int = e["amount"] as int
-		var ch: Node3D = _unit_nodes.get(unit) as Node3D
-		if ch:
-			var text := "+%d" % amount if amount > 0 else "MAX"
-			_spawn_damage_label(ch.global_position, text, heal_label_color)
-			_do_flash(ch, heal_flash_color, heal_flash_duration)
-		await get_tree().create_timer(heal_row_stagger).timeout
-	await get_tree().create_timer(heal_batch_gap).timeout
-	_process_row_heal_queue()
+	while not _row_heal_queue.is_empty():
+		var entries: Array = _row_heal_queue.pop_front()
+		var sorted: Array = entries.duplicate()
+		sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return (a["unit"] as BattleUnit).col > (b["unit"] as BattleUnit).col)
+		for e: Dictionary in sorted:
+			var unit: BattleUnit = e["unit"] as BattleUnit
+			var amount: int = e["amount"] as int
+			var ch: Node3D = _unit_nodes.get(unit) as Node3D
+			if ch:
+				var text := "+%d" % amount if amount > 0 else "MAX"
+				_spawn_floating_label(ch.global_position, text, heal_label_color)
+				_do_flash(ch, heal_flash_color, heal_flash_duration)
+			await get_tree().create_timer(heal_row_stagger).timeout
+		if not _row_heal_queue.is_empty():
+			await get_tree().create_timer(heal_batch_gap).timeout
+	_row_heal_animating = false
+	_row_heal_units.clear()
+	_manager.row_heal_anim_done.emit()
 
 func _on_battle_ended(_won: bool, _loot: Array) -> void:
-	await get_tree().create_timer(2.5).timeout
-	get_tree().change_scene_to_file("res://scenes/formation.tscn")
+	await get_tree().create_timer(battle_end_delay).timeout
+	get_tree().change_scene_to_file(NEXT_SCENE)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and (event as InputEventKey).keycode == KEY_F12 \
