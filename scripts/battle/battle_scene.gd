@@ -64,7 +64,10 @@ const HP_COLOR_RED    := Color(0.85, 0.18, 0.10, 1.0)
 @export var atk_return_time: float     = 0.18   # s
 
 # 被弾
-@export var hit_flash_duration: float  = 0.08   # s 赤flash
+@export var hit_flash_duration: float  = 0.08
+@export var hit_flash_melee_color: Color  = Color(1.0, 0.15, 0.15)
+@export var hit_flash_magic_color: Color  = Color(0.7, 0.15, 1.0)
+@export var hit_flash_ranged_color: Color = Color(1.0, 0.85, 0.10)
 @export var hit_shake_amount: float    = 0.05   # m 揺れ幅
 @export var hit_knockback_dist: float  = 0.12   # m ノックバック
 
@@ -208,6 +211,20 @@ func _do_flash(ch: Node3D, color: Color = Color(1.0, 0.15, 0.15), duration: floa
 		tw.tween_method(
 			func(v: float) -> void: mat.set_shader_parameter("flash_amount", v),
 			1.0, 0.0, dur)
+
+static func _resolve_hit_flash_color(attacker: BattleUnit,
+		melee_color: Color, magic_color: Color, ranged_color: Color) -> Color:
+	if attacker.side == BattleUnit.Side.ENEMY:
+		return melee_color
+	var cd := attacker.source_data as CharacterData
+	if not cd:
+		return melee_color
+	match cd.job:
+		CharacterJob.Type.ARCHER, CharacterJob.Type.VALKYRIE:
+			return ranged_color
+		CharacterJob.Type.MAGE, CharacterJob.Type.WITCH, CharacterJob.Type.ILLUSIONIST, CharacterJob.Type.SHAMAN, CharacterJob.Type.SHRINE_MAIDEN:
+			return magic_color
+	return melee_color
 
 func _spawn_damage_label(pos: Vector3, text: String, color: Color) -> void:
 	var lbl := Label3D.new()
@@ -461,7 +478,8 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		if is_crit:
 			_spawn_critical_label(ch_t.global_position)
 		_update_hp_bar(target)
-		_do_flash(ch_t)
+		_do_flash(ch_t, _resolve_hit_flash_color(attacker,
+			hit_flash_melee_color, hit_flash_magic_color, hit_flash_ranged_color))
 		var t_origin := ch_t.position
 		var kb_dir := -dir
 		var shake := Vector3(randf_range(-hit_shake_amount, hit_shake_amount),
