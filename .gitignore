@@ -17,6 +17,9 @@ venv/
 tools/screenshot.png
 tools/screenshot_trigger
 
+# Claude Code ローカル設定（個人パスが入るため除外）
+.claude/settings.local.json
+
 # OS
 .DS_Store
 Thumbs.db

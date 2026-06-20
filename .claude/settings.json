@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": []
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"import json, sys; content = open('docs/backlog.md', encoding='utf-8').read(); print(json.dumps({'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': content}}))\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

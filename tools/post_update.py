@@ -4,8 +4,6 @@
 import os
 import sys
 import subprocess
-import shutil
-import time
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -25,44 +23,41 @@ def get_last_commit_message():
     return result.stdout.strip()
 
 
-def find_godot():
-    path = os.getenv("GODOT_PATH", "").strip()
-    if path:
-        return path
-    return shutil.which("godot") or shutil.which("godot4")
+def ask_screenshot_ready() -> bool:
+    """F12スクショ確認ダイアログ。Trueならスクショ存在確認済み。"""
+    msg = ("ゲーム内で F12 を押してスクショを撮りましたか？\n"
+           "（撮影すると tools/screenshot.png に保存されます）")
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        took_shot = messagebox.askyesno("スクショ確認", msg)
+        root.destroy()
+    except Exception:
+        try:
+            took_shot = input("F12でスクショを撮りましたか？ [y/N]: ").strip().lower() == "y"
+        except EOFError:
+            print("非インタラクティブ環境。手動で tools/post_update.py を実行してください。")
+            return False
 
+    if not took_shot:
+        print("スクショを撮ってから再実行してください。")
+        sys.exit(0)
 
-def capture_screenshot():
-    godot = find_godot()
-    if not godot:
-        print("Godot が見つかりません。.env に GODOT_PATH を設定してください。スクショなしで続行します。")
-        return False
+    if not SCREENSHOT.exists():
+        print("スクショが見つかりません。F12 で撮影後に再実行してください。")
+        sys.exit(1)
 
-    if SCREENSHOT.exists():
-        # 最新コミットより新しければ再利用、古ければ撮り直し
-        commit_time = subprocess.run(
-            ["git", "log", "-1", "--pretty=%ct"],
-            capture_output=True, text=True, cwd=PROJECT_DIR
-        ).stdout.strip()
-        if commit_time and SCREENSHOT.stat().st_mtime >= int(commit_time):
-            print("既存スクショを再利用します。")
-            return True
-        SCREENSHOT.unlink()
+    commit_time = subprocess.run(
+        ["git", "log", "-1", "--pretty=%ct"],
+        capture_output=True, text=True, cwd=PROJECT_DIR
+    ).stdout.strip()
+    if commit_time and SCREENSHOT.stat().st_mtime <= int(commit_time) + 30:
+        print("スクショが古いです。F12 で撮り直してから再実行してください。")
+        sys.exit(1)
 
-    print("Godot 起動中（スクショ撮影）...", flush=True)
-    subprocess.run([
-        godot,
-        "--path", str(PROJECT_DIR),
-        "res://scenes/iso_preview.tscn",
-        "screenshot_mode",
-    ])
-
-    if SCREENSHOT.exists():
-        print("スクショ取得完了")
-        return True
-    else:
-        print("スクショ保存されませんでした。スクショなしで続行します。")
-        return False
+    return True
 
 
 def preview_and_confirm(text, has_screenshot):
@@ -75,12 +70,23 @@ def preview_and_confirm(text, has_screenshot):
     else:
         print("\n（スクショなし）")
     print()
+
+    preview = text[:100] + ("…" if len(text) > 100 else "")
     try:
-        answer = input("この内容で投稿しますか？ [y/N]: ").strip().lower()
-    except EOFError:
-        print("非インタラクティブ環境を検出。手動で tools/post_update.py を実行してください。")
-        return False
-    return answer == "y"
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        result = messagebox.askyesno("SNS投稿確認", f"{preview}\n\nこの内容で投稿しますか？")
+        root.destroy()
+        return result
+    except Exception:
+        try:
+            answer = input("この内容で投稿しますか？ [y/N]: ").strip().lower()
+        except EOFError:
+            print("非インタラクティブ環境を検出。手動で tools/post_update.py を実行してください。")
+            return False
+        return answer == "y"
 
 
 def post_to_x(text, has_screenshot):
@@ -149,7 +155,7 @@ def main():
     if not post_x:
         print(f"X 文字数オーバー（{x_len(text)}/280）。X への投稿をスキップします。")
 
-    has_screenshot = capture_screenshot()
+    has_screenshot = ask_screenshot_ready()
 
     if not preview_and_confirm(text, has_screenshot):
         print("投稿をキャンセルしました。")

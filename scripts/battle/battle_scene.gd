@@ -31,6 +31,31 @@ const HP_COLOR_RED    := Color(0.85, 0.18, 0.10, 1.0)
 @export var crit_duration: float       = 0.75
 @export var crit_rise: float           = 0.6
 
+# 攻撃補助エフェクト
+@export var supp_font_size: int          = 48
+@export var supp_duration: float         = 0.8
+@export var supp_rise: float             = 0.9
+@export var supp_flash_color: Color      = Color(1.0, 0.55, 0.0)
+@export var supp_flash_duration: float   = 0.45
+@export var supp_label_color: Color      = Color(1.0, 0.65, 0.1)
+@export var supp_label_offset: Vector3   = Vector3(0.0, 1.8, 0.0)
+
+# 防御補助エフェクト
+@export var def_font_size: int           = 48
+@export var def_duration: float          = 0.8
+@export var def_rise: float              = 0.9
+@export var def_flash_color: Color       = Color(0.2, 0.5, 1.0)
+@export var def_flash_duration: float    = 0.45
+@export var def_label_color: Color       = Color(0.3, 0.7, 1.0)
+@export var def_label_offset: Vector3    = Vector3(0.0, 1.8, 0.0)
+
+# 回復エフェクト
+@export var heal_flash_color: Color      = Color(0.2, 1.0, 0.4)
+@export var heal_flash_duration: float   = 0.35
+@export var heal_label_color: Color      = Color(0.3, 1.0, 0.55)
+@export var heal_row_stagger: float      = 0.15  # 列回復の各キャラ間ディレイ（秒）
+@export var heal_batch_gap: float        = 0.65  # 列回復ヒーラー間ディレイ（秒）
+
 # 攻撃アニメ
 @export var atk_wind_up_dist: float    = 0.05   # m 予備後退
 @export var atk_lunge_dist: float      = 0.3    # m 前進
@@ -93,14 +118,25 @@ var _hp_bar_shader: Shader
 @onready var _battle_ui: BattleUI        = $CanvasLayer/BattleUI
 
 var _manager: BattleManager
-var _unit_nodes: Dictionary = {}  # BattleUnit → Node3D
-var _hp_bars: Dictionary = {}     # BattleUnit → ShaderMaterial (fg)
+var _unit_nodes: Dictionary = {}    # BattleUnit → Node3D
+var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
+var _label_font: Font = null
+var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニメ処理中）
+var _row_heal_queue: Array = []          # 待機中の列回復バッチ
+var _row_heal_animating: bool = false    # _process_row_heal_queue が動いているか
 
 func _ready() -> void:
 	_flash_shader = Shader.new()
 	_flash_shader.code = _FLASH_CODE
 	_hp_bar_shader = Shader.new()
 	_hp_bar_shader.code = _HP_BAR_CODE
+	const JP := "res://assets/fonts/851CHIKARA-DZUYOKU_kanaA_004.ttf"
+	const EN := "res://assets/fonts/Cinzel-Regular.ttf"
+	if ResourceLoader.exists(JP):
+		var jf := load(JP) as FontFile
+		if jf and ResourceLoader.exists(EN):
+			jf.set_fallbacks([load(EN) as Font])
+		_label_font = jf
 	_setup_world()
 	_start_battle()
 
@@ -129,6 +165,9 @@ func _start_battle() -> void:
 	_manager.unit_died.connect(_on_unit_died)
 	_manager.rotated.connect(_on_rotated)
 	_manager.battle_ended.connect(_on_battle_ended)
+	_manager.attack_support_used.connect(_on_attack_support_used)
+	_manager.defense_support_used.connect(_on_defense_support_used)
+	_manager.row_heal_batch.connect(_on_row_heal_batch)
 	_battle_ui.setup(_manager)
 	_manager.start_battle(GameState.get_battle_entries(), GameState.get_battle_enemy())
 
@@ -155,18 +194,20 @@ func _setup_flash(ch: Node3D) -> void:
 		mat.set_shader_parameter("flash_amount", 0.0)
 		mesh.material_overlay = mat
 
-func _do_flash(ch: Node3D) -> void:
+func _do_flash(ch: Node3D, color: Color = Color(1.0, 0.15, 0.15), duration: float = -1.0) -> void:
+	var dur := duration if duration > 0.0 else hit_flash_duration
 	var meshes: Array[MeshInstance3D] = []
 	_collect_meshes(ch, meshes)
 	for mesh: MeshInstance3D in meshes:
 		var mat: ShaderMaterial = mesh.material_overlay as ShaderMaterial
 		if not mat:
 			continue
+		mat.set_shader_parameter("flash_color", Vector3(color.r, color.g, color.b))
 		mat.set_shader_parameter("flash_amount", 1.0)
 		var tw := create_tween()
 		tw.tween_method(
 			func(v: float) -> void: mat.set_shader_parameter("flash_amount", v),
-			1.0, 0.0, hit_flash_duration)
+			1.0, 0.0, dur)
 
 func _spawn_damage_label(pos: Vector3, text: String, color: Color) -> void:
 	var lbl := Label3D.new()
@@ -180,6 +221,8 @@ func _spawn_damage_label(pos: Vector3, text: String, color: Color) -> void:
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	lbl.position = pos + Vector3(randf_range(-0.2, 0.2), 1.5, 0.0)
 	lbl.scale = Vector3.ZERO
+	if _label_font:
+		lbl.font = _label_font
 	_characters.add_child(lbl)
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(lbl, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT)
@@ -203,6 +246,8 @@ func _spawn_critical_label(pos: Vector3) -> void:
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
 	lbl.position = pos + Vector3(0.0, 2.2, 0.0)
 	lbl.scale = Vector3.ZERO
+	if _label_font:
+		lbl.font = _label_font
 	_characters.add_child(lbl)
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(lbl, "scale", Vector3(1.5, 1.5, 1.5), 0.12).set_ease(Tween.EASE_OUT)
@@ -211,6 +256,68 @@ func _spawn_critical_label(pos: Vector3) -> void:
 	tw.tween_property(lbl, "modulate:a", 0.0,
 		crit_duration * 0.5).set_delay(crit_duration * 0.5)
 	await get_tree().create_timer(crit_duration + 0.1).timeout
+	if is_instance_valid(lbl):
+		lbl.queue_free()
+
+static func _make_atk_support_label(pos: Vector3, font_size: int,
+		pixel_size: float, label_color: Color, offset: Vector3) -> Label3D:
+	var lbl := Label3D.new()
+	lbl.text = "ATK Up"
+	lbl.font_size = font_size
+	lbl.pixel_size = pixel_size
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.modulate = label_color
+	lbl.outline_size = 6
+	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
+	lbl.position = pos + offset
+	lbl.scale = Vector3.ZERO
+	return lbl
+
+func _spawn_atk_support_label(pos: Vector3) -> void:
+	var lbl := BattleScene._make_atk_support_label(
+		pos, supp_font_size, dmg_pixel_size, supp_label_color, supp_label_offset)
+	if _label_font:
+		lbl.font = _label_font
+	_characters.add_child(lbl)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(lbl, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "position",
+		lbl.position + Vector3(0.0, supp_rise, 0.0), supp_duration).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "modulate:a", 0.0,
+		supp_duration * 0.55).set_delay(supp_duration * 0.45)
+	await get_tree().create_timer(supp_duration + 0.1).timeout
+	if is_instance_valid(lbl):
+		lbl.queue_free()
+
+static func _make_def_support_label(pos: Vector3, font_size: int,
+		pixel_size: float, label_color: Color, offset: Vector3) -> Label3D:
+	var lbl := Label3D.new()
+	lbl.text = "DEF Up"
+	lbl.font_size = font_size
+	lbl.pixel_size = pixel_size
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.modulate = label_color
+	lbl.outline_size = 6
+	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
+	lbl.position = pos + offset
+	lbl.scale = Vector3.ZERO
+	return lbl
+
+func _spawn_def_support_label(pos: Vector3) -> void:
+	var lbl := BattleScene._make_def_support_label(
+		pos, def_font_size, dmg_pixel_size, def_label_color, def_label_offset)
+	if _label_font:
+		lbl.font = _label_font
+	_characters.add_child(lbl)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(lbl, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "position",
+		lbl.position + Vector3(0.0, def_rise, 0.0), def_duration).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "modulate:a", 0.0,
+		def_duration * 0.55).set_delay(def_duration * 0.45)
+	await get_tree().create_timer(def_duration + 0.1).timeout
 	if is_instance_valid(lbl):
 		lbl.queue_free()
 
@@ -379,11 +486,14 @@ func _on_unit_died(unit: BattleUnit) -> void:
 		tw2.tween_property(ch, "rotation_degrees:z", death_tilt_deg, death_duration))
 
 func _on_unit_healed(unit: BattleUnit, amount: int) -> void:
+	_update_hp_bar(unit)
+	if _row_heal_units.has(unit):
+		return  # 視覚は _on_row_heal_batch が担当
 	var ch: Node3D = _unit_nodes.get(unit) as Node3D
 	if ch:
 		var text := "+%d" % amount if amount > 0 else "MAX"
-		_spawn_damage_label(ch.global_position, text, Color(0.3, 1.0, 0.55))
-	_update_hp_bar(unit)
+		_spawn_damage_label(ch.global_position, text, heal_label_color)
+		_do_flash(ch, heal_flash_color, heal_flash_duration)
 
 func _on_rotated() -> void:
 	var moves: Array[Dictionary] = []
@@ -402,6 +512,79 @@ func _on_rotated() -> void:
 	for entry: Dictionary in moves:
 		tw.tween_property(entry["ch"], "position", entry["to"], rotate_duration)
 
+func _on_attack_support_used(supporter: BattleUnit, attacker: BattleUnit) -> void:
+	var ch_supp: Node3D = _unit_nodes.get(supporter) as Node3D
+	var ch_atk: Node3D  = _unit_nodes.get(attacker)  as Node3D
+	if ch_supp:
+		_do_flash(ch_supp, supp_flash_color, supp_flash_duration)
+	if ch_atk:
+		_do_flash(ch_atk, supp_flash_color, supp_flash_duration)
+		_spawn_atk_support_label(ch_atk.global_position)
+
+func _on_defense_support_used(supporter: BattleUnit, target: BattleUnit) -> void:
+	var ch_supp: Node3D = _unit_nodes.get(supporter) as Node3D
+	var ch_tgt: Node3D  = _unit_nodes.get(target)    as Node3D
+	if ch_supp:
+		_do_flash(ch_supp, def_flash_color, def_flash_duration)
+	if ch_tgt:
+		_do_flash(ch_tgt, def_flash_color, def_flash_duration)
+		_spawn_def_support_label(ch_tgt.global_position)
+
+static func _make_heal_label(pos: Vector3, text: String, font_size: int,
+		pixel_size: float, label_color: Color) -> Label3D:
+	var lbl := Label3D.new()
+	lbl.text = text
+	lbl.font_size = font_size
+	lbl.pixel_size = pixel_size
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.modulate = label_color
+	lbl.outline_size = 6
+	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
+	lbl.position = pos + Vector3(0.0, 1.5, 0.0)
+	lbl.scale = Vector3.ZERO
+	return lbl
+
+func _on_row_heal_batch(entries: Array) -> void:
+	for e: Dictionary in entries:
+		_row_heal_units[e["unit"]] = true
+	_row_heal_queue.append(entries)
+	if not _row_heal_animating:
+		_process_row_heal_queue()
+
+func _process_row_heal_queue() -> void:
+	if _row_heal_queue.is_empty():
+		_row_heal_animating = false
+		_row_heal_units.clear()
+		_manager.row_heal_anim_done.emit()  # 全バッチ完了 → マネージャーのawaitを解除
+		return
+	_row_heal_animating = true
+	var entries: Array = _row_heal_queue.pop_front()
+	var sorted: Array = entries.duplicate()
+	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return (a["unit"] as BattleUnit).col > (b["unit"] as BattleUnit).col)
+	for e: Dictionary in sorted:
+		var unit: BattleUnit = e["unit"] as BattleUnit
+		var amount: int = e["amount"] as int
+		var ch: Node3D = _unit_nodes.get(unit) as Node3D
+		if ch:
+			var text := "+%d" % amount if amount > 0 else "MAX"
+			_spawn_damage_label(ch.global_position, text, heal_label_color)
+			_do_flash(ch, heal_flash_color, heal_flash_duration)
+		await get_tree().create_timer(heal_row_stagger).timeout
+	await get_tree().create_timer(heal_batch_gap).timeout
+	_process_row_heal_queue()
+
 func _on_battle_ended(_won: bool, _loot: Array) -> void:
 	await get_tree().create_timer(2.5).timeout
 	get_tree().change_scene_to_file("res://scenes/formation.tscn")
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and (event as InputEventKey).keycode == KEY_F12 \
+			and (event as InputEventKey).pressed:
+		get_viewport().set_input_as_handled()
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		var path := ProjectSettings.globalize_path("res://") + "tools/screenshot.png"
+		img.save_png(path)
+		print("スクショ保存: %s" % path)

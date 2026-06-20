@@ -13,6 +13,8 @@ signal action_announced(action_name: String)
 signal battle_ended(player_won: bool, loot: Array)
 signal attack_support_used(supporter: BattleUnit, attacker: BattleUnit)
 signal defense_support_used(supporter: BattleUnit, target: BattleUnit)
+signal row_heal_batch(entries: Array)   # [{unit, amount}] 右から左アニメ用
+signal row_heal_anim_done               # シーンがキュー処理完了時に emit → manager が await
 signal phase_started(phase: StringName)
 
 const TURN_LIMIT    = 100
@@ -73,8 +75,7 @@ func advance_turn(do_rotate: bool = false) -> void:
 		_apply_self_healing(player_grid)
 		_apply_enemy_healing()
 		await get_tree().create_timer(RECOVERY_DELAY).timeout
-		_apply_row_healing(player_grid)
-		await get_tree().create_timer(RECOVERY_DELAY).timeout
+		await _apply_row_healing(player_grid)  # 内部で row_heal_anim_done を await
 	var timeline := build_timeline()
 	turn_started.emit(turn_number, timeline, _current_enemy_action_label())
 	_unpetrified_this_turn = []
@@ -282,12 +283,26 @@ func _apply_self_healing(grid: RotationGrid) -> void:
 			_apply_healing(unit, unit.self_regen)
 
 func _apply_row_healing(grid: RotationGrid) -> void:
+	var emitted_batch := false
 	for unit: BattleUnit in grid.get_row(2):
 		if not unit.is_alive or unit.row_regen <= 0:
 			continue
+		# 視覚用：発動前にまとめて計算して emit（HP変更前の量が正しく表示される）
+		var entries: Array = []
+		for other: BattleUnit in grid.get_row(unit.row):
+			if other == unit or not other.is_alive:
+				continue
+			var result := BattleMath.calc_healing(other.hp, other.hp_max, unit.row_regen)
+			entries.append({"unit": other, "amount": result["healed"]})
+		if not entries.is_empty():
+			row_heal_batch.emit(entries)
+			emitted_batch = true
+		# 個別適用（HP変更・overheal蓄積・HPバー更新用）
 		for other: BattleUnit in grid.get_row(unit.row):
 			if other != unit:
 				_apply_healing(other, unit.row_regen)
+	if emitted_batch:
+		await row_heal_anim_done  # シーンのキュー処理完了まで待機
 
 func _apply_enemy_healing() -> void:
 	for unit: BattleUnit in enemy_grid.get_all_alive():

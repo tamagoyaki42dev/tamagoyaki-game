@@ -1,8 +1,9 @@
 class_name BattleUI
 extends Control
 
-const PANEL_W   := 420.0
-const LOG_SPLIT := 0.55
+const PANEL_W      := 420.0
+const LOG_SPLIT    := 0.55
+const PORTRAIT_W   := 56.0
 
 const HP_YELLOW_THRESHOLD := 0.5
 const HP_RED_THRESHOLD    := 0.25
@@ -159,13 +160,20 @@ func _build_party_panel(units: Array) -> void:
 		add_child(entry)
 		_party_entries[unit] = entry
 
-		_lbl(entry, unit.unit_name, Vector2(8.0, 6.0), 17, Color(0.86, 0.90, 0.98))
+		var portrait := ColorRect.new()
+		portrait.position = Vector2(4.0, 4.0)
+		portrait.size = Vector2(PORTRAIT_W, slot_h - 12.0)
+		portrait.color = Color(0.10, 0.12, 0.22, 0.85)
+		entry.add_child(portrait)
+
+		var content_x := PORTRAIT_W + 8.0
+		_lbl(entry, unit.unit_name, Vector2(content_x, 6.0), 17, Color(0.86, 0.90, 0.98))
 		_lbl(entry, "ATK %d  SPD %d" % [unit.attack, unit.speed],
-			Vector2(8.0, 26.0), 13, Color(0.58, 0.65, 0.80))
+			Vector2(content_x, 26.0), 13, Color(0.58, 0.65, 0.80))
 
 		var bar := ProgressBar.new()
-		bar.position = Vector2(8.0, 46.0)
-		bar.size = Vector2(PANEL_W - 24.0, 10.0)
+		bar.position = Vector2(content_x, 46.0)
+		bar.size = Vector2(PANEL_W - 24.0 - PORTRAIT_W, 10.0)
 		bar.min_value = 0.0
 		bar.max_value = float(unit.hp_max)
 		bar.value = float(unit.hp)
