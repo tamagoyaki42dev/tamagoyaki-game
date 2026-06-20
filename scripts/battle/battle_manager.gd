@@ -13,11 +13,13 @@ signal action_announced(action_name: String)
 signal battle_ended(player_won: bool, loot: Array)
 signal attack_support_used(supporter: BattleUnit, attacker: BattleUnit)
 signal defense_support_used(supporter: BattleUnit, target: BattleUnit)
+signal phase_started(phase: StringName)
 
 const TURN_LIMIT    = 100
-const ACTION_DELAY  : float = 1.0   # アクション後の待機
-const ROTATE_DELAY  : float = 0.9   # ローテーションアニメ待ち
-const SUPPORT_DELAY : float = 1.0   # 補助演出→攻撃の間隔
+const ACTION_DELAY    : float = 1.0   # アクション後の待機
+const ROTATE_DELAY    : float = 0.9   # ローテーションアニメ待ち
+const SUPPORT_DELAY   : float = 1.0   # 補助演出→攻撃の間隔
+const RECOVERY_DELAY  : float = 1.0   # 回復フェーズの表示待機
 
 var player_grid: RotationGrid
 var enemy_grid: RotationGrid
@@ -65,10 +67,19 @@ func advance_turn(do_rotate: bool = false) -> void:
 	if turn_number > TURN_LIMIT:
 		_end_battle(false)
 		return
+	# 2ターン目以降：ローテーション後・攻撃前に回復フェーズ
+	if turn_number > 1:
+		phase_started.emit(&"recovery")
+		_apply_self_healing(player_grid)
+		_apply_enemy_healing()
+		await get_tree().create_timer(RECOVERY_DELAY).timeout
+		_apply_row_healing(player_grid)
+		await get_tree().create_timer(RECOVERY_DELAY).timeout
 	var timeline := build_timeline()
 	turn_started.emit(turn_number, timeline, _current_enemy_action_label())
 	_unpetrified_this_turn = []
 	var already_acted: Array = []
+	phase_started.emit(&"action")
 	for attacker: BattleUnit in timeline:
 		if not attacker.is_alive or is_over or (attacker in already_acted):
 			continue
@@ -91,8 +102,6 @@ func advance_turn(do_rotate: bool = false) -> void:
 	if enemy_grid.is_wiped():
 		_end_battle(true)
 		return
-	_apply_back_row_healing(player_grid)
-	_apply_enemy_healing()
 	_emit_action_announcement(turn_number + 1)
 
 func _do_unit_action(attacker: BattleUnit) -> void:
@@ -267,16 +276,18 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 
 # ──────────────────── 後列回復 ────────────────────
 
-func _apply_back_row_healing(grid: RotationGrid) -> void:
+func _apply_self_healing(grid: RotationGrid) -> void:
 	for unit: BattleUnit in grid.get_row(2):
-		if not unit.is_alive:
-			continue
-		if unit.self_regen > 0:
+		if unit.is_alive and unit.self_regen > 0:
 			_apply_healing(unit, unit.self_regen)
-		if unit.row_regen > 0:
-			for other: BattleUnit in grid.get_row(unit.row):
-				if other != unit:
-					_apply_healing(other, unit.row_regen)
+
+func _apply_row_healing(grid: RotationGrid) -> void:
+	for unit: BattleUnit in grid.get_row(2):
+		if not unit.is_alive or unit.row_regen <= 0:
+			continue
+		for other: BattleUnit in grid.get_row(unit.row):
+			if other != unit:
+				_apply_healing(other, unit.row_regen)
 
 func _apply_enemy_healing() -> void:
 	for unit: BattleUnit in enemy_grid.get_all_alive():

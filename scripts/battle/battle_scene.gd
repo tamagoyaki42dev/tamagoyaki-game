@@ -26,6 +26,11 @@ const HP_COLOR_RED    := Color(0.85, 0.18, 0.10, 1.0)
 @export var dmg_rise: float            = 1.2
 @export var dmg_duration: float        = 0.9
 
+# クリティカルテキスト
+@export var crit_font_size: int        = 48
+@export var crit_duration: float       = 0.75
+@export var crit_rise: float           = 0.6
+
 # 攻撃アニメ
 @export var atk_wind_up_dist: float    = 0.05   # m 予備後退
 @export var atk_lunge_dist: float      = 0.3    # m 前進
@@ -186,6 +191,29 @@ func _spawn_damage_label(pos: Vector3, text: String, color: Color) -> void:
 	if is_instance_valid(lbl):
 		lbl.queue_free()
 
+func _spawn_critical_label(pos: Vector3) -> void:
+	var lbl := Label3D.new()
+	lbl.text = "Critical!"
+	lbl.font_size = crit_font_size
+	lbl.pixel_size = dmg_pixel_size
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.modulate = Color(1.0, 0.75, 0.0)
+	lbl.outline_size = 8
+	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
+	lbl.position = pos + Vector3(0.0, 2.2, 0.0)
+	lbl.scale = Vector3.ZERO
+	_characters.add_child(lbl)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(lbl, "scale", Vector3(1.5, 1.5, 1.5), 0.12).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "position",
+		lbl.position + Vector3(0.0, crit_rise, 0.0), crit_duration).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "modulate:a", 0.0,
+		crit_duration * 0.5).set_delay(crit_duration * 0.5)
+	await get_tree().create_timer(crit_duration + 0.1).timeout
+	if is_instance_valid(lbl):
+		lbl.queue_free()
+
 func _make_bg_bar() -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var q := QuadMesh.new()
@@ -323,6 +351,8 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		var dmg_text := "-%d" % dmg if dmg > 0 else "0"
 		var dmg_color := Color(1.0, 0.85, 0.15) if is_crit else Color(1.0, 0.92, 0.85)
 		_spawn_damage_label(ch_t.global_position, dmg_text, dmg_color)
+		if is_crit:
+			_spawn_critical_label(ch_t.global_position)
 		_update_hp_bar(target)
 		_do_flash(ch_t)
 		var t_origin := ch_t.position

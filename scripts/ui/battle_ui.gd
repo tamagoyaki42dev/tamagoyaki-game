@@ -22,8 +22,9 @@ var _rotate_btn: Button
 var _stay_btn: Button
 var _action_panel: Control = null
 
-var _party_bars: Dictionary = {}   # BattleUnit → ProgressBar
+var _party_bars: Dictionary = {}    # BattleUnit → ProgressBar
 var _bar_fills: Dictionary = {}    # BattleUnit → StyleBoxFlat
+var _party_entries: Dictionary = {} # BattleUnit → Panel
 
 @export var countdown_seconds: float = 3.0
 var _countdown_time: float = -1.0
@@ -156,6 +157,7 @@ func _build_party_panel(units: Array) -> void:
 		es.set_corner_radius_all(4)
 		entry.add_theme_stylebox_override("panel", es)
 		add_child(entry)
+		_party_entries[unit] = entry
 
 		_lbl(entry, unit.unit_name, Vector2(8.0, 6.0), 17, Color(0.86, 0.90, 0.98))
 		_lbl(entry, "ATK %d  SPD %d" % [unit.attack, unit.speed],
@@ -266,6 +268,14 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 
 func _on_unit_died(unit: BattleUnit) -> void:
 	_log_add("[color=#ff5555]  ✦ %s 戦死[/color]" % unit.unit_name)
+	if _party_entries.has(unit):
+		var entry := _party_entries[unit] as Panel
+		var dead_sty := StyleBoxFlat.new()
+		dead_sty.bg_color = Color(0.10, 0.10, 0.10, 0.55)
+		dead_sty.set_corner_radius_all(4)
+		entry.add_theme_stylebox_override("panel", dead_sty)
+	if _bar_fills.has(unit):
+		(_bar_fills[unit] as StyleBoxFlat).bg_color = Color(0.30, 0.30, 0.30)
 
 func _on_unit_healed(unit: BattleUnit, amount: int) -> void:
 	_log_add("  [color=#55ff99]%s %s[/color]" % [
