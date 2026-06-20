@@ -14,6 +14,8 @@ const HP_COLOR_RED    := Color(0.85, 0.18, 0.10, 1.0)
 @export var camera_distance: float     = 15.0
 @export var camera_ortho_size: float   = 14.0
 @export var char_y_offset: float       = 0.0
+@export var player_char_scale: Vector3 = Vector3(1.0, 1.0, 1.0)
+@export var enemy_char_scale: Vector3  = Vector3(1.0, 1.0, 1.0)
 
 # HP表示バー（キャラ下）
 @export var hp_bar_y_offset: float     = -0.15
@@ -77,6 +79,15 @@ const HP_COLOR_RED    := Color(0.85, 0.18, 0.10, 1.0)
 
 # ローテーション
 @export var rotate_duration: float     = 0.55   # s
+
+# 戦場グリッド表示
+@export var grid_cell_size: Vector2      = Vector2(1.85, 1.85)
+@export var grid_cell_color: Color       = Color(0.35, 0.55, 1.0, 0.12)
+@export var grid_cell_y_offset: float    = 0.0
+@export var grid_label_font_size: int    = 48
+@export var grid_label_pixel_size: float = 0.015
+@export var grid_label_color: Color      = Color(0.85, 0.92, 1.0, 0.9)
+@export var grid_label_offset: Vector3   = Vector3(-1.3, 0.8, 0.0)
 
 const _FLASH_CODE := """
 shader_type spatial;
@@ -158,6 +169,26 @@ func _setup_world() -> void:
 	_env_node.environment = env
 
 	_light.look_at_from_position(Vector3(5.0, 8.0, 5.0), Vector3.ZERO, Vector3.UP)
+	_setup_grid_overlay()
+
+func _setup_grid_overlay() -> void:
+	const ROW_NAMES := ["前", "中", "後"]
+	for row: int in RotationGrid.ROW_COUNT:
+		for col: int in RotationGrid.MAX_PER_ROW:
+			var m: Marker3D = _get_player_marker(row, col)
+			if m:
+				var tile := _make_grid_cell(
+					m.position + Vector3(0.0, grid_cell_y_offset, 0.0),
+					grid_cell_size, grid_cell_color)
+				_player_grid.add_child(tile)
+		var m0: Marker3D = _get_player_marker(row, 0)
+		if m0:
+			var lbl := _make_row_label(ROW_NAMES[row],
+				m0.position + grid_label_offset,
+				grid_label_font_size, grid_label_pixel_size, grid_label_color)
+			if _label_font:
+				lbl.font = _label_font
+			_player_grid.add_child(lbl)
 
 func _start_battle() -> void:
 	_manager = BattleManager.new()
@@ -225,6 +256,34 @@ static func _resolve_hit_flash_color(attacker: BattleUnit,
 		CharacterJob.Type.MAGE, CharacterJob.Type.WITCH, CharacterJob.Type.ILLUSIONIST, CharacterJob.Type.SHAMAN, CharacterJob.Type.SHRINE_MAIDEN:
 			return magic_color
 	return melee_color
+
+static func _make_grid_cell(pos: Vector3, size: Vector2, cell_color: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = size
+	mi.mesh = plane
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = cell_color
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = mat
+	mi.position = pos
+	return mi
+
+static func _make_row_label(text: String, pos: Vector3, font_size: int,
+		pixel_size: float, label_color: Color) -> Label3D:
+	var lbl := Label3D.new()
+	lbl.text = text
+	lbl.font_size = font_size
+	lbl.pixel_size = pixel_size
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.modulate = label_color
+	lbl.outline_size = 4
+	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.8)
+	lbl.position = pos
+	return lbl
 
 func _spawn_damage_label(pos: Vector3, text: String, color: Color) -> void:
 	var lbl := Label3D.new()
@@ -387,12 +446,13 @@ func _get_hp_color(pct: float) -> Color:
 		return HP_COLOR_YELLOW
 	return HP_COLOR_GREEN
 
-func _spawn_char(marker: Marker3D, y_rot: float) -> Node3D:
+func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3) -> Node3D:
 	var res: PackedScene = load(CHAR_PATH)
 	if not res:
 		return null
 	var ch: Node3D = res.instantiate()
 	ch.rotation_degrees.y = y_rot
+	ch.scale = scale
 	ch.position = marker.global_position + Vector3(0.0, char_y_offset, 0.0)
 	_characters.add_child(ch)
 	var anim: AnimationPlayer = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -442,13 +502,13 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 	for unit: BattleUnit in pg.get_all_alive():
 		var m: Marker3D = _get_player_marker(unit.row, unit.col)
 		if m:
-			var ch := _spawn_char(m, 180.0)
+			var ch := _spawn_char(m, 180.0, player_char_scale)
 			_unit_nodes[unit] = ch
 			_spawn_hp_bar(ch, unit)
 	for unit: BattleUnit in eg.get_all_alive():
 		var m: Marker3D = _get_enemy_marker(0)
 		if m:
-			var ch := _spawn_char(m, 0.0)
+			var ch := _spawn_char(m, 0.0, enemy_char_scale)
 			_unit_nodes[unit] = ch
 			_spawn_hp_bar(ch, unit)
 

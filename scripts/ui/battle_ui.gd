@@ -5,11 +5,6 @@ const PANEL_W      := 420.0
 const LOG_SPLIT    := 0.55
 const PORTRAIT_W   := 56.0
 
-const HP_YELLOW_THRESHOLD := 0.5
-const HP_RED_THRESHOLD    := 0.25
-const HP_COLOR_GREEN  := Color(0.15, 0.80, 0.30)
-const HP_COLOR_YELLOW := Color(0.90, 0.78, 0.05)
-const HP_COLOR_RED    := Color(0.85, 0.18, 0.10)
 
 var _font: Font = null
 var _manager: BattleManager = null
@@ -27,7 +22,24 @@ var _party_bars: Dictionary = {}    # BattleUnit → ProgressBar
 var _bar_fills: Dictionary = {}    # BattleUnit → StyleBoxFlat
 var _party_entries: Dictionary = {} # BattleUnit → Panel
 
-@export var countdown_seconds: float = 3.0
+@export_range(1.0, 10.0, 0.5) var countdown_seconds: float = 3.0
+
+# UIレイアウト（_ratio 系は画面幅・高さに対する比率）
+@export_range(0.0, 1.0, 0.01) var ui_center_x_ratio: float    = 0.62
+@export_range(0.0, 1.0, 0.01) var btn_y_ratio: float          = 0.80
+@export var rotate_btn_size: Vector2                           = Vector2(280.0, 85.0)
+@export var stay_btn_size: Vector2                             = Vector2(240.0, 85.0)
+@export_range(0.0, 1.0, 0.01) var countdown_y_ratio: float    = 0.65
+@export_range(12, 120, 2)     var countdown_font_size: int    = 72
+@export_range(0.0, 1.0, 0.01) var phase_lbl_y_ratio: float    = 0.70
+@export_range(12, 80, 1)      var phase_font_size: int        = 44
+@export_range(0.0, 1.0, 0.01) var action_panel_x_ratio: float  = 0.60
+@export_range(0.0, 400.0, 1.0) var action_panel_y: float       = 80.0
+@export_range(100.0, 800.0, 5.0) var action_panel_w: float     = 360.0
+@export_range(10, 40, 1) var action_panel_title_font_size: int = 22
+@export_range(10, 36, 1) var action_panel_item_font_size: int  = 18
+@export_range(20.0, 80.0, 2.0) var action_panel_row_h: float   = 52.0
+
 var _countdown_time: float = -1.0
 var _countdown_lbl: Label
 var _pending_rotate: bool = false
@@ -115,17 +127,17 @@ func _build_ui() -> void:
 
 	_turn_lbl = _lbl(self, "Turn 0", Vector2(16.0, 16.0), 22, Color(0.88, 0.78, 0.30))
 
-	_phase_lbl = _lbl(self, "", Vector2(sw * 0.35 - 100.0, sh * 0.82), 26, Color(0.88, 0.78, 0.30))
+	var cx := sw * ui_center_x_ratio
+	var btn_y := sh * btn_y_ratio
+	_phase_lbl = _lbl(self, "", Vector2(cx - 100.0, sh * phase_lbl_y_ratio), phase_font_size, Color(0.88, 0.78, 0.30))
 	_phase_lbl.size = Vector2(200.0, 40.0)
 	_phase_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_countdown_lbl = _lbl(self, "", Vector2(sw * 0.35 - 45.0, sh * 0.72), 64, Color(1.0, 0.85, 0.2))
+	_countdown_lbl = _lbl(self, "", Vector2(cx - 45.0, sh * countdown_y_ratio), countdown_font_size, Color(1.0, 0.85, 0.2))
 
-	var cx := sw * 0.35
-	var btn_y := sh * 0.90
-	_rotate_btn = _build_btn("ローテーション", Vector2(cx - 250.0, btn_y),
-		Vector2(230.0, 70.0), Color(0.55, 0.28, 0.03), _on_rotate_pressed)
+	_rotate_btn = _build_btn("ローテーション", Vector2(cx - rotate_btn_size.x - 20.0, btn_y),
+		rotate_btn_size, Color(0.55, 0.28, 0.03), _on_rotate_pressed)
 	_stay_btn = _build_btn("ステイ", Vector2(cx + 20.0, btn_y),
-		Vector2(200.0, 70.0), Color(0.03, 0.36, 0.40), _on_stay_pressed)
+		stay_btn_size, Color(0.03, 0.36, 0.40), _on_stay_pressed)
 	_rotate_btn.disabled = true
 	_stay_btn.disabled = true
 
@@ -179,7 +191,7 @@ func _build_party_panel(units: Array) -> void:
 		bar.value = float(unit.hp)
 		bar.show_percentage = false
 		var bar_fill := StyleBoxFlat.new()
-		bar_fill.bg_color = HP_COLOR_GREEN
+		bar_fill.bg_color = BattleScene.HP_COLOR_GREEN
 		bar_fill.set_corner_radius_all(2)
 		bar.add_theme_stylebox_override("fill", bar_fill)
 		var bar_bg := StyleBoxFlat.new()
@@ -222,11 +234,11 @@ func _update_hp(unit: BattleUnit) -> void:
 		fill.bg_color = _get_hp_color(clampf(float(unit.hp) / float(unit.hp_max), 0.0, 1.0))
 
 func _get_hp_color(pct: float) -> Color:
-	if pct < HP_RED_THRESHOLD:
-		return HP_COLOR_RED
-	if pct < HP_YELLOW_THRESHOLD:
-		return HP_COLOR_YELLOW
-	return HP_COLOR_GREEN
+	if pct < BattleScene.HP_RED_THRESHOLD:
+		return BattleScene.HP_COLOR_RED
+	if pct < BattleScene.HP_YELLOW_THRESHOLD:
+		return BattleScene.HP_COLOR_YELLOW
+	return BattleScene.HP_COLOR_GREEN
 
 func _log_add(text: String) -> void:
 	_log.append_text(text + "\n")
@@ -328,10 +340,10 @@ func _build_enemy_action_panel() -> void:
 		return
 	var vp := get_viewport().get_visible_rect().size
 	var cycle: Array = _enemy_data.action_cycle
-	var px := vp.x * 0.60
-	var py := 100.0
-	var pw := 260.0
-	var sh := 40.0
+	var px := vp.x * action_panel_x_ratio
+	var py := action_panel_y
+	var pw := action_panel_w
+	var sh := action_panel_row_h
 	var ph := 44.0 + cycle.size() * sh + 8.0
 
 	_action_panel = Control.new()
@@ -349,7 +361,7 @@ func _build_enemy_action_panel() -> void:
 	_action_panel.add_child(bg)
 
 	_lbl(_action_panel, _enemy_data.get_stat_type_name(),
-		Vector2(px + 8.0, py + 6.0), 16, Color(0.92, 0.55, 0.55))
+		Vector2(px + 8.0, py + 6.0), action_panel_title_font_size, Color(0.92, 0.55, 0.55))
 
 	var slot := _enemy_slot % cycle.size()
 	for i: int in cycle.size():
@@ -358,5 +370,5 @@ func _build_enemy_action_panel() -> void:
 		var txt := ("▶ " if is_now else "   ") + \
 			"%d. %s" % [i + 1, EnemyData.get_action_label(cycle[i])]
 		_lbl(_action_panel, txt, Vector2(px + 8.0, sy + 8.0),
-			16 if is_now else 14,
+			action_panel_title_font_size if is_now else action_panel_item_font_size,
 			Color(1.0, 0.65, 0.65) if is_now else Color(0.68, 0.55, 0.55))
