@@ -9,6 +9,8 @@ const HP_COLOR_GREEN  := Color(0.15, 0.80, 0.30, 1.0)
 const HP_COLOR_YELLOW := Color(0.90, 0.78, 0.05, 1.0)
 const HP_COLOR_RED    := Color(0.85, 0.18, 0.10, 1.0)
 
+const ROW_NAMES := ["前", "中", "後"]
+
 # カメラ
 @export var camera_target: Vector3     = Vector3(3.0, 0.0, 2.0)
 @export var camera_distance: float     = 15.0
@@ -172,16 +174,17 @@ func _setup_world() -> void:
 	_setup_grid_overlay()
 
 func _setup_grid_overlay() -> void:
-	const ROW_NAMES := ["前", "中", "後"]
 	for row: int in RotationGrid.ROW_COUNT:
+		var m0: Marker3D = null
 		for col: int in RotationGrid.MAX_PER_ROW:
 			var m: Marker3D = _get_player_marker(row, col)
 			if m:
+				if col == 0:
+					m0 = m
 				var tile := _make_grid_cell(
 					m.position + Vector3(0.0, grid_cell_y_offset, 0.0),
 					grid_cell_size, grid_cell_color)
 				_player_grid.add_child(tile)
-		var m0: Marker3D = _get_player_marker(row, 0)
 		if m0:
 			var lbl := _make_row_label(ROW_NAMES[row],
 				m0.position + grid_label_offset,
@@ -271,8 +274,8 @@ static func _make_grid_cell(pos: Vector3, size: Vector2, cell_color: Color) -> M
 	mi.position = pos
 	return mi
 
-static func _make_row_label(text: String, pos: Vector3, font_size: int,
-		pixel_size: float, label_color: Color) -> Label3D:
+static func _make_label3d(text: String, font_size: int, pixel_size: float,
+		label_color: Color) -> Label3D:
 	var lbl := Label3D.new()
 	lbl.text = text
 	lbl.font_size = font_size
@@ -280,19 +283,18 @@ static func _make_row_label(text: String, pos: Vector3, font_size: int,
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.no_depth_test = true
 	lbl.modulate = label_color
+	return lbl
+
+static func _make_row_label(text: String, pos: Vector3, font_size: int,
+		pixel_size: float, label_color: Color) -> Label3D:
+	var lbl := _make_label3d(text, font_size, pixel_size, label_color)
 	lbl.outline_size = 4
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.8)
 	lbl.position = pos
 	return lbl
 
 func _spawn_damage_label(pos: Vector3, text: String, color: Color) -> void:
-	var lbl := Label3D.new()
-	lbl.text = text
-	lbl.font_size = dmg_font_size
-	lbl.pixel_size = dmg_pixel_size
-	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lbl.no_depth_test = true
-	lbl.modulate = color
+	var lbl := _make_label3d(text, dmg_font_size, dmg_pixel_size, color)
 	lbl.outline_size = 6
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	lbl.position = pos + Vector3(randf_range(-0.2, 0.2), 1.5, 0.0)
@@ -311,13 +313,7 @@ func _spawn_damage_label(pos: Vector3, text: String, color: Color) -> void:
 		lbl.queue_free()
 
 func _spawn_critical_label(pos: Vector3) -> void:
-	var lbl := Label3D.new()
-	lbl.text = "Critical!"
-	lbl.font_size = crit_font_size
-	lbl.pixel_size = dmg_pixel_size
-	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lbl.no_depth_test = true
-	lbl.modulate = Color(1.0, 0.75, 0.0)
+	var lbl := _make_label3d("Critical!", crit_font_size, dmg_pixel_size, Color(1.0, 0.75, 0.0))
 	lbl.outline_size = 8
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
 	lbl.position = pos + Vector3(0.0, 2.2, 0.0)
@@ -335,15 +331,9 @@ func _spawn_critical_label(pos: Vector3) -> void:
 	if is_instance_valid(lbl):
 		lbl.queue_free()
 
-static func _make_atk_support_label(pos: Vector3, font_size: int,
+static func _make_support_label(text: String, pos: Vector3, font_size: int,
 		pixel_size: float, label_color: Color, offset: Vector3) -> Label3D:
-	var lbl := Label3D.new()
-	lbl.text = "ATK Up"
-	lbl.font_size = font_size
-	lbl.pixel_size = pixel_size
-	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lbl.no_depth_test = true
-	lbl.modulate = label_color
+	var lbl := _make_label3d(text, font_size, pixel_size, label_color)
 	lbl.outline_size = 6
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	lbl.position = pos + offset
@@ -351,8 +341,8 @@ static func _make_atk_support_label(pos: Vector3, font_size: int,
 	return lbl
 
 func _spawn_atk_support_label(pos: Vector3) -> void:
-	var lbl := BattleScene._make_atk_support_label(
-		pos, supp_font_size, dmg_pixel_size, supp_label_color, supp_label_offset)
+	var lbl := BattleScene._make_support_label(
+		"ATK Up", pos, supp_font_size, dmg_pixel_size, supp_label_color, supp_label_offset)
 	if _label_font:
 		lbl.font = _label_font
 	_characters.add_child(lbl)
@@ -366,24 +356,9 @@ func _spawn_atk_support_label(pos: Vector3) -> void:
 	if is_instance_valid(lbl):
 		lbl.queue_free()
 
-static func _make_def_support_label(pos: Vector3, font_size: int,
-		pixel_size: float, label_color: Color, offset: Vector3) -> Label3D:
-	var lbl := Label3D.new()
-	lbl.text = "DEF Up"
-	lbl.font_size = font_size
-	lbl.pixel_size = pixel_size
-	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lbl.no_depth_test = true
-	lbl.modulate = label_color
-	lbl.outline_size = 6
-	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
-	lbl.position = pos + offset
-	lbl.scale = Vector3.ZERO
-	return lbl
-
 func _spawn_def_support_label(pos: Vector3) -> void:
-	var lbl := BattleScene._make_def_support_label(
-		pos, def_font_size, dmg_pixel_size, def_label_color, def_label_offset)
+	var lbl := BattleScene._make_support_label(
+		"DEF Up", pos, def_font_size, dmg_pixel_size, def_label_color, def_label_offset)
 	if _label_font:
 		lbl.font = _label_font
 	_characters.add_child(lbl)
@@ -610,13 +585,7 @@ func _on_defense_support_used(supporter: BattleUnit, target: BattleUnit) -> void
 
 static func _make_heal_label(pos: Vector3, text: String, font_size: int,
 		pixel_size: float, label_color: Color) -> Label3D:
-	var lbl := Label3D.new()
-	lbl.text = text
-	lbl.font_size = font_size
-	lbl.pixel_size = pixel_size
-	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lbl.no_depth_test = true
-	lbl.modulate = label_color
+	var lbl := _make_label3d(text, font_size, pixel_size, label_color)
 	lbl.outline_size = 6
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.85)
 	lbl.position = pos + Vector3(0.0, 1.5, 0.0)
