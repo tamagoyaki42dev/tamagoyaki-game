@@ -4,26 +4,18 @@
 
 ---
 
-## 演出エフェクト（優先）
-
-- [ ] 被弾flash色の攻撃タイプ別変化（近接=赤・魔法=紫・遠距離=黄）
-- [ ] 「前/中/後」列ラベル表示
-- [ ] ローテーション演出改善（イージング変更・着地スカッシュ・到着フラッシュ・完了時列フラッシュ）
-
 ## 演出化粧（演出土台完成後）
 
-- [ ] ヒットストップ（Engine.time_scale=0.05 → タイマー → 1.0戻し）
-- [ ] カメラシェイク（Camera3D h_offset/v_offset を FastNoiseLite で制御）
-- [ ] グロー/ブルーム（WorldEnvironment glow_enabled）
+- [ ] グロー/ブルーム（WorldEnvironment glow_enabled）※後回し・要再判断
 
 ## アート
 
+- [ ] 横揺れ修正（ノックバック時の Z 軸ランダム移動をゼロにする）
+- [ ] キャラアニメ（Mixamo or Tween ボブ。GLB にアニメ未収録のため直立不動）
+- [ ] 攻撃モーション（攻撃時に GLB アニメ or Tween で swing 演出）
+- [ ] 攻撃エフェクト（被弾位置に火花パーティクル）
 - [ ] 背景画像（Kenney素材で戦場背景を設置）
 - [ ] キャラ識別改善（職業・陣営で外見差異、現状全員同モデル）
-
-## 設計負債
-
-- [ ] フェーズ完全カプセル化：全フェーズをシグナルベースのawaitに統一（rotate_anim_done / self_heal_anim_done / unit_action_anim_done を追加、固定タイマー ROTATE_DELAY / RECOVERY_DELAY / ACTION_DELAY を削除）。表示のための「見せ時間」はシーン側で持つ。
 
 ## ゲームシステム
 

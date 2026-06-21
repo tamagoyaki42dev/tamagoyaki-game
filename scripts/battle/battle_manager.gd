@@ -17,10 +17,10 @@ signal row_heal_batch(entries: Array)   # [{unit, amount}] 右から左アニメ
 signal row_heal_anim_done               # シーンがキュー処理完了時に emit → manager が await
 signal rotate_anim_done                 # シーンがローテーションアニメ完了時に emit → manager が await
 signal self_heal_anim_done              # シーンが自己回復アニメ完了時に emit → manager が await
+signal unit_action_anim_done            # シーンがユニット行動アニメ完了時に emit → manager が await
 signal phase_started(phase: StringName)
 
 const TURN_LIMIT    = 100
-const ACTION_DELAY    : float = 1.0   # アクション後の待機
 const SUPPORT_DELAY   : float = 1.0   # 補助演出→攻撃の間隔
 
 var player_grid: RotationGrid
@@ -28,6 +28,7 @@ var enemy_grid: RotationGrid
 var turn_number: int = 0
 var is_over: bool = false
 var _unpetrified_this_turn: Array = []
+var _unit_acted_this_action: bool = false  # CHARGE等で unit_acted が出ない場合の検出用
 
 func start_battle(player_data: Array, enemy_data: Array) -> void:
 	turn_number = 0
@@ -87,16 +88,24 @@ func advance_turn(do_rotate: bool = false) -> void:
 		if attacker.is_petrified:
 			continue
 		already_acted.append(attacker)
+		_unit_acted_this_action = false
 		await _do_unit_action(attacker)
-		await get_tree().create_timer(ACTION_DELAY).timeout
+		if _unit_acted_this_action:
+			await unit_action_anim_done
+		else:
+			unit_action_anim_done.emit()  # CHARGE等・視覚なし → 即アンロック
 		if is_over:
 			return
 		# 石化解除されたユニットが既にターンをスキップ済みなら即行動
 		for u: BattleUnit in _unpetrified_this_turn.duplicate():
 			if u.is_alive and not (u in already_acted):
 				already_acted.append(u)
+				_unit_acted_this_action = false
 				await _do_unit_action(u)
-				await get_tree().create_timer(ACTION_DELAY).timeout
+				if _unit_acted_this_action:
+					await unit_action_anim_done
+				else:
+					unit_action_anim_done.emit()
 				if is_over:
 					return
 		_unpetrified_this_turn.clear()
@@ -182,9 +191,23 @@ func _execute_enemy_action(attacker: BattleUnit) -> void:
 					await _do_single_hit(attacker, target, atk, i == 0, false, false, false)
 
 		EnemyData.ActionType.ROW:
-			for target in player_grid.get_front_row().duplicate():
+			var row_targets: Array = player_grid.get_front_row().duplicate()
+			# 全対象の防御補助を同時に発動してから攻撃（overlap 防止）
+			var row_def_supports: Dictionary = {}
+			var row_had_support := false
+			for t: BattleUnit in row_targets:
+				var mid := player_grid.get_unused_def_supporter_at_col(t.col)
+				if mid:
+					defense_support_used.emit(mid, t)
+					row_def_supports[t] = mid.def_bonus
+					mid.def_support_used = true
+					row_had_support = true
+			if row_had_support:
+				await get_tree().create_timer(SUPPORT_DELAY).timeout
+			for target: BattleUnit in row_targets:
 				if is_over: break
-				await _do_single_hit(attacker, target, eff_atk, true, false, false, false)
+				await _do_single_hit(attacker, target, eff_atk, true, false, false, false,
+					int(row_def_supports.get(target, 0)))
 
 		EnemyData.ActionType.STONE:
 			var target := _pick_target(attacker)
@@ -215,9 +238,10 @@ func _do_hits(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 		attacker.charge_excess = 0
 
 # 1回のヒット処理（クリティカル・チャージ・石化・前列空き・防御補助・HP吸収）
+# pre_applied_def_support >= 0 の場合は内部の補助検出をスキップし指定値を使う（ROW一括処理用）
 func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 					is_first: bool, apply_stone: bool, apply_absorb: bool,
-					had_charge: bool) -> void:
+					had_charge: bool, pre_applied_def_support: int = -1) -> void:
 	if is_over or not target.is_alive:
 		return
 
@@ -236,8 +260,11 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 			raw *= 2
 
 	# 防御補助（最初のヒットのみ）→ 演出後に攻撃
+	# pre_applied_def_support >= 0 なら ROW 側が事前処理済み → 内部検出をスキップ
 	var def_support := 0
-	if is_first and attacker.side == BattleUnit.Side.ENEMY and target.side == BattleUnit.Side.PLAYER:
+	if pre_applied_def_support >= 0:
+		def_support = pre_applied_def_support
+	elif is_first and attacker.side == BattleUnit.Side.ENEMY and target.side == BattleUnit.Side.PLAYER:
 		var mid := player_grid.get_unused_def_supporter_at_col(target.col)
 		if mid:
 			defense_support_used.emit(mid, target)
@@ -262,6 +289,7 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 		target.charge_excess = 0
 
 	target.hp = max(0, target.hp - actual)
+	_unit_acted_this_action = true
 	unit_acted.emit(attacker, target, actual, is_crit)
 
 	# HP吸収（実ダメージの50%を回復）

@@ -93,6 +93,24 @@ const ROW_NAMES := ["前", "中", "後"]
 @export var rotate_duration: float      = 0.55   # s
 @export var rotate_show_duration: float = 0.35   # s アニメ完了後の見せ時間
 
+# 着地スカッシュ
+@export var landing_squash_y: float        = 0.65  # 潰れ時のY軸スケール
+@export var landing_squash_xz: float       = 1.2   # 潰れ時のXZ軸スケール
+@export var landing_squash_in_time: float  = 0.06  # s 潰れる時間
+@export var landing_squash_out_time: float = 0.18  # s 戻る時間
+
+# 到着フラッシュ
+@export var arrive_flash_color: Color      = Color(0.7, 0.85, 1.0)  # 青白い光
+@export var arrive_flash_duration: float   = 0.4   # s
+
+# 完了時列フラッシュ（前列のみ）
+@export var front_row_flash_color: Color   = Color(1.0, 0.85, 0.3)  # ゴールド
+@export var front_row_flash_duration: float = 0.45  # s
+@export var front_row_flash_delay: float   = 0.15   # s 到着フラッシュからのずらし
+
+# ユニット行動
+@export var unit_action_show_duration: float = 0.6  # s アニメ完了後の見せ時間
+
 # 自己回復
 @export var self_heal_show_duration: float = 1.0  # s フラッシュ・数字の見せ時間
 
@@ -161,6 +179,7 @@ var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニ
 var _row_heal_queue: Array = []          # 待機中の列回復バッチ
 var _row_heal_animating: bool = false    # _process_row_heal_queue が動いているか
 var _shake_active: bool = false          # カメラシェイク二重起動防止
+var _unit_action_anim_pending: bool = false  # 多段ヒット時の二重 emit 防止
 
 func _ready() -> void:
 	_flash_shader = Shader.new()
@@ -538,6 +557,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 	var dir: Vector3 = Vector3(1, 0, 0) if attacker.side == BattleUnit.Side.PLAYER \
 		else Vector3(-1, 0, 0)
 
+	var atk_tween: Tween = null
 	# 攻撃：予備動作→前進→戻り
 	if ch_a:
 		var origin := ch_a.position
@@ -548,7 +568,9 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 			atk_lunge_time).set_ease(Tween.EASE_OUT)
 		tw.tween_property(ch_a, "position", origin,
 			atk_return_time).set_ease(Tween.EASE_IN)
+		atk_tween = tw
 
+	var hit_tween: Tween = null
 	# 被弾：ダメージ数字 + flash + 揺れ + ノックバック
 	if ch_t:
 		var dmg_text := "-%d" % dmg if dmg > 0 else "0"
@@ -569,6 +591,20 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 			t_origin + kb_dir * hit_knockback_dist + shake,
 			hit_flash_duration).set_ease(Tween.EASE_OUT)
 		tw_t.tween_property(ch_t, "position", t_origin, 0.12).set_ease(Tween.EASE_IN)
+		hit_tween = tw_t
+
+	# 多段ヒット時は最初のコルーチンだけが emit を担当する
+	if _unit_action_anim_pending:
+		return
+	_unit_action_anim_pending = true
+
+	if atk_tween:
+		await atk_tween.finished
+	elif hit_tween:
+		await hit_tween.finished
+	await get_tree().create_timer(unit_action_show_duration).timeout
+	_unit_action_anim_pending = false
+	_manager.unit_action_anim_done.emit()
 
 func _on_unit_died(unit: BattleUnit) -> void:
 	var ch: Node3D = _unit_nodes.get(unit) as Node3D
@@ -611,6 +647,29 @@ func _on_rotated() -> void:
 	for entry: Dictionary in moves:
 		tw.tween_property(entry["ch"], "position", entry["to"], rotate_duration)
 	await tw.finished
+	# 到着フラッシュ（スカッシュと同時に発火）
+	for entry: Dictionary in moves:
+		_do_flash(entry["ch"], arrive_flash_color, arrive_flash_duration)
+	# 着地スカッシュ
+	var sq_in := create_tween().set_parallel(true)
+	for entry: Dictionary in moves:
+		sq_in.tween_property(entry["ch"], "scale",
+			Vector3(landing_squash_xz, landing_squash_y, landing_squash_xz),
+			landing_squash_in_time).set_ease(Tween.EASE_OUT)
+	await sq_in.finished
+	var sq_out := create_tween().set_parallel(true)
+	for entry: Dictionary in moves:
+		sq_out.tween_property(entry["ch"], "scale", player_char_scale,
+			landing_squash_out_time).set_ease(Tween.EASE_OUT)
+	await sq_out.finished
+	# 完了時列フラッシュ（前列のみ・到着フラッシュより一拍遅れ）
+	await get_tree().create_timer(front_row_flash_delay).timeout
+	for unit: BattleUnit in _unit_nodes.keys():
+		if unit.side != BattleUnit.Side.PLAYER or unit.row != 0:
+			continue
+		var ch: Node3D = _unit_nodes[unit] as Node3D
+		if ch:
+			_do_flash(ch, front_row_flash_color, front_row_flash_duration)
 	await get_tree().create_timer(rotate_show_duration).timeout
 	_manager.rotate_anim_done.emit()
 
