@@ -90,7 +90,8 @@ const ROW_NAMES := ["前", "中", "後"]
 @export var death_tilt_deg: float      = 45.0   # °
 
 # ローテーション
-@export var rotate_duration: float     = 0.55   # s
+@export var rotate_duration: float      = 0.55   # s
+@export var rotate_show_duration: float = 0.35   # s アニメ完了後の見せ時間
 
 # 戦闘終了
 @export var battle_end_delay: float    = 2.5    # s
@@ -596,11 +597,15 @@ func _on_rotated() -> void:
 			moves.append({"ch": ch,
 				"to": m.global_position + Vector3(0.0, char_y_offset, 0.0)})
 	if moves.is_empty():
+		_manager.rotate_anim_done.emit()
 		return
 	var tw := create_tween().set_parallel(true)
 	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	for entry: Dictionary in moves:
 		tw.tween_property(entry["ch"], "position", entry["to"], rotate_duration)
+	await tw.finished
+	await get_tree().create_timer(rotate_show_duration).timeout
+	_manager.rotate_anim_done.emit()
 
 func _on_attack_support_used(supporter: BattleUnit, attacker: BattleUnit) -> void:
 	var ch_supp: Node3D = _unit_nodes.get(supporter) as Node3D

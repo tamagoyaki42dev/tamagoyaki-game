@@ -24,7 +24,7 @@
 |--|--|
 | ✅ヒットストップ | `Engine.time_scale=0.05` → `timer(ignore_time_scale)` → 1.0戻し |
 | ✅カメラシェイク | `Camera3D h_offset/v_offset` を `FastNoiseLite` で（transform触らない） |
-| ★グロー/ブルーム | `WorldEnvironment glow_enabled` |
+| ✅グロー/ブルーム | `WorldEnvironment glow_enabled` |
 | ★ダメージ数字 | `Label3D(billboard)` 上へpos Tween＋alphaフェード＋出現scaleパンチ |
 
 +α：HPバー追従（2枚重ね・背面遅延）/ Tween easing=`TRANS_BACK` / 背弾`OmniLight3D` / 軌跡=`GPUParticles trail_enabled`  

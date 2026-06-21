@@ -35,7 +35,9 @@ func test_turn_phase_order_is_rotation_recovery_action() -> void:
 	_bm.turn_number = 1
 
 	var log: Array[StringName] = []
-	_bm.rotated.connect(func() -> void: log.append(&"rotated"))
+	_bm.rotated.connect(func() -> void:
+		log.append(&"rotated")
+		_bm.rotate_anim_done.emit.call_deferred())
 	_bm.phase_started.connect(func(p: StringName) -> void: log.append(p))
 
 	_bm.advance_turn(true)
