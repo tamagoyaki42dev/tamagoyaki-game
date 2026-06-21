@@ -11,11 +11,11 @@
 
 ## 戦闘演出
 
-### 土台（共通BattleUnitスクリプト・Tweenで制御）
-- 攻撃：予備動作0.05m後退 → 0.3m前進0.12s → 戻り0.18s
-- 被弾：対象MeshのみShader uniform赤flash 0.08s ＋ 揺れ±0.05m ＋ 軽ノックバック  
-  ※実装前にKenneyキャラのマテリアル構造を確認すること
-- 撃破：scale=0＋傾き0.4s / squash&stretch / 着弾点にGPUParticles3D
+### 土台（AnimationPlayer + Tween 混在）
+- 攻撃：GLB 内蔵アニメ `attack-melee-right`（プレイヤー）/ `attack-melee-left`（敵）→ 完了後 `idle` に戻す
+- 待機：スポーン時に `idle` をループ再生
+- 被弾：対象MeshのみShader uniform赤flash 0.08s ＋ 揺れ±0.05m ＋ 軽ノックバック（Tween）
+- 撃破：GLB 内蔵アニメ `die` ＋ 着弾点に GPUParticles3D。取得失敗時は Tween（scale→0 + 傾き）フォールバック
 - 全数値 `@export`。全画面演出・カメラ操作・他ユニットへの影響は禁止
 
 ### ローテーション演出（実装済み）

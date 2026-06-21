@@ -7,19 +7,19 @@
 background_mode = 1
 background_color = Color(0.05, 0.05, 0.1, 1)
 glow_enabled = true
-glow_normalized = false
 glow_intensity = 0.8
 glow_strength = 1.2
 glow_bloom = 0.5
-glow_blend_mode = 1
-glow_hdr_threshold = 1.0
-glow_hdr_scale = 2.0
 
 [node name="BattleScene" type="Node" unique_id=1899993504]
 script = ExtResource("1_bscn")
 player_char_scale = Vector3(2, 2, 2)
 enemy_char_scale = Vector3(4, 4, 4)
-hitstop_duration = 0.12000000000000001
+spark_color = Color(1, 0.15686275, 0, 1)
+spark_velocity_min = 3.0
+spark_velocity_max = 10.0
+spark_lifetime = 0.2
+hitstop_duration = 0.12
 shake_intensity = 0.07
 
 [node name="World" type="Node3D" parent="." unique_id=675163681]
@@ -85,6 +85,8 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("2_bui")
 countdown_y_ratio = 0.5
 action_panel_x_ratio = 0.57

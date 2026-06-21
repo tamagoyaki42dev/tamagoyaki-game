@@ -25,6 +25,9 @@ def get_last_commit_message():
 
 def ask_screenshot_ready() -> bool:
     """F12スクショ確認ダイアログ。Trueならスクショ存在確認済み。"""
+    if "--no-screenshot" in sys.argv:
+        return False
+
     msg = ("ゲーム内で F12 を押してスクショを撮りましたか？\n"
            "（撮影すると tools/screenshot.png に保存されます）")
     try:

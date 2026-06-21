@@ -61,13 +61,6 @@ const ROW_NAMES := ["前", "中", "後"]
 @export var heal_row_stagger: float      = 0.15  # 列回復の各キャラ間ディレイ（秒）
 @export var heal_batch_gap: float        = 0.65  # 列回復ヒーラー間ディレイ（秒）
 
-# 攻撃アニメ
-@export var atk_wind_up_dist: float    = 0.05   # m 予備後退
-@export var atk_lunge_dist: float      = 0.3    # m 前進
-@export var atk_wind_up_time: float    = 0.08   # s
-@export var atk_lunge_time: float      = 0.12   # s
-@export var atk_return_time: float     = 0.18   # s
-
 # 被弾
 @export var hit_flash_duration: float  = 0.08
 @export var hit_flash_melee_color: Color  = Color(1.0, 0.15, 0.15)
@@ -75,6 +68,19 @@ const ROW_NAMES := ["前", "中", "後"]
 @export var hit_flash_ranged_color: Color = Color(1.0, 0.85, 0.10)
 @export var hit_shake_amount: float    = 0.05   # m 揺れ幅
 @export var hit_knockback_dist: float  = 0.12   # m ノックバック
+
+# 被弾パーティクル（火花）
+@export var spark_color: Color            = Color(1.0, 0.65, 0.0)  # 通常ヒット（純オレンジ）
+@export var spark_crit_color: Color       = Color(1.0, 1.0, 0.5)   # クリットヒット（黄白）
+@export var spark_scale_min: float        = 0.5
+@export var spark_scale_max: float        = 1.5
+@export var spark_crit_scale_min: float   = 0.8
+@export var spark_crit_scale_max: float   = 2.5
+@export var spark_velocity_min: float     = 4.0
+@export var spark_velocity_max: float     = 14.0
+@export var spark_lifetime: float         = 0.9
+@export var spark_amount: int             = 28
+@export var spark_crit_amount: int        = 48
 
 # ヒットストップ
 @export_range(0.01, 1.0, 0.01) var hitstop_time_scale: float = 0.05
@@ -109,6 +115,7 @@ const ROW_NAMES := ["前", "中", "後"]
 @export var front_row_flash_delay: float   = 0.15   # s 到着フラッシュからのずらし
 
 # ユニット行動
+@export var attack_impact_delay: float       = 0.2  # s アニメ開始→被弾エフェクト発火までの遅延
 @export var unit_action_show_duration: float = 0.6  # s アニメ完了後の見せ時間
 
 # 自己回復
@@ -173,6 +180,7 @@ var _hp_bar_shader: Shader
 
 var _manager: BattleManager
 var _unit_nodes: Dictionary = {}    # BattleUnit → Node3D
+var _unit_anims: Dictionary = {}    # BattleUnit → AnimationPlayer
 var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
 var _label_font: Font = null
 var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニメ処理中）
@@ -495,9 +503,52 @@ func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3) -> Node3D:
 	_characters.add_child(ch)
 	var anim: AnimationPlayer = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if anim and anim.has_animation("idle"):
+		anim.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
 		anim.play("idle")
 	_setup_flash(ch)
 	return ch
+
+func _spawn_hit_sparks(pos: Vector3, is_crit: bool) -> void:
+	var particles := GPUParticles3D.new()
+	particles.position = pos + Vector3(0.0, 0.7, 0.0)
+	particles.one_shot = true
+	particles.explosiveness = 0.95
+	particles.lifetime = spark_lifetime
+	particles.amount = spark_crit_amount if is_crit else spark_amount
+
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = Vector3(0.0, 1.0, 0.0)
+	mat.spread = 180.0
+	mat.initial_velocity_min = spark_velocity_min
+	mat.initial_velocity_max = spark_velocity_max
+	mat.gravity = Vector3(0.0, -8.0, 0.0)
+	mat.scale_min = spark_crit_scale_min if is_crit else spark_scale_min
+	mat.scale_max = spark_crit_scale_max if is_crit else spark_scale_max
+
+	var color := spark_crit_color if is_crit else spark_color
+	var gradient := Gradient.new()
+	gradient.set_color(0, color)
+	gradient.set_color(1, Color(color.r, color.g, color.b, 0.0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = gradient
+	mat.color_ramp = ramp
+
+	var mesh := QuadMesh.new()
+	mesh.size = Vector2(0.1, 0.1)
+	# COLOR ビルトインを直接使う ShaderMaterial で color_ramp を確実に反映させる
+	var shader := Shader.new()
+	shader.code = "shader_type spatial;\nrender_mode unshaded, blend_add, cull_disabled;\nvoid fragment() { ALBEDO = COLOR.rgb; ALPHA = COLOR.a; }"
+	var shader_mat := ShaderMaterial.new()
+	shader_mat.shader = shader
+	mesh.material = shader_mat
+	particles.draw_pass_1 = mesh
+	particles.process_material = mat
+
+	_characters.add_child(particles)
+	particles.emitting = true
+	await get_tree().create_timer(spark_lifetime + 0.3).timeout
+	if is_instance_valid(particles):
+		particles.queue_free()
 
 func _spawn_death_particles(pos: Vector3) -> void:
 	var particles := GPUParticles3D.new()
@@ -542,33 +593,34 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 		if m:
 			var ch := _spawn_char(m, 180.0, player_char_scale)
 			_unit_nodes[unit] = ch
+			_unit_anims[unit] = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			_spawn_hp_bar(ch, unit)
 	for unit: BattleUnit in eg.get_all_alive():
 		var m: Marker3D = _get_enemy_marker(0)
 		if m:
 			var ch := _spawn_char(m, 0.0, enemy_char_scale)
 			_unit_nodes[unit] = ch
+			_unit_anims[unit] = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			_spawn_hp_bar(ch, unit)
 
 func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		dmg: int, is_crit: bool) -> void:
-	var ch_a: Node3D = _unit_nodes.get(attacker) as Node3D
 	var ch_t: Node3D = _unit_nodes.get(target) as Node3D
+	var anim_a: AnimationPlayer = _unit_anims.get(attacker) as AnimationPlayer
 	var dir: Vector3 = Vector3(1, 0, 0) if attacker.side == BattleUnit.Side.PLAYER \
 		else Vector3(-1, 0, 0)
 
-	var atk_tween: Tween = null
-	# 攻撃：予備動作→前進→戻り
-	if ch_a:
-		var origin := ch_a.position
-		var tw := create_tween()
-		tw.tween_property(ch_a, "position", origin - dir * atk_wind_up_dist,
-			atk_wind_up_time).set_ease(Tween.EASE_OUT)
-		tw.tween_property(ch_a, "position", origin + dir * atk_lunge_dist,
-			atk_lunge_time).set_ease(Tween.EASE_OUT)
-		tw.tween_property(ch_a, "position", origin,
-			atk_return_time).set_ease(Tween.EASE_IN)
-		atk_tween = tw
+	# 攻撃アニメ（GLB 内蔵）
+	var atk_anim: String = "attack-melee-right" if attacker.side == BattleUnit.Side.PLAYER \
+		else "attack-melee-left"
+	var has_atk_anim := false
+	if is_instance_valid(anim_a) and anim_a.has_animation(atk_anim):
+		anim_a.play(atk_anim)
+		has_atk_anim = true
+
+	# 振り下ろしタイミングまで待機してから被弾エフェクトを発火
+	if attack_impact_delay > 0.0:
+		await get_tree().create_timer(attack_impact_delay).timeout
 
 	var hit_tween: Tween = null
 	# 被弾：ダメージ数字 + flash + 揺れ + ノックバック
@@ -582,6 +634,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		_do_flash(ch_t, _resolve_hit_flash_color(attacker,
 			hit_flash_melee_color, hit_flash_magic_color, hit_flash_ranged_color))
 		_do_hit_effects(is_crit)
+		_spawn_hit_sparks(ch_t.global_position, is_crit)
 		var t_origin := ch_t.position
 		var kb_dir := -dir
 		var shake := Vector3(randf_range(-hit_shake_amount, hit_shake_amount),
@@ -598,8 +651,10 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		return
 	_unit_action_anim_pending = true
 
-	if atk_tween:
-		await atk_tween.finished
+	if has_atk_anim and is_instance_valid(anim_a):
+		await anim_a.animation_finished
+		if is_instance_valid(anim_a):
+			anim_a.play("idle")
 	elif hit_tween:
 		await hit_tween.finished
 	await get_tree().create_timer(unit_action_show_duration).timeout
@@ -611,13 +666,17 @@ func _on_unit_died(unit: BattleUnit) -> void:
 	if not ch:
 		return
 	_spawn_death_particles(ch.global_position)
-	# squash → scale=0 + 傾き
-	var tw := create_tween()
-	tw.tween_property(ch, "scale", Vector3(1.5, 0.5, 1.5), 0.08).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func() -> void:
-		var tw2 := create_tween().set_parallel(true)
-		tw2.tween_property(ch, "scale", Vector3.ZERO, death_duration).set_ease(Tween.EASE_IN)
-		tw2.tween_property(ch, "rotation_degrees:z", death_tilt_deg, death_duration))
+	var anim: AnimationPlayer = _unit_anims.get(unit) as AnimationPlayer
+	if is_instance_valid(anim) and anim.has_animation("die"):
+		anim.play("die")
+	else:
+		# フォールバック：GLB アニメが取れない場合の Tween
+		var tw := create_tween()
+		tw.tween_property(ch, "scale", Vector3(1.5, 0.5, 1.5), 0.08).set_ease(Tween.EASE_OUT)
+		tw.tween_callback(func() -> void:
+			var tw2 := create_tween().set_parallel(true)
+			tw2.tween_property(ch, "scale", Vector3.ZERO, death_duration).set_ease(Tween.EASE_IN)
+			tw2.tween_property(ch, "rotation_degrees:z", death_tilt_deg, death_duration))
 
 func _on_unit_healed(unit: BattleUnit, amount: int) -> void:
 	_update_hp_bar(unit)

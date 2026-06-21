@@ -63,7 +63,8 @@
 ## グラフィック方針
 
 - アセットは全部Kenneyの同じファミリーで統一（敵・背景も）
-- 人型モーション = Mixamo / 非人型 = Godotアニメ
+- 人型モーション = Kenney GLB 内蔵アニメ（idle / attack-melee-right / attack-melee-left / die ほか計32種）。Mixamo は不要
+- 非人型 = Godotアニメ（Tween）
 
 ## 助言義務
 
