@@ -22,8 +22,8 @@
 
 | 演出 | 実装 |
 |--|--|
-| ★ヒットストップ | `Engine.time_scale=0.05` → `timer(ignore_time_scale)` → 1.0戻し |
-| ★カメラシェイク | `Camera3D h_offset/v_offset` を `FastNoiseLite` で（transform触らない） |
+| ✅ヒットストップ | `Engine.time_scale=0.05` → `timer(ignore_time_scale)` → 1.0戻し |
+| ✅カメラシェイク | `Camera3D h_offset/v_offset` を `FastNoiseLite` で（transform触らない） |
 | ★グロー/ブルーム | `WorldEnvironment glow_enabled` |
 | ★ダメージ数字 | `Label3D(billboard)` 上へpos Tween＋alphaフェード＋出現scaleパンチ |
 

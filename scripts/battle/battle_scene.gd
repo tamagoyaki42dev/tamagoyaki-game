@@ -76,6 +76,15 @@ const ROW_NAMES := ["前", "中", "後"]
 @export var hit_shake_amount: float    = 0.05   # m 揺れ幅
 @export var hit_knockback_dist: float  = 0.12   # m ノックバック
 
+# ヒットストップ
+@export_range(0.01, 1.0, 0.01) var hitstop_time_scale: float = 0.05
+@export_range(0.02, 0.3,  0.01) var hitstop_duration: float  = 0.08
+
+# カメラシェイク
+@export_range(0.0, 0.5, 0.005) var shake_intensity: float      = 0.05
+@export_range(0.0, 0.5, 0.005) var shake_crit_intensity: float = 0.12
+@export_range(0.05, 1.0, 0.05) var shake_duration: float       = 0.25
+
 # 撃破
 @export var death_duration: float      = 0.4    # s
 @export var death_tilt_deg: float      = 45.0   # °
@@ -144,6 +153,7 @@ var _label_font: Font = null
 var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニメ処理中）
 var _row_heal_queue: Array = []          # 待機中の列回復バッチ
 var _row_heal_animating: bool = false    # _process_row_heal_queue が動いているか
+var _shake_active: bool = false          # カメラシェイク二重起動防止
 
 func _ready() -> void:
 	_flash_shader = Shader.new()
@@ -249,6 +259,33 @@ func _do_flash(ch: Node3D, color: Color = Color(1.0, 0.15, 0.15), duration: floa
 		tw.tween_method(
 			func(v: float) -> void: mat.set_shader_parameter("flash_amount", v),
 			1.0, 0.0, dur)
+
+func _do_hitstop() -> void:
+	Engine.time_scale = hitstop_time_scale
+	await get_tree().create_timer(hitstop_duration, true, false, true).timeout
+	Engine.time_scale = 1.0
+
+func _do_camera_shake(intensity: float) -> void:
+	if _shake_active:
+		return
+	_shake_active = true
+	var noise := FastNoiseLite.new()
+	noise.seed = randi()
+	var elapsed: float = 0.0
+	while elapsed < shake_duration:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		var fade := 1.0 - clampf(elapsed / shake_duration, 0.0, 1.0)
+		var s := elapsed * 20.0
+		_camera.h_offset = noise.get_noise_1d(s) * intensity * fade
+		_camera.v_offset = noise.get_noise_1d(s + 100.0) * intensity * fade
+	_camera.h_offset = 0.0
+	_camera.v_offset = 0.0
+	_shake_active = false
+
+func _do_hit_effects(is_crit: bool) -> void:
+	await _do_hitstop()
+	_do_camera_shake(shake_crit_intensity if is_crit else shake_intensity)
 
 static func _resolve_hit_flash_color(attacker: BattleUnit,
 		melee_color: Color, magic_color: Color, ranged_color: Color) -> Color:
@@ -514,6 +551,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		_update_hp_bar(target)
 		_do_flash(ch_t, _resolve_hit_flash_color(attacker,
 			hit_flash_melee_color, hit_flash_magic_color, hit_flash_ranged_color))
+		_do_hit_effects(is_crit)
 		var t_origin := ch_t.position
 		var kb_dir := -dir
 		var shake := Vector3(randf_range(-hit_shake_amount, hit_shake_amount),
