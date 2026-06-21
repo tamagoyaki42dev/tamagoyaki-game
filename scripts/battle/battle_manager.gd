@@ -16,12 +16,12 @@ signal defense_support_used(supporter: BattleUnit, target: BattleUnit)
 signal row_heal_batch(entries: Array)   # [{unit, amount}] 右から左アニメ用
 signal row_heal_anim_done               # シーンがキュー処理完了時に emit → manager が await
 signal rotate_anim_done                 # シーンがローテーションアニメ完了時に emit → manager が await
+signal self_heal_anim_done              # シーンが自己回復アニメ完了時に emit → manager が await
 signal phase_started(phase: StringName)
 
 const TURN_LIMIT    = 100
 const ACTION_DELAY    : float = 1.0   # アクション後の待機
 const SUPPORT_DELAY   : float = 1.0   # 補助演出→攻撃の間隔
-const RECOVERY_DELAY  : float = 1.0   # 回復フェーズの表示待機
 
 var player_grid: RotationGrid
 var enemy_grid: RotationGrid
@@ -74,7 +74,7 @@ func advance_turn(do_rotate: bool = false) -> void:
 		phase_started.emit(&"recovery")
 		_apply_self_healing(player_grid)
 		_apply_enemy_healing()
-		await get_tree().create_timer(RECOVERY_DELAY).timeout
+		await self_heal_anim_done
 		await _apply_row_healing(player_grid)  # 内部で row_heal_anim_done を await
 	var timeline := build_timeline()
 	turn_started.emit(turn_number, timeline, _current_enemy_action_label())

@@ -38,7 +38,10 @@ func test_turn_phase_order_is_rotation_recovery_action() -> void:
 	_bm.rotated.connect(func() -> void:
 		log.append(&"rotated")
 		_bm.rotate_anim_done.emit.call_deferred())
-	_bm.phase_started.connect(func(p: StringName) -> void: log.append(p))
+	_bm.phase_started.connect(func(p: StringName) -> void:
+		log.append(p)
+		if p == &"recovery":
+			_bm.self_heal_anim_done.emit.call_deferred())
 
 	_bm.advance_turn(true)
 	# action_announced はターン末尾に発火 → これを待てば両 phase_started は確実に記録済み

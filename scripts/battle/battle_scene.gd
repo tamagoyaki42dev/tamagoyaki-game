@@ -93,6 +93,12 @@ const ROW_NAMES := ["前", "中", "後"]
 @export var rotate_duration: float      = 0.55   # s
 @export var rotate_show_duration: float = 0.35   # s アニメ完了後の見せ時間
 
+# 自己回復
+@export var self_heal_show_duration: float = 1.0  # s フラッシュ・数字の見せ時間
+
+# 列回復後の間
+@export var post_row_heal_show_duration: float = 0.5  # s 列回復完了→攻撃フェーズまでの間
+
 # 戦闘終了
 @export var battle_end_delay: float    = 2.5    # s
 
@@ -216,6 +222,7 @@ func _start_battle() -> void:
 	_manager.unit_healed.connect(_on_unit_healed)
 	_manager.unit_died.connect(_on_unit_died)
 	_manager.rotated.connect(_on_rotated)
+	_manager.phase_started.connect(_on_phase_started)
 	_manager.battle_ended.connect(_on_battle_ended)
 	_manager.attack_support_used.connect(_on_attack_support_used)
 	_manager.defense_support_used.connect(_on_defense_support_used)
@@ -607,6 +614,12 @@ func _on_rotated() -> void:
 	await get_tree().create_timer(rotate_show_duration).timeout
 	_manager.rotate_anim_done.emit()
 
+func _on_phase_started(phase: StringName) -> void:
+	if phase != &"recovery":
+		return
+	await get_tree().create_timer(self_heal_show_duration).timeout
+	_manager.self_heal_anim_done.emit()
+
 func _on_attack_support_used(supporter: BattleUnit, attacker: BattleUnit) -> void:
 	var ch_supp: Node3D = _unit_nodes.get(supporter) as Node3D
 	var ch_atk: Node3D  = _unit_nodes.get(attacker)  as Node3D
@@ -661,6 +674,7 @@ func _process_row_heal_queue() -> void:
 			await get_tree().create_timer(heal_batch_gap).timeout
 	_row_heal_animating = false
 	_row_heal_units.clear()
+	await get_tree().create_timer(post_row_heal_show_duration).timeout
 	_manager.row_heal_anim_done.emit()
 
 func _on_battle_ended(_won: bool, _loot: Array) -> void:
