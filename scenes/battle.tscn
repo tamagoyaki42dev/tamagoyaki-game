@@ -2,14 +2,16 @@
 
 [ext_resource type="Script" uid="uid://cbb67yhttd3sf" path="res://scripts/battle/battle_scene.gd" id="1_bscn"]
 [ext_resource type="Script" uid="uid://bmal2sgn2a03r" path="res://scripts/ui/battle_ui.gd" id="2_bui"]
+[ext_resource type="PackedScene" uid="uid://bq00iv4hwldm0" path="res://scenes/background_dungeon.tscn" id="2_p1qf1"]
 
 [sub_resource type="Environment" id="Environment_glow"]
 background_mode = 1
-background_color = Color(0.05, 0.05, 0.1, 1)
+background_color = Color(0.04, 0.03, 0.06, 1)
 glow_enabled = true
 glow_intensity = 0.8
-glow_strength = 1.2
-glow_bloom = 0.5
+glow_bloom = 0.2
+adjustment_enabled = true
+adjustment_saturation = 0.45
 
 [node name="BattleScene" type="Node" unique_id=1899993504]
 script = ExtResource("1_bscn")
@@ -30,7 +32,7 @@ shake_intensity = 0.07
 environment = SubResource("Environment_glow")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="World" unique_id=1081881280]
-light_energy = 1.5
+light_energy = 0.5
 shadow_enabled = true
 
 [node name="PlayerGrid" type="Node3D" parent="World" unique_id=793369952]
@@ -77,6 +79,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 4)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.82355595, 0, 0.48530388)
 
 [node name="Characters" type="Node3D" parent="World" unique_id=1604422702]
+
+[node name="Background" parent="World" unique_id=1590830947 instance=ExtResource("2_p1qf1")]
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=819628350]
 

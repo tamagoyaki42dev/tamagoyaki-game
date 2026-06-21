@@ -23,3 +23,14 @@ tools/screenshot_trigger
 # OS
 .DS_Store
 Thumbs.db
+
+# アセット zip（展開済みのため不要）
+*.zip
+
+# Kenney アセットパック（大容量のため除外・各自ダウンロード）
+assets/kenney-dungeon-kit/
+assets/kenney-hexagon-kit/
+assets/kenney-mini-characters/
+assets/kenney-nature-kit/
+assets/kenney-platformer-kit/
+assets/kenney-survival-kit/
