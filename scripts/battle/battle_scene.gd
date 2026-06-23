@@ -81,6 +81,13 @@ const _WEAPON_PATHS: Dictionary = {
 @export var player_char_scale: Vector3 = Vector3(1.0, 1.0, 1.0)
 @export var enemy_char_scale: Vector3  = Vector3(1.0, 1.0, 1.0)
 
+# 環境光・キーライト（陰影コントラスト用。明るさ総量は上げない）
+@export var ambient_energy: float    = 0.35             # 0.9から大幅減：均一なベタ明かりを抑える
+@export var key_light_energy: float  = 1.3              # 0.5から増：陰影をつける主役光
+@export var key_light_from: Vector3  = Vector3(6.0, 7.0, 3.0)  # 光源位置（斜め強め）
+@export var fog_enabled: bool        = true
+@export var fog_density: float       = 0.02             # 奥を暗く沈めて手前キャラを分離
+
 # HP表示バー（キャラ下）
 @export var hp_bar_y_offset: float     = -0.15
 @export var hp_bar_width: float        = 0.8
@@ -295,10 +302,15 @@ func _setup_world() -> void:
 	env.background_color = Color(0.08, 0.06, 0.12)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.65, 0.65, 0.75)
-	env.ambient_light_energy = 0.9
+	env.ambient_light_energy = ambient_energy
+	env.fog_enabled    = fog_enabled
+	env.fog_density    = fog_density
+	env.fog_light_color = Color(0.05, 0.04, 0.08)
+	env.tonemap_mode   = Environment.TONE_MAPPER_AGX
 	_env_node.environment = env
 
-	_light.look_at_from_position(Vector3(5.0, 8.0, 5.0), Vector3.ZERO, Vector3.UP)
+	_light.look_at_from_position(key_light_from, Vector3.ZERO, Vector3.UP)
+	_light.light_energy = key_light_energy
 	_setup_grid_overlay()
 
 func _setup_grid_overlay() -> void:

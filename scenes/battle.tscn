@@ -2,7 +2,14 @@
 
 [ext_resource type="Script" uid="uid://cbb67yhttd3sf" path="res://scripts/battle/battle_scene.gd" id="1_bscn"]
 [ext_resource type="Script" uid="uid://bmal2sgn2a03r" path="res://scripts/ui/battle_ui.gd" id="2_bui"]
-[ext_resource type="PackedScene" uid="uid://bq00iv4hwldm0" path="res://scenes/background_dungeon.tscn" id="2_p1qf1"]
+[ext_resource type="PackedScene" uid="uid://dok1flg1d0tjw" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-detail.glb" id="d_detail"]
+[ext_resource type="PackedScene" uid="uid://bsqq7ik0bfs2e" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-floor-big.glb" id="d_floorB"]
+[ext_resource type="PackedScene" uid="uid://b2ppmgoxwjhmn" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-floor-detail.glb" id="d_flrDtl"]
+[ext_resource type="PackedScene" uid="uid://cgujlkd2rvx2p" path="res://assets/kenney-dungeon-kit/Models/GLB format/gate-door.glb" id="d_gate"]
+[ext_resource type="PackedScene" uid="uid://d0urwuss2eap0" path="res://assets/kenney-dungeon-kit/Models/GLB format/stairs.glb" id="d_stair"]
+[ext_resource type="PackedScene" uid="uid://dgve0cc7v50ko" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-wall.glb" id="d_wall"]
+[ext_resource type="PackedScene" uid="uid://c30gwejqbpq7q" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-wall-corner.glb" id="d_wallC"]
+[ext_resource type="PackedScene" uid="uid://cblki5glavlgc" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-wall-top.glb" id="d_wallT"]
 
 [sub_resource type="Environment" id="Environment_glow"]
 background_mode = 1
@@ -12,6 +19,12 @@ glow_intensity = 0.8
 glow_bloom = 0.2
 adjustment_enabled = true
 adjustment_saturation = 0.45
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_bg"]
+size = Vector2(80, 80)
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.5, 0.36, 0.22, 1)
 
 [node name="BattleScene" type="Node" unique_id=1899993504]
 script = ExtResource("1_bscn")
@@ -80,7 +93,165 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.82355595, 0, 0.48530388)
 
 [node name="Characters" type="Node3D" parent="World" unique_id=1604422702]
 
-[node name="Background" parent="World" unique_id=1590830947 instance=ExtResource("2_p1qf1")]
+[node name="Background" type="Node3D" parent="World" unique_id=200000001]
+
+[node name="StoneBase" type="MeshInstance3D" parent="World/Background" unique_id=200000005]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, -0.1, 2)
+mesh = SubResource("PlaneMesh_bg")
+surface_material_override/0 = SubResource("Mat_stone")
+
+[node name="Floor_00" parent="World/Background" unique_id=200000010 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.482058, 0, -6)
+
+[node name="Floor_10" parent="World/Background" unique_id=200000011 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7978125, 0, 1.8303795)
+
+[node name="Floor_30" parent="World/Background" unique_id=200000013 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, -6)
+
+[node name="Floor_01" parent="World/Background" unique_id=200000014 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0, 2)
+
+[node name="Floor_11" parent="World/Background" unique_id=200000015 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.378664, 0, 2)
+
+[node name="Floor_21" parent="World/Background" unique_id=200000016 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.007618, -0.05, 2.077)
+
+[node name="Floor_31" parent="World/Background" unique_id=200000017 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.698559, 0.1, 1.871)
+
+[node name="Floor_02" parent="World/Background" unique_id=200000018 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0, 10)
+
+[node name="Floor_12" parent="World/Background" unique_id=200000019 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2179303, 0, 10)
+
+[node name="Floor_22" parent="World/Background" unique_id=200000020 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.815247, 0, 10.276108)
+
+[node name="Floor_32" parent="World/Background" unique_id=200000021 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.69842, 0, 10)
+
+[node name="WallB_1" parent="World/Background" unique_id=200000030 instance=ExtResource("d_wall")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -6, 0, -2.3298616)
+
+[node name="WallB_2" parent="World/Background" unique_id=200000031 instance=ExtResource("d_wall")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -1, 0, -2.3998308)
+
+[node name="WallB_3" parent="World/Background" unique_id=200000032 instance=ExtResource("d_wall")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 4, 0, -2.693)
+
+[node name="WallB_4" parent="World/Background" unique_id=200000033 instance=ExtResource("d_wall")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 9, 0, -26.216398)
+
+[node name="WallTB_1" parent="World/Background" unique_id=200000040 instance=ExtResource("d_wallT")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -3, 0, -2.1639996)
+
+[node name="WallTB_2" parent="World/Background" unique_id=200000041 instance=ExtResource("d_wallT")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 3, 0, -6.973913)
+
+[node name="WallTB_3" parent="World/Background" unique_id=200000042 instance=ExtResource("d_wallT")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 9, 0, -29.389114)
+
+[node name="CornerBL" parent="World/Background" unique_id=200000050 instance=ExtResource("d_wallC")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -9, 0, -12)
+
+[node name="CornerBR" parent="World/Background" unique_id=200000051 instance=ExtResource("d_wallC")]
+transform = Transform3D(0, 0, -1.5, 0, 1.5, 0, 1.5, 0, 0, 13, 0, -12)
+
+[node name="Stair_L" parent="World/Background" unique_id=200000060 instance=ExtResource("d_stair")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -26.222525, 0, 3)
+
+[node name="Stair_R" parent="World/Background" unique_id=200000061 instance=ExtResource("d_stair")]
+transform = Transform3D(-2, 0, -3.019916e-07, 0, 2, 0, 3.019916e-07, 0, -2, 10.67119, 0.0862751, -14.698668)
+
+[node name="Gate_B" parent="World/Background" unique_id=200000070 instance=ExtResource("d_gate")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 3, 0, -2.52217)
+
+[node name="Floor_f0" parent="World/Background" unique_id=200000080 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 0, 18)
+
+[node name="Floor_f1" parent="World/Background" unique_id=200000081 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, 18)
+
+[node name="Floor_f2" parent="World/Background" unique_id=200000082 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 18)
+
+[node name="Floor_f4" parent="World/Background" unique_id=200000084 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 0, 10)
+
+[node name="Floor_f5" parent="World/Background" unique_id=200000085 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 0, 2)
+
+[node name="Floor_f6" parent="World/Background" unique_id=200000086 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 0, 10)
+
+[node name="Floor_f7" parent="World/Background" unique_id=200000087 instance=ExtResource("d_floorB")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 0, 2)
+
+[node name="Prop_01" parent="World/Background" unique_id=200000100 instance=ExtResource("d_detail")]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, -13, 0, -4)
+
+[node name="Prop_02" parent="World/Background" unique_id=200000101 instance=ExtResource("d_detail")]
+transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, 19, 0, -4)
+
+[node name="Prop_03" parent="World/Background" unique_id=200000102 instance=ExtResource("d_detail")]
+transform = Transform3D(0, 0, -1.2, 0, 1.2, 0, 1.2, 0, 0, -14, 0, 6)
+
+[node name="Prop_04" parent="World/Background" unique_id=200000103 instance=ExtResource("d_detail")]
+transform = Transform3D(0, 0, -1.2, 0, 1.2, 0, 1.2, 0, 0, 20, 0, 6)
+
+[node name="Prop_05" parent="World/Background" unique_id=200000104 instance=ExtResource("d_detail")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -15, 0, 15)
+
+[node name="Prop_06" parent="World/Background" unique_id=200000105 instance=ExtResource("d_detail")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 21, 0, 15)
+
+[node name="Prop_07" parent="World/Background" unique_id=200000106 instance=ExtResource("d_detail")]
+transform = Transform3D(-1.1, 0, 0, 0, 1.1, 0, 0, 0, -1.1, -5, 0, -9)
+
+[node name="Prop_08" parent="World/Background" unique_id=200000107 instance=ExtResource("d_detail")]
+transform = Transform3D(-1.1, 0, 0, 0, 1.1, 0, 0, 0, -1.1, 13, 0, -9)
+
+[node name="Prop_09" parent="World/Background" unique_id=200000108 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 14)
+
+[node name="Prop_10" parent="World/Background" unique_id=200000109 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9240746, 0, 3.086525)
+
+[node name="Prop_10" parent="World/Background/Prop_10" unique_id=1113091787 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7810264, 0, 0.19485092)
+
+[node name="Prop_11" parent="World/Background" unique_id=200000110 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 3.864708, 0, 7.861061)
+
+[node name="Prop_12" parent="World/Background" unique_id=200000111 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 11, 0, 16)
+
+[node name="Prop_12" parent="World/Background/Prop_12" unique_id=1214753000 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -1.5409527, 0, 12.002745)
+
+[node name="Prop_12" parent="World/Background/Prop_12/Prop_12" unique_id=1495588013 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -2.7600393, 0, 0.8396044)
+
+[node name="Prop_12" parent="World/Background/Prop_12/Prop_12/Prop_12" unique_id=1023246733 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 3.3019838, 0, 0.8396044)
+
+[node name="Prop_13" parent="World/Background/Prop_12/Prop_12/Prop_12" unique_id=1396174619 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 1.690547, 0, 3.924697)
+
+[node name="Prop_12" parent="World/Background/Prop_12/Prop_12/Prop_12/Prop_13" unique_id=2041271059 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(-2.1855695e-07, 0, -5, 0, 5, 0, 5, 0, -2.1855695e-07, -2.9432344, 0, -15.821212)
+
+[node name="Prop_13" parent="World/Background/Prop_12/Prop_12/Prop_12/Prop_13" unique_id=1198492751 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 1.690547, 0, 3.924697)
+
+[node name="Prop_12" parent="World/Background/Prop_12/Prop_12/Prop_12/Prop_13/Prop_13" unique_id=121958314 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -8.428446, 0, 0.9224024)
+
+[node name="Prop_12" parent="World/Background/Prop_12/Prop_12/Prop_12/Prop_13/Prop_13/Prop_12" unique_id=1583039593 instance=ExtResource("d_flrDtl")]
+transform = Transform3D(-4.371138e-08, 0, -1, 0, 1, 0, 1, 0, -4.371138e-08, -3.6759129, 0, -4.6024766)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=819628350]
 
