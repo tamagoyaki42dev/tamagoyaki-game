@@ -9,7 +9,24 @@ from dotenv import load_dotenv
 
 SCRIPT_DIR  = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent
-SCREENSHOT  = SCRIPT_DIR / "screenshot.png"
+
+
+def _resolve_screenshot_path() -> Path:
+    """F12スクショは Godot の user:// 配下に保存される。
+    Windows では %APPDATA%/Godot/app_userdata/<config/name>/tools/screenshot.png。
+    project名は変更に追従できるよう project.godot から読む。"""
+    name = "ローテーションハクスラ"
+    project_file = PROJECT_DIR / "project.godot"
+    if project_file.exists():
+        for line in project_file.read_text(encoding="utf-8").splitlines():
+            if line.startswith("config/name="):
+                name = line.split("=", 1)[1].strip().strip('"')
+                break
+    return (Path(os.getenv("APPDATA", ""))
+            / "Godot" / "app_userdata" / name / "tools" / "screenshot.png")
+
+
+SCREENSHOT  = _resolve_screenshot_path()
 
 load_dotenv(PROJECT_DIR / ".env")
 
