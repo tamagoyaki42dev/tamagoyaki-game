@@ -10,6 +10,7 @@
 
 ## アート
 
+- [ ] `scenes/background_dungeon.tscn` が孤児（どこからも未参照）。battle.tscn が背景をインラインで持っているため。削除するか、battle.tscn から instance して一元化するか要判断
 - [ ] 武器表示の不具合調査・調整
   - 武器が出ないキャラがいる（原因未調査）
   - `weapon_offset` / `weapon_scale` の目視調整が必要かもしれない
