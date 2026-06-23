@@ -27,6 +27,9 @@ Thumbs.db
 # アセット zip（展開済みのため不要）
 *.zip
 
+# Quaternius アセットパック（大容量のため除外・各自ダウンロード）
+assets/quaternius-rpg-items/
+
 # Kenney アセットパック（大容量のため除外・各自ダウンロード）
 assets/kenney-dungeon-kit/
 assets/kenney-hexagon-kit/

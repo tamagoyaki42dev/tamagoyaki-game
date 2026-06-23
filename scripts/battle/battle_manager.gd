@@ -88,24 +88,14 @@ func advance_turn(do_rotate: bool = false) -> void:
 		if attacker.is_petrified:
 			continue
 		already_acted.append(attacker)
-		_unit_acted_this_action = false
-		await _do_unit_action(attacker)
-		if _unit_acted_this_action:
-			await unit_action_anim_done
-		else:
-			unit_action_anim_done.emit()  # CHARGE等・視覚なし → 即アンロック
+		await _run_unit_action(attacker)
 		if is_over:
 			return
 		# 石化解除されたユニットが既にターンをスキップ済みなら即行動
 		for u: BattleUnit in _unpetrified_this_turn.duplicate():
 			if u.is_alive and not (u in already_acted):
 				already_acted.append(u)
-				_unit_acted_this_action = false
-				await _do_unit_action(u)
-				if _unit_acted_this_action:
-					await unit_action_anim_done
-				else:
-					unit_action_anim_done.emit()
+				await _run_unit_action(u)
 				if is_over:
 					return
 		_unpetrified_this_turn.clear()
@@ -113,6 +103,14 @@ func advance_turn(do_rotate: bool = false) -> void:
 		_end_battle(true)
 		return
 	_emit_action_announcement(turn_number + 1)
+
+func _run_unit_action(unit: BattleUnit) -> void:
+	_unit_acted_this_action = false
+	await _do_unit_action(unit)
+	if _unit_acted_this_action:
+		await unit_action_anim_done
+	else:
+		unit_action_anim_done.emit()  # CHARGE等・視覚なし → 即アンロック
 
 func _do_unit_action(attacker: BattleUnit) -> void:
 	if attacker.side == BattleUnit.Side.ENEMY:

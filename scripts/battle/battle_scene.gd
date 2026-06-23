@@ -1,8 +1,41 @@
 class_name BattleScene
 extends Node
 
-const CHAR_PATH  := "res://assets/characters/kenney/character-male-a.glb"
 const NEXT_SCENE := "res://scenes/formation.tscn"
+
+# 敵は gitignore 外のコミット済みモデルを使用
+const _ENEMY_CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
+
+const _CHAR_DIR := "res://assets/kenney-mini-characters/Models/GLB format/"
+# 職業別キャラモデル（female 6職は1:1ユニーク、male 11職は5種を共有）
+const _JOB_CHAR_PATHS: Dictionary = {
+	CharacterJob.Type.WARRIOR:       _CHAR_DIR + "character-male-b.glb",
+	CharacterJob.Type.KNIGHT:        _CHAR_DIR + "character-male-c.glb",
+	CharacterJob.Type.GLADIATOR:     _CHAR_DIR + "character-male-d.glb",
+	CharacterJob.Type.ADVENTURER:    _CHAR_DIR + "character-male-f.glb",
+	CharacterJob.Type.MAGE:          _CHAR_DIR + "character-male-e.glb",
+	CharacterJob.Type.MONK:          _CHAR_DIR + "character-male-b.glb",
+	CharacterJob.Type.DARK_KNIGHT:   _CHAR_DIR + "character-male-c.glb",
+	CharacterJob.Type.ARCHER:        _CHAR_DIR + "character-male-d.glb",
+	CharacterJob.Type.ILLUSIONIST:   _CHAR_DIR + "character-male-e.glb",
+	CharacterJob.Type.SAMURAI:       _CHAR_DIR + "character-male-f.glb",
+	CharacterJob.Type.SHAMAN:        _CHAR_DIR + "character-male-e.glb",
+	CharacterJob.Type.CLERIC:        _CHAR_DIR + "character-female-a.glb",
+	CharacterJob.Type.WITCH:         _CHAR_DIR + "character-female-b.glb",
+	CharacterJob.Type.VALKYRIE:      _CHAR_DIR + "character-female-c.glb",
+	CharacterJob.Type.SHRINE_MAIDEN: _CHAR_DIR + "character-female-d.glb",
+	CharacterJob.Type.NINJA:         _CHAR_DIR + "character-female-e.glb",
+	CharacterJob.Type.HOLY_KNIGHT:   _CHAR_DIR + "character-female-f.glb",
+}
+# 同一モデルを共有するジョブのみ albedo_color チント
+const _JOB_TINTS: Dictionary = {
+	CharacterJob.Type.MONK:        Color(0.78, 0.88, 1.0),   # male-b 共有 → 水色
+	CharacterJob.Type.DARK_KNIGHT: Color(0.6,  0.6,  0.75),  # male-c 共有 → 紫
+	CharacterJob.Type.ARCHER:      Color(0.75, 1.0,  0.75),  # male-d 共有 → 緑
+	CharacterJob.Type.ILLUSIONIST: Color(0.9,  0.75, 1.0),   # male-e 共有 → 薄紫
+	CharacterJob.Type.SHAMAN:      Color(0.75, 1.0,  0.85),  # male-e 共有 → 緑青
+	CharacterJob.Type.SAMURAI:     Color(1.0,  0.9,  0.65),  # male-f 共有 → ゴールド
+}
 
 const HP_YELLOW_THRESHOLD := 0.5
 const HP_RED_THRESHOLD    := 0.25
@@ -11,6 +44,34 @@ const HP_COLOR_YELLOW := Color(0.90, 0.78, 0.05, 1.0)
 const HP_COLOR_RED    := Color(0.85, 0.18, 0.10, 1.0)
 
 const ROW_NAMES := ["前", "中", "後"]
+
+const _CAMERA_SHAKE_NOISE_SPEED := 20.0  # ノイズサンプリング速度
+const _CAMERA_SHAKE_V_PHASE     := 100.0  # V チャンネル位相オフセット
+const _SPARK_SPAWN_Y            := 0.7   # 火花スポーン高さ (m)
+
+const _WEAPON_FLOAT_AMP  := 0.05  # Mage crystal 浮遊振幅 (m)
+const _WEAPON_FLOAT_TIME := 1.5   # 浮遊半周期 (s)
+
+const _WEAPON_DIR := "res://assets/quaternius-rpg-items/"
+const _WEAPON_PATHS: Dictionary = {
+	CharacterJob.Type.WARRIOR:       _WEAPON_DIR + "Axe_Double.fbx",
+	CharacterJob.Type.KNIGHT:        _WEAPON_DIR + "Sword.fbx",
+	CharacterJob.Type.GLADIATOR:     _WEAPON_DIR + "Sword.fbx",
+	CharacterJob.Type.ILLUSIONIST:   _WEAPON_DIR + "Crystal1.fbx",
+	CharacterJob.Type.ADVENTURER:    _WEAPON_DIR + "Sword.fbx",
+	CharacterJob.Type.MONK:          _WEAPON_DIR + "Hammer_Double.fbx",
+	CharacterJob.Type.CLERIC:        _WEAPON_DIR + "Hammer_Double.fbx",
+	CharacterJob.Type.MAGE:          _WEAPON_DIR + "Crystal1.fbx",
+	CharacterJob.Type.WITCH:         _WEAPON_DIR + "Crystal1.fbx",
+	CharacterJob.Type.ARCHER:        _WEAPON_DIR + "Bow_Wooden.fbx",
+	CharacterJob.Type.VALKYRIE:      _WEAPON_DIR + "Sword.fbx",
+	CharacterJob.Type.SHAMAN:        _WEAPON_DIR + "Hammer_Double.fbx",
+	CharacterJob.Type.SHRINE_MAIDEN: _WEAPON_DIR + "Crystal1.fbx",
+	CharacterJob.Type.SAMURAI:       _WEAPON_DIR + "Sword.fbx",
+	CharacterJob.Type.NINJA:         _WEAPON_DIR + "Sword.fbx",
+	CharacterJob.Type.DARK_KNIGHT:   _WEAPON_DIR + "Sword.fbx",
+	CharacterJob.Type.HOLY_KNIGHT:   _WEAPON_DIR + "Hammer_Double.fbx",
+}
 
 # カメラ
 @export var camera_target: Vector3     = Vector3(3.0, 0.0, 2.0)
@@ -127,6 +188,10 @@ const ROW_NAMES := ["前", "中", "後"]
 # 戦闘終了
 @export var battle_end_delay: float    = 2.5    # s
 
+# 武器アタッチ
+@export var weapon_scale: float    = 0.3
+@export var weapon_offset: Vector3 = Vector3(0.0, -0.15, 0.0)
+
 # 戦場グリッド表示
 @export var grid_cell_size: Vector2      = Vector2(1.85, 1.85)
 @export var grid_cell_color: Color       = Color(0.35, 0.55, 1.0, 0.12)
@@ -167,8 +232,16 @@ void fragment() {
 }
 """
 
+const _SPARK_CODE := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_disabled;
+void fragment() { ALBEDO = COLOR.rgb; ALPHA = COLOR.a; }
+"""
+
 var _flash_shader: Shader
 var _hp_bar_shader: Shader
+var _spark_shader_mat: ShaderMaterial
+var _spark_mesh: QuadMesh
 
 @onready var _camera: Camera3D           = $World/Camera3D
 @onready var _env_node: WorldEnvironment = $World/WorldEnvironment
@@ -194,6 +267,13 @@ func _ready() -> void:
 	_flash_shader.code = _FLASH_CODE
 	_hp_bar_shader = Shader.new()
 	_hp_bar_shader.code = _HP_BAR_CODE
+	var spark_shader := Shader.new()
+	spark_shader.code = _SPARK_CODE
+	_spark_shader_mat = ShaderMaterial.new()
+	_spark_shader_mat.shader = spark_shader
+	_spark_mesh = QuadMesh.new()
+	_spark_mesh.size = Vector2(0.1, 0.1)
+	_spark_mesh.material = _spark_shader_mat
 	const JP := "res://assets/fonts/851CHIKARA-DZUYOKU_kanaA_004.ttf"
 	const EN := "res://assets/fonts/Cinzel-Regular.ttf"
 	if ResourceLoader.exists(JP):
@@ -309,11 +389,14 @@ func _do_camera_shake(intensity: float) -> void:
 	var elapsed: float = 0.0
 	while elapsed < shake_duration:
 		await get_tree().process_frame
+		if not is_instance_valid(_camera):
+			_shake_active = false
+			return
 		elapsed += get_process_delta_time()
 		var fade := 1.0 - clampf(elapsed / shake_duration, 0.0, 1.0)
-		var s := elapsed * 20.0
+		var s := elapsed * _CAMERA_SHAKE_NOISE_SPEED
 		_camera.h_offset = noise.get_noise_1d(s) * intensity * fade
-		_camera.v_offset = noise.get_noise_1d(s + 100.0) * intensity * fade
+		_camera.v_offset = noise.get_noise_1d(s + _CAMERA_SHAKE_V_PHASE) * intensity * fade
 	_camera.h_offset = 0.0
 	_camera.v_offset = 0.0
 	_shake_active = false
@@ -378,15 +461,7 @@ func _spawn_floating_label(pos: Vector3, text: String, color: Color) -> void:
 	if _label_font:
 		lbl.font = _label_font
 	_characters.add_child(lbl)
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(lbl, "scale", Vector3.ONE, 0.1).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lbl, "position",
-		lbl.position + Vector3(0.0, dmg_rise, 0.0), dmg_duration).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lbl, "modulate:a", 0.0,
-		dmg_duration * 0.55).set_delay(dmg_duration * 0.45)
-	await get_tree().create_timer(dmg_duration + 0.1).timeout
-	if is_instance_valid(lbl):
-		lbl.queue_free()
+	_animate_floating_label(lbl, dmg_rise, dmg_duration)
 
 func _spawn_critical_label(pos: Vector3) -> void:
 	var lbl := _make_label3d("Critical!", crit_font_size, dmg_pixel_size, Color(1.0, 0.75, 0.0))
@@ -492,8 +567,29 @@ func _get_hp_color(pct: float) -> Color:
 		return HP_COLOR_YELLOW
 	return HP_COLOR_GREEN
 
-func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3) -> Node3D:
-	var res: PackedScene = load(CHAR_PATH)
+static func _resolve_char_path(unit: BattleUnit) -> String:
+	var cd := unit.source_data as CharacterData
+	if not cd:
+		return _ENEMY_CHAR_PATH
+	return _JOB_CHAR_PATHS.get(cd.job, _ENEMY_CHAR_PATH)
+
+func _tint_char(ch: Node3D, tint: Color) -> void:
+	var meshes: Array[MeshInstance3D] = []
+	_collect_meshes(ch, meshes)
+	for mesh: MeshInstance3D in meshes:
+		if not mesh.mesh:
+			continue
+		for i: int in range(mesh.mesh.get_surface_count()):
+			var base_mat: Material = mesh.get_surface_override_material(i)
+			if not base_mat:
+				base_mat = mesh.mesh.surface_get_material(i)
+			if base_mat is StandardMaterial3D:
+				var tinted: StandardMaterial3D = (base_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+				tinted.albedo_color = tint
+				mesh.set_surface_override_material(i, tinted)
+
+func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: String) -> Node3D:
+	var res: PackedScene = load(char_path)
 	if not res:
 		return null
 	var ch: Node3D = res.instantiate()
@@ -508,9 +604,37 @@ func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3) -> Node3D:
 	_setup_flash(ch)
 	return ch
 
+func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
+	var cd := unit.source_data as CharacterData
+	if not cd:
+		return
+	var path: String = _WEAPON_PATHS.get(cd.job, "")
+	if path.is_empty():
+		return
+	var skeleton: Skeleton3D = ch.find_child("Skeleton3D", true, false) as Skeleton3D
+	if not skeleton or skeleton.find_bone("arm-left") == -1:
+		return
+	var attachment := BoneAttachment3D.new()
+	attachment.bone_name = "arm-left"
+	skeleton.add_child(attachment)
+	var weapon_scene: PackedScene = load(path)
+	if not weapon_scene:
+		return
+	var weapon: Node3D = weapon_scene.instantiate() as Node3D
+	weapon.scale = Vector3.ONE * weapon_scale
+	weapon.position = weapon_offset
+	attachment.add_child(weapon)
+	if cd.job == CharacterJob.Type.MAGE:
+		var start_y := weapon.position.y
+		var tw := create_tween().set_loops()
+		tw.tween_property(weapon, "position:y", start_y + _WEAPON_FLOAT_AMP, _WEAPON_FLOAT_TIME) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tw.tween_property(weapon, "position:y", start_y - _WEAPON_FLOAT_AMP, _WEAPON_FLOAT_TIME) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
 func _spawn_hit_sparks(pos: Vector3, is_crit: bool) -> void:
 	var particles := GPUParticles3D.new()
-	particles.position = pos + Vector3(0.0, 0.7, 0.0)
+	particles.position = pos + Vector3(0.0, _SPARK_SPAWN_Y, 0.0)
 	particles.one_shot = true
 	particles.explosiveness = 0.95
 	particles.lifetime = spark_lifetime
@@ -533,15 +657,7 @@ func _spawn_hit_sparks(pos: Vector3, is_crit: bool) -> void:
 	ramp.gradient = gradient
 	mat.color_ramp = ramp
 
-	var mesh := QuadMesh.new()
-	mesh.size = Vector2(0.1, 0.1)
-	# COLOR ビルトインを直接使う ShaderMaterial で color_ramp を確実に反映させる
-	var shader := Shader.new()
-	shader.code = "shader_type spatial;\nrender_mode unshaded, blend_add, cull_disabled;\nvoid fragment() { ALBEDO = COLOR.rgb; ALPHA = COLOR.a; }"
-	var shader_mat := ShaderMaterial.new()
-	shader_mat.shader = shader
-	mesh.material = shader_mat
-	particles.draw_pass_1 = mesh
+	particles.draw_pass_1 = _spark_mesh
 	particles.process_material = mat
 
 	_characters.add_child(particles)
@@ -569,7 +685,7 @@ func _spawn_death_particles(pos: Vector3) -> void:
 
 	var gradient := Gradient.new()
 	gradient.set_color(0, Color(1.0, 0.5, 0.1, 1.0))
-	gradient.add_point(1.0, Color(1.0, 0.15, 0.0, 0.0))
+	gradient.set_color(1, Color(1.0, 0.15, 0.0, 0.0))
 	var ramp := GradientTexture1D.new()
 	ramp.gradient = gradient
 	mat.color_ramp = ramp
@@ -591,14 +707,22 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 	for unit: BattleUnit in pg.get_all_alive():
 		var m: Marker3D = _get_player_marker(unit.row, unit.col)
 		if m:
-			var ch := _spawn_char(m, 180.0, player_char_scale)
+			var ch := _spawn_char(m, 180.0, player_char_scale, _resolve_char_path(unit))
+			if not ch:
+				continue
 			_unit_nodes[unit] = ch
 			_unit_anims[unit] = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			_spawn_hp_bar(ch, unit)
+			_attach_weapon(ch, unit)
+			var cd := unit.source_data as CharacterData
+			if cd and _JOB_TINTS.has(cd.job):
+				_tint_char(ch, _JOB_TINTS[cd.job] as Color)
 	for unit: BattleUnit in eg.get_all_alive():
 		var m: Marker3D = _get_enemy_marker(0)
 		if m:
-			var ch := _spawn_char(m, 0.0, enemy_char_scale)
+			var ch := _spawn_char(m, 0.0, enemy_char_scale, _ENEMY_CHAR_PATH)
+			if not ch:
+				continue
 			_unit_nodes[unit] = ch
 			_unit_anims[unit] = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			_spawn_hp_bar(ch, unit)
@@ -652,14 +776,16 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 	_unit_action_anim_pending = true
 
 	if has_atk_anim and is_instance_valid(anim_a):
-		await anim_a.animation_finished
+		while is_instance_valid(anim_a) and anim_a.is_playing():
+			await get_tree().process_frame
 		if is_instance_valid(anim_a):
 			anim_a.play("idle")
 	elif hit_tween:
 		await hit_tween.finished
 	await get_tree().create_timer(unit_action_show_duration).timeout
 	_unit_action_anim_pending = false
-	_manager.unit_action_anim_done.emit()
+	if is_instance_valid(_manager):
+		_manager.unit_action_anim_done.emit()
 
 func _on_unit_died(unit: BattleUnit) -> void:
 	var ch: Node3D = _unit_nodes.get(unit) as Node3D
@@ -730,13 +856,15 @@ func _on_rotated() -> void:
 		if ch:
 			_do_flash(ch, front_row_flash_color, front_row_flash_duration)
 	await get_tree().create_timer(rotate_show_duration).timeout
-	_manager.rotate_anim_done.emit()
+	if is_instance_valid(_manager):
+		_manager.rotate_anim_done.emit()
 
 func _on_phase_started(phase: StringName) -> void:
-	if phase != &"recovery":
-		return
-	await get_tree().create_timer(self_heal_show_duration).timeout
-	_manager.self_heal_anim_done.emit()
+	match phase:
+		&"recovery":
+			await get_tree().create_timer(self_heal_show_duration).timeout
+			if is_instance_valid(_manager):
+				_manager.self_heal_anim_done.emit()
 
 func _on_attack_support_used(supporter: BattleUnit, attacker: BattleUnit) -> void:
 	var ch_supp: Node3D = _unit_nodes.get(supporter) as Node3D
@@ -793,7 +921,8 @@ func _process_row_heal_queue() -> void:
 	_row_heal_animating = false
 	_row_heal_units.clear()
 	await get_tree().create_timer(post_row_heal_show_duration).timeout
-	_manager.row_heal_anim_done.emit()
+	if is_instance_valid(_manager):
+		_manager.row_heal_anim_done.emit()
 
 func _on_battle_ended(_won: bool, _loot: Array) -> void:
 	await get_tree().create_timer(battle_end_delay).timeout
@@ -805,6 +934,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		await RenderingServer.frame_post_draw
 		var img := get_viewport().get_texture().get_image()
-		var path := ProjectSettings.globalize_path("res://") + "tools/screenshot.png"
+		DirAccess.make_dir_recursive_absolute("user://tools")
+		var path := "user://tools/screenshot.png"
 		img.save_png(path)
 		print("スクショ保存: %s" % path)

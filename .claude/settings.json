@@ -1,6 +1,10 @@
 {
   "permissions": {
-    "allow": []
+    "allow": [
+      "Skill(code-review)",
+      "Skill(code-review:*)",
+      "WebFetch(domain:quaternius.com)"
+    ]
   },
   "hooks": {
     "SessionStart": [

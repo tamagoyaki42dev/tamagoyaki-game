@@ -146,7 +146,7 @@ def main():
         sys.exit(0)
 
     repo_url  = "https://github.com/tamagoyaki42dev/tamagoyaki-game"
-    hashtags  = "#indiedev #gamedev #たまごやきゲームス"
+    hashtags  = "#indiedev #gamedev #godot #たまごやきゲームス"
     text      = f"【開発更新】{commit_msg}\n\n{repo_url}\n\n{hashtags}"
 
     def x_len(s):
