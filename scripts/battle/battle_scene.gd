@@ -73,6 +73,20 @@ const _WEAPON_PATHS: Dictionary = {
 	CharacterJob.Type.HOLY_KNIGHT:   _WEAPON_DIR + "Hammer_Double.fbx",
 }
 
+const ACCENT_PALETTE: Array = [
+	Color(0.902, 0.333, 0.227),  # 0: #E6553A
+	Color(0.902, 0.635, 0.227),  # 1: #E6A23A
+	Color(0.310, 0.702, 0.416),  # 2: #4FB36A
+	Color(0.227, 0.627, 0.902),  # 3: #3AA0E6
+	Color(0.608, 0.435, 0.902),  # 4: #9B6FE6
+	Color(0.902, 0.435, 0.690),  # 5: #E66FB0
+	Color(0.275, 0.780, 0.780),  # 6: #46C7C7
+	Color(0.780, 0.722, 0.227),  # 7: #C7B83A
+]
+
+static func accent_color_for(index: int) -> Color:
+	return ACCENT_PALETTE[index % ACCENT_PALETTE.size()] as Color
+
 # カメラ
 @export var camera_target: Vector3     = Vector3(3.0, 0.0, 2.0)
 @export var camera_distance: float     = 15.0
@@ -199,6 +213,17 @@ const _WEAPON_PATHS: Dictionary = {
 @export var weapon_scale: float    = 0.3
 @export var weapon_offset: Vector3 = Vector3(0.0, -0.15, 0.0)
 
+# 番号バッジ（足元）
+@export var number_badge_font_size: int    = 64
+@export var number_badge_pixel_size: float = 0.004
+@export var number_badge_y: float          = 0.06
+@export var number_badge_outline: int      = 3
+
+# アクセントリング（足元）
+@export var accent_ring_inner: float = 0.35
+@export var accent_ring_outer: float = 0.45
+@export var accent_ring_y: float     = 0.02
+
 # 戦場グリッド表示
 @export var grid_cell_size: Vector2      = Vector2(1.85, 1.85)
 @export var grid_cell_color: Color       = Color(0.35, 0.55, 1.0, 0.12)
@@ -262,6 +287,7 @@ var _manager: BattleManager
 var _unit_nodes: Dictionary = {}    # BattleUnit → Node3D
 var _unit_anims: Dictionary = {}    # BattleUnit → AnimationPlayer
 var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
+var _unit_rings: Dictionary = {}    # BattleUnit → StandardMaterial3D（アクセントリング。Phase3ホバー用）
 var _label_font: Font = null
 var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニメ処理中）
 var _row_heal_queue: Array = []          # 待機中の列回復バッチ
@@ -644,6 +670,29 @@ func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 		tw.tween_property(weapon, "position:y", start_y - _WEAPON_FLOAT_AMP, _WEAPON_FLOAT_TIME) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
+func _spawn_number_badge(ch: Node3D, number: int) -> void:
+	var lbl := _make_label3d(str(number), number_badge_font_size, number_badge_pixel_size, Color.WHITE)
+	lbl.outline_size = number_badge_outline
+	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
+	lbl.position = Vector3(0.0, number_badge_y, 0.0)
+	if _label_font:
+		lbl.font = _label_font
+	ch.add_child(lbl)
+
+func _spawn_accent_ring(ch: Node3D, unit: BattleUnit, accent: Color) -> void:
+	var mi := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = accent_ring_inner
+	torus.outer_radius = accent_ring_outer
+	mi.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = accent
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mi.material_override = mat
+	mi.position = Vector3(0.0, accent_ring_y, 0.0)
+	ch.add_child(mi)
+	_unit_rings[unit] = mat
+
 func _spawn_hit_sparks(pos: Vector3, is_crit: bool) -> void:
 	var particles := GPUParticles3D.new()
 	particles.position = pos + Vector3(0.0, _SPARK_SPAWN_Y, 0.0)
@@ -716,7 +765,9 @@ func _spawn_death_particles(pos: Vector3) -> void:
 # ── Signal handlers ──────────────────────────────────────────────
 
 func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
-	for unit: BattleUnit in pg.get_all_alive():
+	var player_units := pg.get_all_alive()
+	for i: int in player_units.size():
+		var unit: BattleUnit = player_units[i]
 		var m: Marker3D = _get_player_marker(unit.row, unit.col)
 		if m:
 			var ch := _spawn_char(m, 180.0, player_char_scale, _resolve_char_path(unit))
@@ -729,6 +780,9 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 			var cd := unit.source_data as CharacterData
 			if cd and _JOB_TINTS.has(cd.job):
 				_tint_char(ch, _JOB_TINTS[cd.job] as Color)
+			var accent := accent_color_for(i)
+			_spawn_number_badge(ch, i + 1)
+			_spawn_accent_ring(ch, unit, accent)
 	for unit: BattleUnit in eg.get_all_alive():
 		var m: Marker3D = _get_enemy_marker(0)
 		if m:

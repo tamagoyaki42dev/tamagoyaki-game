@@ -172,6 +172,12 @@ func _build_party_panel(units: Array) -> void:
 		add_child(entry)
 		_party_entries[unit] = entry
 
+		var strip := ColorRect.new()
+		strip.position = Vector2(0.0, 0.0)
+		strip.size = Vector2(5.0, slot_h - 4.0)
+		strip.color = BattleScene.accent_color_for(i)
+		entry.add_child(strip)
+
 		var portrait := ColorRect.new()
 		portrait.position = Vector2(4.0, 4.0)
 		portrait.size = Vector2(PORTRAIT_W, slot_h - 12.0)
@@ -179,7 +185,7 @@ func _build_party_panel(units: Array) -> void:
 		entry.add_child(portrait)
 
 		var content_x := PORTRAIT_W + 8.0
-		_lbl(entry, unit.unit_name, Vector2(content_x, 6.0), 17, Color(0.86, 0.90, 0.98))
+		_lbl(entry, "%d  %s" % [i + 1, unit.unit_name], Vector2(content_x, 6.0), 17, Color(0.86, 0.90, 0.98))
 		_lbl(entry, "ATK %d  SPD %d" % [unit.attack, unit.speed],
 			Vector2(content_x, 26.0), 13, Color(0.58, 0.65, 0.80))
 
