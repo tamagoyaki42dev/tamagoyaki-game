@@ -21,6 +21,9 @@ var _action_panel: Control = null
 var _party_bars: Dictionary = {}    # BattleUnit → ProgressBar
 var _bar_fills: Dictionary = {}    # BattleUnit → StyleBoxFlat
 var _party_entries: Dictionary = {} # BattleUnit → Panel
+var _party_portraits: Dictionary = {} # BattleUnit → TextureRect
+var _party_job_lbls: Dictionary = {}  # BattleUnit → Label（番号＋職名）
+var _party_hp_lbls: Dictionary = {}   # BattleUnit → Label（HP数値 現在/最大）
 
 @export_range(1.0, 10.0, 0.5) var countdown_seconds: float = 3.0
 
@@ -178,20 +181,37 @@ func _build_party_panel(units: Array) -> void:
 		strip.color = BattleScene.accent_color_for(i)
 		entry.add_child(strip)
 
-		var portrait := ColorRect.new()
+		# 正面ポートレート（事前ベイク PNG）。共有モデルの色分けは戦場と同じ tint を modulate で一致させる
+		var portrait := TextureRect.new()
 		portrait.position = Vector2(4.0, 4.0)
 		portrait.size = Vector2(PORTRAIT_W, slot_h - 12.0)
-		portrait.color = Color(0.10, 0.12, 0.22, 0.85)
+		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var cd := unit.source_data as CharacterData
+		if cd:
+			var ppath := BattleScene.portrait_path_for_job(cd.job)
+			if ResourceLoader.exists(ppath):
+				portrait.texture = load(ppath) as Texture2D
+			portrait.modulate = BattleScene.job_tint_or_white(cd.job)
 		entry.add_child(portrait)
+		_party_portraits[unit] = portrait
 
 		var content_x := PORTRAIT_W + 8.0
-		_lbl(entry, "%d  %s" % [i + 1, unit.unit_name], Vector2(content_x, 6.0), 17, Color(0.86, 0.90, 0.98))
-		_lbl(entry, "ATK %d  SPD %d" % [unit.attack, unit.speed],
-			Vector2(content_x, 26.0), 13, Color(0.58, 0.65, 0.80))
+		# 名前を大きく（番号付き）、職種を小さく下に
+		_lbl(entry, "%d  %s" % [i + 1, unit.unit_name],
+			Vector2(content_x, 3.0), 19, Color(0.86, 0.90, 0.98))
+		var job_name: String = CharacterJob.get_display_name(cd.job) if cd else unit.unit_name
+		var job_lbl := _lbl(entry, job_name,
+			Vector2(content_x, 28.0), 12, Color(0.58, 0.65, 0.80))
+		_party_job_lbls[unit] = job_lbl
+
+		var hp_lbl := _lbl(entry, "HP %d/%d" % [unit.hp, unit.hp_max],
+			Vector2(content_x, 45.0), 14, Color(0.80, 0.88, 0.80))
+		_party_hp_lbls[unit] = hp_lbl
 
 		var bar := ProgressBar.new()
-		bar.position = Vector2(content_x, 46.0)
-		bar.size = Vector2(PANEL_W - 24.0 - PORTRAIT_W, 10.0)
+		bar.position = Vector2(content_x, 66.0)
+		bar.size = Vector2(PANEL_W - 24.0 - PORTRAIT_W, 8.0)
 		bar.min_value = 0.0
 		bar.max_value = float(unit.hp_max)
 		bar.value = float(unit.hp)
@@ -238,6 +258,8 @@ func _update_hp(unit: BattleUnit) -> void:
 	var fill := _bar_fills.get(unit) as StyleBoxFlat
 	if fill:
 		fill.bg_color = _get_hp_color(clampf(float(unit.hp) / float(unit.hp_max), 0.0, 1.0))
+	if _party_hp_lbls.has(unit):
+		(_party_hp_lbls[unit] as Label).text = "HP %d/%d" % [unit.hp, unit.hp_max]
 
 func _get_hp_color(pct: float) -> Color:
 	if pct < BattleScene.HP_RED_THRESHOLD:

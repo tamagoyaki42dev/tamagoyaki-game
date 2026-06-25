@@ -7,6 +7,7 @@ const NEXT_SCENE := "res://scenes/formation.tscn"
 const _ENEMY_CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
 
 const _CHAR_DIR := "res://assets/kenney-mini-characters/Models/GLB format/"
+const _PORTRAIT_DIR := "res://assets/portraits/"
 # 職業別キャラモデル（female 6職は1:1ユニーク、male 11職は5種を共有）
 const _JOB_CHAR_PATHS: Dictionary = {
 	CharacterJob.Type.WARRIOR:       _CHAR_DIR + "character-male-b.glb",
@@ -86,6 +87,26 @@ const ACCENT_PALETTE: Array = [
 
 static func accent_color_for(index: int) -> Color:
 	return ACCENT_PALETTE[index % ACCENT_PALETTE.size()] as Color
+
+# プレイヤー職のキャラモデルをファイル単位で重複排除した一覧
+# （ポートレート・ベイクツールとパネル/テストが参照する単一ソース）
+static func unique_player_model_paths() -> Array[String]:
+	var seen: Dictionary = {}
+	var out: Array[String] = []
+	for path: String in _JOB_CHAR_PATHS.values():
+		if not seen.has(path):
+			seen[path] = true
+			out.append(path)
+	return out
+
+# 職→モデルファイル→事前ベイク済みポートレート PNG のパス
+static func portrait_path_for_job(job: CharacterJob.Type) -> String:
+	var model: String = _JOB_CHAR_PATHS.get(job, _ENEMY_CHAR_PATH)
+	return _PORTRAIT_DIR + model.get_file().get_basename() + ".png"
+
+# 共有モデルを色分けする職の tint。対象外は白（無着色）
+static func job_tint_or_white(job: CharacterJob.Type) -> Color:
+	return _JOB_TINTS.get(job, Color.WHITE)
 
 # カメラ
 @export var camera_target: Vector3     = Vector3(3.0, 0.0, 2.0)
