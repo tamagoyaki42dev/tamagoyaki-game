@@ -211,7 +211,8 @@ static func accent_color_for(index: int) -> Color:
 
 # 武器アタッチ
 @export var weapon_scale: float    = 0.3
-@export var weapon_offset: Vector3 = Vector3(0.0, -0.15, 0.0)
+# arm-right ボーンのローカル空間における手先位置（kenney-mini スケルトンのスキニングから実測）
+@export var weapon_offset: Vector3 = Vector3(-0.18, 0.18, 0.08)
 
 # 番号バッジ（足元）
 @export var number_badge_font_size: int    = 64
@@ -650,10 +651,10 @@ func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 	if path.is_empty():
 		return
 	var skeleton: Skeleton3D = ch.find_child("Skeleton3D", true, false) as Skeleton3D
-	if not skeleton or skeleton.find_bone("arm-left") == -1:
+	if not skeleton or skeleton.find_bone("arm-right") == -1:
 		return
 	var attachment := BoneAttachment3D.new()
-	attachment.bone_name = "arm-left"
+	attachment.bone_name = "arm-right"
 	skeleton.add_child(attachment)
 	var weapon_scene: PackedScene = load(path)
 	if not weapon_scene:
