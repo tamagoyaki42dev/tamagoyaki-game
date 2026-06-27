@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dtjxsr8qxh6he"]
 
-[ext_resource type="Script" path="res://tools/portrait_baker.gd" id="1"]
+[ext_resource type="Script" uid="uid://dldsttm5fvtgs" path="res://tools/portrait_baker.gd" id="1"]
 
-[node name="PortraitBaker" type="Node"]
+[node name="PortraitBaker" type="Node" unique_id=640585866]
 script = ExtResource("1")

@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="ローテーションハクスラ"
-run/main_scene="res://scenes/enemy_info.tscn"
+run/main_scene="res://scenes/debug_launcher.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 

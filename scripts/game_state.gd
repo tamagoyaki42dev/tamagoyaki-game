@@ -14,16 +14,49 @@ static func ensure_init() -> void:
 	enemy_stat_type = EnemyData.StatType.TANK
 	_init_default_party()
 
+# ══ ロスター段階解禁（battle_index で絞り込む） ══
+const B1_JOBS: Array = [
+	CharacterJob.Type.WARRIOR, CharacterJob.Type.KNIGHT,   CharacterJob.Type.CLERIC,
+	CharacterJob.Type.WITCH,   CharacterJob.Type.ARCHER,   CharacterJob.Type.MONK,
+	CharacterJob.Type.ADVENTURER, CharacterJob.Type.ILLUSIONIST,
+	CharacterJob.Type.VALKYRIE,   CharacterJob.Type.SHRINE_MAIDEN,
+]
+const B2_UNLOCK_JOBS: Array = [CharacterJob.Type.GLADIATOR, CharacterJob.Type.SAMURAI]
+const B3_UNLOCK_JOBS: Array = [CharacterJob.Type.MAGE, CharacterJob.Type.SHAMAN, CharacterJob.Type.NINJA]
+
+static func get_available_pool() -> Array:
+	var unlocked: Array = B1_JOBS.duplicate()
+	if battle_index >= 1:
+		unlocked.append_array(B2_UNLOCK_JOBS)
+	if battle_index >= 2:
+		unlocked.append_array(B3_UNLOCK_JOBS)
+	var result: Array = []
+	for c: CharacterData in party_pool:
+		if c.job in unlocked:
+			result.append(c)
+	return result
+
 # ══ パーティ定義（ここを差し替えるだけで変更可） ══
 static func _init_default_party() -> void:
 	var roster := [
-		["アーサー", CharacterJob.Type.WARRIOR],
-		["ライン",   CharacterJob.Type.SAMURAI],
-		["ルカ",     CharacterJob.Type.ARCHER],
-		["ガイ",     CharacterJob.Type.KNIGHT],
-		["リム",     CharacterJob.Type.WITCH],
-		["ソレン",   CharacterJob.Type.MAGE],
-		["エレナ",   CharacterJob.Type.CLERIC],
+		# B1解禁（10職）
+		["ガウェイン",       CharacterJob.Type.WARRIOR],
+		["セバスティアン",   CharacterJob.Type.KNIGHT],
+		["アリシア",         CharacterJob.Type.CLERIC],
+		["エヴァンジェリン", CharacterJob.Type.WITCH],
+		["ロビン",           CharacterJob.Type.ARCHER],
+		["ゴラン",           CharacterJob.Type.MONK],
+		["ルシア",           CharacterJob.Type.ADVENTURER],
+		["セシリア",         CharacterJob.Type.ILLUSIONIST],
+		["ヒルデ",           CharacterJob.Type.VALKYRIE],
+		["ソフィア",         CharacterJob.Type.SHRINE_MAIDEN],
+		# B2解禁（+2職）
+		["マクシム",   CharacterJob.Type.GLADIATOR],
+		["マサムネ",   CharacterJob.Type.SAMURAI],
+		# B3解禁（+3職）
+		["コルネリウス", CharacterJob.Type.MAGE],
+		["ベリン",       CharacterJob.Type.SHAMAN],
+		["シノ",         CharacterJob.Type.NINJA],
 	]
 	for entry in roster:
 		var data := CharacterData.from_job(entry[1])
@@ -31,15 +64,22 @@ static func _init_default_party() -> void:
 		party_pool.append(data)
 	_set_default_formation()
 
+static func _find_by_job(job: CharacterJob.Type) -> CharacterData:
+	for c: CharacterData in party_pool:
+		if c.job == job:
+			return c
+	return null
+
 static func _set_default_formation() -> void:
 	formation.clear()
-	formation[Vector2i(0, 0)] = party_pool[0]  # 前列
-	formation[Vector2i(0, 1)] = party_pool[1]
-	formation[Vector2i(0, 2)] = party_pool[2]
-	formation[Vector2i(1, 0)] = party_pool[3]  # 中列
-	formation[Vector2i(1, 1)] = party_pool[4]
-	formation[Vector2i(1, 2)] = party_pool[5]
-	formation[Vector2i(2, 0)] = party_pool[6]  # 後列
+	# B1デフォルト編成（前3・中3・後1）
+	formation[Vector2i(0, 0)] = _find_by_job(CharacterJob.Type.WARRIOR)
+	formation[Vector2i(0, 1)] = _find_by_job(CharacterJob.Type.ARCHER)
+	formation[Vector2i(0, 2)] = _find_by_job(CharacterJob.Type.MONK)
+	formation[Vector2i(1, 0)] = _find_by_job(CharacterJob.Type.KNIGHT)
+	formation[Vector2i(1, 1)] = _find_by_job(CharacterJob.Type.WITCH)
+	formation[Vector2i(1, 2)] = _find_by_job(CharacterJob.Type.ADVENTURER)
+	formation[Vector2i(2, 0)] = _find_by_job(CharacterJob.Type.CLERIC)
 
 # ══ 編成操作 ══
 
@@ -76,7 +116,7 @@ static func _remove_from_grid(char_data: CharacterData) -> void:
 static func get_bench() -> Array:
 	var placed := formation.values()
 	var bench: Array = []
-	for c in party_pool:
+	for c: CharacterData in get_available_pool():
 		if not (c in placed):
 			bench.append(c)
 	return bench
@@ -86,6 +126,10 @@ static func get_bench_ordered() -> Array:
 	var ordered: Array = []
 	for c in bench_order:
 		if bench.has(c):
+			ordered.append(c)
+	# bench_orderにない未配置キャラ（新解禁キャラ含む）を末尾に追加
+	for c in bench:
+		if not ordered.has(c):
 			ordered.append(c)
 	return ordered
 
