@@ -63,6 +63,9 @@ var _pending_rotate: bool = false
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# ルート Control が FULL_RECT + STOP だと左側（3D 戦場）へのマウスを吸収してしまう。
+	# IGNORE にして子 Panel（右パネル）が個別に STOP するようにし、3D ピッキングを通す。
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var jp := "res://assets/fonts/851CHIKARA-DZUYOKU_kanaA_004.ttf"
 	var en := "res://assets/fonts/Cinzel-Regular.ttf"
 	if ResourceLoader.exists(jp):
@@ -326,6 +329,13 @@ func _on_entry_hover(unit: BattleUnit, hovered: bool) -> void:
 		var st := _party_entry_styles[unit] as StyleBoxFlat
 		st.bg_color = ENTRY_BG_HOVER if hovered else ENTRY_BG_COLOR
 	unit_row_hovered.emit(unit, hovered)
+
+# Phase 4：3D 戦場側のホバー通知。BattleScene から unit_3d_hovered 経由で呼ばれる。
+func _on_unit_3d_hovered(unit: BattleUnit, hovered: bool) -> void:
+	if not _party_entry_styles.has(unit):
+		return
+	var st := _party_entry_styles[unit] as StyleBoxFlat
+	st.bg_color = ENTRY_BG_HOVER if hovered else ENTRY_BG_COLOR
 
 static func _build_atk_text(unit: BattleUnit) -> String:
 	var s: String = "攻 %d" % unit.attack

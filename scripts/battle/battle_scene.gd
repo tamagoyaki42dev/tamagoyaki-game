@@ -1,6 +1,9 @@
 class_name BattleScene
 extends Node
 
+# Phase 4：3D ホバーでパネル行を強調する通知。BattleUI が購読して行背景を切り替える。
+signal unit_3d_hovered(unit: BattleUnit, hovered: bool)
+
 const NEXT_SCENE := "res://scenes/formation.tscn"
 
 # 敵は gitignore 外のコミット済みモデルを使用
@@ -249,6 +252,13 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export_range(0.0, 1.0, 0.05) var ring_hover_brighten: float       = 0.5  # 白側への lerp 量
 @export_range(0.0, 6.0, 0.1)  var ring_hover_emission_energy: float = 2.0  # 発光の強さ
 
+# Phase 4：3D ホバー判定用 Area3D カプセル
+# イソメトリック視差ズレ対策：y を高くすると前列判定が後列のスクリーン座標と重なるため
+# リング（y≈0.02）と同じ地面すれすれに置いて各キャラのリング上にヒットボックスを一致させる
+@export var hover_collider_radius: float = 0.45  # カプセル半径 (m)
+@export var hover_collider_height: float = 0.95  # カプセル高さ (m)。radius*2 に近い扁平形
+@export var hover_collider_y: float      = 0.15  # カプセル中心 y（地面すれすれ・リングと同高さ）
+
 # 戦場グリッド表示
 @export var grid_cell_size: Vector2      = Vector2(1.85, 1.85)
 @export var grid_cell_color: Color       = Color(0.35, 0.55, 1.0, 0.12)
@@ -314,6 +324,7 @@ var _unit_anims: Dictionary = {}    # BattleUnit → AnimationPlayer
 var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
 var _unit_rings: Dictionary = {}    # BattleUnit → StandardMaterial3D（アクセントリング。Phase3ホバー用）
 var _ring_base_colors: Dictionary = {}  # BattleUnit → Color（リング基準色。ホバー解除時の復帰用）
+var _unit_areas: Dictionary = {}    # BattleUnit → Area3D（Phase4：3Dマウスピッキング用）
 var _label_font: Font = null
 var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニメ処理中）
 var _row_heal_queue: Array = []          # 待機中の列回復バッチ
@@ -344,6 +355,7 @@ func _ready() -> void:
 	_start_battle()
 
 func _setup_world() -> void:
+	get_viewport().physics_object_picking = true
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_camera.size = camera_ortho_size
 	var cam_pos := camera_target + Vector3(1.0, 1.0, 1.0).normalized() * camera_distance
@@ -400,6 +412,7 @@ func _start_battle() -> void:
 	_manager.row_heal_batch.connect(_on_row_heal_batch)
 	_battle_ui.setup(_manager)
 	_battle_ui.unit_row_hovered.connect(_on_row_hovered)
+	unit_3d_hovered.connect(_battle_ui._on_unit_3d_hovered)
 	_manager.start_battle(GameState.get_battle_entries(), GameState.get_battle_enemy())
 
 # ── ヘルパー ─────────────────────────────────────────────────────
@@ -721,6 +734,27 @@ func _spawn_accent_ring(ch: Node3D, unit: BattleUnit, accent: Color) -> void:
 	_unit_rings[unit] = mat
 	_ring_base_colors[unit] = accent
 
+# Phase 4：プレイヤーキャラに Area3D を付けてマウスホバーを検出する
+func _spawn_hover_area(ch: Node3D, unit: BattleUnit) -> void:
+	var area := Area3D.new()
+	area.position = Vector3(0.0, hover_collider_y, 0.0)
+	var col := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = hover_collider_radius
+	cap.height = hover_collider_height
+	col.shape = cap
+	area.add_child(col)
+	area.mouse_entered.connect(_on_unit_area_entered.bind(unit))
+	area.mouse_exited.connect(_on_unit_area_exited.bind(unit))
+	ch.add_child(area)
+	_unit_areas[unit] = area
+
+func _on_unit_area_entered(unit: BattleUnit) -> void:
+	unit_3d_hovered.emit(unit, true)
+
+func _on_unit_area_exited(unit: BattleUnit) -> void:
+	unit_3d_hovered.emit(unit, false)
+
 # Phase 3：パネル行ホバーで対応ユニットの足元リングを明るく光らせる／戻す
 func _on_row_hovered(unit: BattleUnit, hovered: bool) -> void:
 	var mat: StandardMaterial3D = _unit_rings.get(unit) as StandardMaterial3D
@@ -826,6 +860,7 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 			var accent := accent_color_for(i)
 			_spawn_number_badge(ch, i + 1)
 			_spawn_accent_ring(ch, unit, accent)
+			_spawn_hover_area(ch, unit)
 	for unit: BattleUnit in eg.get_all_alive():
 		var m: Marker3D = _get_enemy_marker(0)
 		if m:
