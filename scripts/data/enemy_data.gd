@@ -70,3 +70,18 @@ static func get_action_label(action: int) -> String:
 		ActionType.ABSORB:  return "HP吸収"
 		ActionType.CHARGE:  return "力を溜める"
 	return "攻撃"
+
+static func format_action_cycle(cycle: Array[int]) -> String:
+	if cycle.size() == 1 and cycle[0] == ActionType.NORMAL:
+		return "通常攻撃のみ"
+	var parts: Array[String] = []
+	for action: int in cycle:
+		parts.append(get_action_label(action))
+	return "  →  ".join(parts) + "（くり返し）"
+
+func format_thought_type() -> String:
+	match thought_type:
+		ThoughtType.RANDOM:         return "きまぐれ（ランダムに攻撃対象を選ぶ）"
+		ThoughtType.STRONG_TARGET:  return "強者狙い（最も攻撃力の高い相手を狙う）"
+		ThoughtType.SUPPORT_TARGET: return "補助狙い（補助・回復役を集中攻撃する）"
+		_:                          return "不明"

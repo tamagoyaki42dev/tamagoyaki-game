@@ -18,7 +18,6 @@ var DIVIDER_X: float
 var _root: Control
 var _cards_root: Control   # グリッド＋ベンチカード（更新時に全差し替え）
 var _detail_root: Control  # 右パネルコンテンツ（更新時に全差し替え）
-var _enemy_lbl: Label
 var _selected: CharacterData = null
 
 func _ready() -> void:
@@ -84,31 +83,14 @@ func _build_static_ui() -> void:
 func _build_controls() -> void:
 	var cy := SH - 70.0
 
-	_lbl(_root, "敵タイプ:", Vector2(GRID_X, cy + 12.0), 14, Color(0.60, 0.60, 0.72))
-
-	var prev_btn := Button.new()
-	prev_btn.text = "◀"
-	prev_btn.position = Vector2(GRID_X + 86.0, cy)
-	prev_btn.size = Vector2(40.0, 42.0)
-	prev_btn.pressed.connect(func():
-		GameState.prev_enemy_type()
-		_enemy_lbl.text = GameState.enemy_type_name())
-	_style_button(prev_btn, Color(0.40, 0.50, 0.70))
-	_root.add_child(prev_btn)
-
-	_enemy_lbl = _lbl(_root, GameState.enemy_type_name(),
-		Vector2(GRID_X + 134.0, cy + 11.0), 16)
-	_enemy_lbl.custom_minimum_size = Vector2(180.0, 20.0)
-
-	var next_btn := Button.new()
-	next_btn.text = "▶"
-	next_btn.position = Vector2(GRID_X + 320.0, cy)
-	next_btn.size = Vector2(40.0, 42.0)
-	next_btn.pressed.connect(func():
-		GameState.next_enemy_type()
-		_enemy_lbl.text = GameState.enemy_type_name())
-	_style_button(next_btn, Color(0.40, 0.50, 0.70))
-	_root.add_child(next_btn)
+	var info_btn := Button.new()
+	info_btn.text = "← 敵情報"
+	info_btn.position = Vector2(GRID_X, cy)
+	info_btn.size = Vector2(140.0, 42.0)
+	info_btn.pressed.connect(func():
+		get_tree().change_scene_to_file("res://scenes/enemy_info.tscn"))
+	_style_button(info_btn, Color(0.40, 0.50, 0.70))
+	_root.add_child(info_btn)
 
 	var start_btn := Button.new()
 	start_btn.text = "遠征開始"
@@ -177,11 +159,17 @@ func _make_grid_card(pos: Vector2i, cd: CharacterData, card_pos: Vector2) -> voi
 
 func _build_bench_cards() -> void:
 	var bench_y := GRID_Y + 3.0 * (CARD_H + ROW_GAP) + 38.0
-	var bench := GameState.get_bench()
+	var bench := GameState.get_bench_ordered()
+	var grid_selected := _selected != null and GameState.is_in_formation(_selected)
+
 	if bench.is_empty():
-		_lbl(_cards_root, "（全員配置済み）",
-			Vector2(GRID_X, bench_y + 20.0), 13, Color(0.35, 0.38, 0.45))
+		if grid_selected:
+			_make_bench_move_slot(_cards_root, Vector2(GRID_X, bench_y))
+		else:
+			_lbl(_cards_root, "（全員配置済み）",
+				Vector2(GRID_X, bench_y + 20.0), 13, Color(0.35, 0.38, 0.45))
 		return
+
 	for i in bench.size():
 		var cd: CharacterData = bench[i]
 		var is_sel := (cd == _selected)
@@ -203,6 +191,29 @@ func _build_bench_cards() -> void:
 		btn.add_theme_stylebox_override("focus",   StyleBoxEmpty.new())
 		btn.pressed.connect(_on_bench_clicked.bind(cd))
 		p.add_child(btn)
+
+	# グリッドキャラが選択されているとき右端に「ベンチへ移動」を表示
+	if grid_selected:
+		var px := GRID_X + bench.size() * (BENCH_W + CARD_GAP)
+		_make_bench_move_slot(_cards_root, Vector2(px, bench_y))
+
+func _make_bench_move_slot(parent: Node, pos: Vector2) -> void:
+	var p := _panel(parent, pos, Vector2(BENCH_W, BENCH_H),
+		Color(0.08, 0.05, 0.14, 0.85), Color(0.55, 0.38, 0.75))
+	_lbl(p, "ベンチへ移動", Vector2(8.0, 30.0), 13, Color(0.78, 0.65, 1.00))
+	var btn := Button.new()
+	btn.position = Vector2.ZERO
+	btn.size = Vector2(BENCH_W, BENCH_H)
+	btn.flat = true
+	btn.add_theme_stylebox_override("normal",  StyleBoxEmpty.new())
+	btn.add_theme_stylebox_override("hover",   _hover_box())
+	btn.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
+	btn.add_theme_stylebox_override("focus",   StyleBoxEmpty.new())
+	btn.pressed.connect(func():
+		GameState.remove_from_grid(_selected)
+		_selected = null
+		_refresh())
+	p.add_child(btn)
 
 func _build_detail_content() -> void:
 	var pw := SW - DIVIDER_X - 40.0

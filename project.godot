@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="ローテーションハクスラ"
-run/main_scene="res://scenes/formation.tscn"
+run/main_scene="res://scenes/enemy_info.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -24,7 +24,7 @@ window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/sns_screenshot/plugin.cfg")
 
 [filesystem]
 

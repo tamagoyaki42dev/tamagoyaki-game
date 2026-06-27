@@ -4,7 +4,8 @@ extends Node
 # Phase 4：3D ホバーでパネル行を強調する通知。BattleUI が購読して行背景を切り替える。
 signal unit_3d_hovered(unit: BattleUnit, hovered: bool)
 
-const NEXT_SCENE := "res://scenes/formation.tscn"
+const _ENEMY_INFO_SCENE := "res://scenes/enemy_info.tscn"
+const _CLEAR_SCENE      := "res://scenes/clear.tscn"
 
 # 敵は gitignore 外のコミット済みモデルを使用
 const _ENEMY_CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
@@ -1103,9 +1104,17 @@ func _process_row_heal_queue() -> void:
 	if is_instance_valid(_manager):
 		_manager.row_heal_anim_done.emit()
 
-func _on_battle_ended(_won: bool, _loot: Array) -> void:
+func _on_battle_ended(won: bool, _loot: Array) -> void:
 	await get_tree().create_timer(battle_end_delay).timeout
-	get_tree().change_scene_to_file(NEXT_SCENE)
+	if won:
+		GameState.advance_battle()
+		if GameState.battle_index >= 3:
+			get_tree().change_scene_to_file(_CLEAR_SCENE)
+		else:
+			get_tree().change_scene_to_file(_ENEMY_INFO_SCENE)
+	else:
+		GameState.reset_to_current_battle()
+		get_tree().change_scene_to_file(_ENEMY_INFO_SCENE)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and (event as InputEventKey).keycode == KEY_F12 \

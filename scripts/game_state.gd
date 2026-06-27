@@ -4,10 +4,13 @@ class_name GameState
 static var party_pool: Array = []
 static var formation: Dictionary = {}   # Vector2i(row, col) → CharacterData
 static var enemy_stat_type: int = 0    # _ready相当がないので ensure_init() で設定
+static var battle_index: int = 0       # 現在の戦（0=B1, 1=B2, 2=B3）
+static var bench_order: Array = []     # ベンチ追加順（新しいほど末尾）
 
 static func ensure_init() -> void:
 	if not party_pool.is_empty():
 		return
+	bench_order.clear()
 	enemy_stat_type = EnemyData.StatType.TANK
 	_init_default_party()
 
@@ -47,6 +50,7 @@ static func place(pos: Vector2i, char_data: CharacterData) -> void:
 	_remove_from_grid(char_data)
 	formation.erase(pos)
 	formation[pos] = char_data
+	bench_order.erase(char_data)
 
 static func swap(pos_a: Vector2i, pos_b: Vector2i) -> void:
 	var a := get_at(pos_a)
@@ -60,6 +64,8 @@ static func swap(pos_a: Vector2i, pos_b: Vector2i) -> void:
 
 static func remove_from_grid(char_data: CharacterData) -> void:
 	_remove_from_grid(char_data)
+	if not bench_order.has(char_data):
+		bench_order.append(char_data)
 
 static func _remove_from_grid(char_data: CharacterData) -> void:
 	for pos in formation.keys():
@@ -75,6 +81,14 @@ static func get_bench() -> Array:
 			bench.append(c)
 	return bench
 
+static func get_bench_ordered() -> Array:
+	var bench := get_bench()
+	var ordered: Array = []
+	for c in bench_order:
+		if bench.has(c):
+			ordered.append(c)
+	return ordered
+
 static func is_in_formation(char_data: CharacterData) -> bool:
 	return char_data in formation.values()
 
@@ -88,8 +102,17 @@ static func get_battle_entries() -> Array:
 			result.append({"data": data, "row": (pos as Vector2i).x, "col": (pos as Vector2i).y})
 	return result
 
+static func advance_battle() -> void:
+	battle_index += 1
+
+static func reset_to_current_battle() -> void:
+	pass  # battle_index・編成はそのまま。負け時の「引き継ぎリトライ」用
+
 static func get_battle_enemy() -> Array:
-	# TODO: 3戦ゲームループ実装時に battle_index で切り替える
+	match battle_index:
+		0: return [EnemyGenerator.make_battle1()]
+		1: return [EnemyGenerator.make_battle2()]
+		2: return [EnemyGenerator.make_battle3()]
 	return [EnemyGenerator.make_battle1()]
 
 # ══ 敵タイプ切り替え ══
