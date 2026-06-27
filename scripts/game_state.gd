@@ -89,7 +89,8 @@ static func get_battle_entries() -> Array:
 	return result
 
 static func get_battle_enemy() -> Array:
-	return [EnemyGenerator.generate(enemy_stat_type)]
+	# TODO: 3戦ゲームループ実装時に battle_index で切り替える
+	return [EnemyGenerator.make_battle1()]
 
 # ══ 敵タイプ切り替え ══
 

@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://dfxdv8bqro5y8"
+path="res://.godot/imported/Ghost_Skull.obj-887724bd16d34e99c786c21a21cd8dee.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Ghost_Skull.obj-887724bd16d34e99c786c21a21cd8dee.mesh"]
+
+source_file="res://assets/quaternius-ultimate-monsters/Flying/OBJ/Ghost_Skull.obj"
+dest_files=["res://.godot/imported/Ghost_Skull.obj-887724bd16d34e99c786c21a21cd8dee.mesh", "res://.godot/imported/Ghost_Skull.obj-887724bd16d34e99c786c21a21cd8dee.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

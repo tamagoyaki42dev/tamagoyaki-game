@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://x3dnajbup4rp"
+path="res://.godot/imported/Cat.obj-6f9ee9f9f3bb2922d1c54a4e4126dbdb.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Cat.obj-6f9ee9f9f3bb2922d1c54a4e4126dbdb.mesh"]
+
+source_file="res://assets/quaternius-ultimate-monsters/Blob/OBJ/Cat.obj"
+dest_files=["res://.godot/imported/Cat.obj-6f9ee9f9f3bb2922d1c54a4e4126dbdb.mesh", "res://.godot/imported/Cat.obj-6f9ee9f9f3bb2922d1c54a4e4126dbdb.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

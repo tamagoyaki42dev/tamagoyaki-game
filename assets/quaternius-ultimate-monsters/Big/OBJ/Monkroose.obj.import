@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://dulp47ggyvmtm"
+path="res://.godot/imported/Monkroose.obj-0829f8f9ec8de01ba073aeb6a330999d.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Monkroose.obj-0829f8f9ec8de01ba073aeb6a330999d.mesh"]
+
+source_file="res://assets/quaternius-ultimate-monsters/Big/OBJ/Monkroose.obj"
+dest_files=["res://.godot/imported/Monkroose.obj-0829f8f9ec8de01ba073aeb6a330999d.mesh", "res://.godot/imported/Monkroose.obj-0829f8f9ec8de01ba073aeb6a330999d.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

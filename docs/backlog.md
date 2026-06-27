@@ -31,8 +31,9 @@ Phase 4（戦場ホバー→パネル行ハイライト。Area3D + physics_objec
 ## ゲームシステム
 
 - [ ] 複数敵対応
-- [ ] 敵の作成：`docs/proto1_3battle_design.md` に基づき EnemyData 3体を確定値で構築
 - [ ] 3戦ゲームループ（編成画面→戦闘×3→終了。設計：`docs/proto1_3battle_design.md`。拠点画面・世代継承はプロト1対象外）
+
+※完了：EnemyData 3体（マッシュナブ/トライバル/ドラゴン）確定値構築・Quaternius モデル割り当て・攻撃アニメ対応（2026-06-27）
 
 ## プロト2以降の検討
 

@@ -120,6 +120,28 @@ ATK は 1ヒットあたりの値。石化・HP吸収はダメージに付随す
 
 ---
 
+## ビジュアルフィールド（EnemyData）
+
+EnemyData には以下のビジュアル関連フィールドがある。省略時は Kenney デフォルトモデルにフォールバック。
+
+| フィールド | デフォルト | 説明 |
+|-----------|-----------|------|
+| `model_path` | `""` | glTF/GLB パス。空なら Kenney character-male-a |
+| `idle_anim` | `"idle"` | 待機アニメ名 |
+| `attack_anim` | `""` | 攻撃アニメ名。**空なら Tween 突進フォールバック**（前進→後退） |
+| `death_anim` | `"die"` | 死亡アニメ名 |
+| `model_scale` | `1.0` | モデルスケール倍率（Quaternius は Kenney より大きいため 0.5〜0.9 程度） |
+
+### proto1 固定3体
+
+| 戦 | 名前 | モデル | idle_anim | attack_anim | death_anim |
+|----|------|--------|-----------|-------------|------------|
+| 1 | マッシュナブ | Quaternius Blob/Mushnub | `Idle` | `Bite_Front` | `Death` |
+| 2 | トライバル | Quaternius Big/Tribal | `Idle` | `""` (Tween突進) | `Death` |
+| 3 | ドラゴン | Quaternius Flying/Dragon_Evolved | `Flying_Idle` | `""` (Tween突進) | `Death` |
+
+---
+
 ## 未決定事項
 
 - [ ] 難易度によるステータス倍率（初期実装では固定）

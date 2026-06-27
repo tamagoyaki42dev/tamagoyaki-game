@@ -40,6 +40,13 @@ enum ActionType {
 @export var thought_type: ThoughtType = ThoughtType.RANDOM
 @export var action_cycle: Array[int] = []
 
+# ビジュアル（省略時は BattleScene のデフォルト Kenney モデルにフォールバック）
+@export var model_path: String = ""
+@export var idle_anim: String = "idle"
+@export var attack_anim: String = ""   # 空なら Tween 突進にフォールバック
+@export var death_anim: String = "die"
+@export var model_scale: float = 1.0
+
 func get_label() -> String:
 	return enemy_name
 

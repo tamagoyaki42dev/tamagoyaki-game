@@ -94,3 +94,60 @@ static func _weighted_choice(weights: Array) -> int:
 
 static func _random_name() -> String:
 	return _name_pool[randi() % _name_pool.size()]
+
+# ── proto1 固定3体（proto1_3battle_design.md §2 確定値） ─────────────────
+
+const _MONSTER_DIR := "res://assets/quaternius-ultimate-monsters/"
+
+# 第1戦：マッシュナブ（Mushnub / Blob）― バランス・きまぐれ・通常攻撃のみ
+static func make_battle1() -> EnemyData:
+	var e := EnemyData.new()
+	e.enemy_name  = "マッシュナブ"
+	e.hp_max      = 180
+	e.attack      = 13
+	e.speed       = 10
+	e.self_regen  = 0
+	e.stat_type   = EnemyData.StatType.BALANCE
+	e.thought_type = EnemyData.ThoughtType.RANDOM
+	e.action_cycle = [EnemyData.ActionType.NORMAL]
+	e.model_path   = _MONSTER_DIR + "Blob/glTF/Mushnub.gltf"
+	e.idle_anim    = "Idle"
+	e.attack_anim  = "Bite_Front"
+	e.death_anim   = "Death"
+	e.model_scale  = 0.55  # Quaternius は Kenney より元スケールが大きいため逆に下げる
+	return e
+
+# 第2戦：トライバル（Tribal / Big）― タンク・強者狙い・自己回復30
+static func make_battle2() -> EnemyData:
+	var e := EnemyData.new()
+	e.enemy_name  = "トライバル"
+	e.hp_max      = 110
+	e.attack      = 8
+	e.speed       = 5
+	e.self_regen  = 30
+	e.stat_type   = EnemyData.StatType.TANK
+	e.thought_type = EnemyData.ThoughtType.STRONG_TARGET
+	e.action_cycle = [EnemyData.ActionType.NORMAL]
+	e.model_path  = _MONSTER_DIR + "Big/glTF/Tribal.gltf"
+	e.idle_anim   = "Idle"
+	e.death_anim  = "Death"
+	e.model_scale = 0.7
+	return e
+
+# 第3戦：ドラゴン（Dragon_Evolved / Flying）― 強化バランス・補助狙い・溜め→通常×3
+static func make_battle3() -> EnemyData:
+	var e := EnemyData.new()
+	e.enemy_name  = "ドラゴン"
+	e.hp_max      = 180
+	e.attack      = 16
+	e.speed       = 14
+	e.self_regen  = 6
+	e.stat_type   = EnemyData.StatType.ENHANCED_BALANCE
+	e.thought_type = EnemyData.ThoughtType.SUPPORT_TARGET
+	e.action_cycle = [EnemyData.ActionType.CHARGE,
+		EnemyData.ActionType.NORMAL, EnemyData.ActionType.NORMAL, EnemyData.ActionType.NORMAL]
+	e.model_path  = _MONSTER_DIR + "Flying/glTF/Dragon_Evolved.gltf"
+	e.idle_anim   = "Flying_Idle"
+	e.death_anim  = "Death"
+	e.model_scale = 0.9
+	return e

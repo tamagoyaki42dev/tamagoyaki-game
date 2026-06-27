@@ -62,9 +62,9 @@
 
 ## グラフィック方針
 
-- アセットは全部Kenneyの同じファミリーで統一（敵・背景も）
+- アセットはローポリCC0で統一。味方・背景は Kenney。Kenney に不足する敵モンスターは Quaternius（CC0・同系統ローポリ）を併用してよい
 - 人型モーション = Kenney GLB 内蔵アニメ（idle / attack-melee-right / attack-melee-left / die ほか計32種）。Mixamo は不要
-- 非人型 = Godotアニメ（Tween）
+- 非人型 = モデルに内蔵アニメがある場合は内蔵アニメをフル活用する（idle / death / 攻撃など）。内蔵に該当アニメが無い動作（攻撃アニメ無しの敵の攻撃など）のみ Tween で補う（例：1歩前進→戻る突進）
 
 ## 助言義務
 

@@ -223,6 +223,10 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 # ユニット行動
 @export var attack_impact_delay: float       = 0.2  # s アニメ開始→被弾エフェクト発火までの遅延
 @export var unit_action_show_duration: float = 0.6  # s アニメ完了後の見せ時間
+# 敵攻撃突進フォールバック（EnemyData.attack_anim が空のとき使用）
+@export var enemy_lunge_dist: float          = 0.6  # m 突進距離
+@export var enemy_lunge_in_time: float       = 0.15 # s 前進時間
+@export var enemy_lunge_out_time: float      = 0.25 # s 後退時間
 
 # 自己回復
 @export var self_heal_show_duration: float = 1.0  # s フラッシュ・数字の見せ時間
@@ -666,7 +670,8 @@ func _tint_char(ch: Node3D, tint: Color) -> void:
 				tinted.albedo_color = tint
 				mesh.set_surface_override_material(i, tinted)
 
-func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: String) -> Node3D:
+func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: String,
+		idle_anim_name: String = "idle") -> Node3D:
 	var res: PackedScene = load(char_path)
 	if not res:
 		return null
@@ -676,9 +681,9 @@ func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: Stri
 	ch.position = marker.global_position + Vector3(0.0, char_y_offset, 0.0)
 	_characters.add_child(ch)
 	var anim: AnimationPlayer = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if anim and anim.has_animation("idle"):
-		anim.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
-		anim.play("idle")
+	if anim and anim.has_animation(idle_anim_name):
+		anim.get_animation(idle_anim_name).loop_mode = Animation.LOOP_LINEAR
+		anim.play(idle_anim_name)
 	_setup_flash(ch)
 	return ch
 
@@ -864,7 +869,11 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 	for unit: BattleUnit in eg.get_all_alive():
 		var m: Marker3D = _get_enemy_marker(0)
 		if m:
-			var ch := _spawn_char(m, 0.0, enemy_char_scale, _ENEMY_CHAR_PATH)
+			var ed := unit.source_data as EnemyData
+			var e_path  := ed.model_path if ed and not ed.model_path.is_empty() else _ENEMY_CHAR_PATH
+			var e_idle  := ed.idle_anim  if ed else "idle"
+			var e_scale := enemy_char_scale * (ed.model_scale if ed else 1.0)
+			var ch := _spawn_char(m, 0.0, e_scale, e_path, e_idle)
 			if not ch:
 				continue
 			_unit_nodes[unit] = ch
@@ -873,18 +882,37 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 
 func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		dmg: int, is_crit: bool) -> void:
+	var ch_a: Node3D = _unit_nodes.get(attacker) as Node3D
 	var ch_t: Node3D = _unit_nodes.get(target) as Node3D
 	var anim_a: AnimationPlayer = _unit_anims.get(attacker) as AnimationPlayer
 	var dir: Vector3 = Vector3(1, 0, 0) if attacker.side == BattleUnit.Side.PLAYER \
 		else Vector3(-1, 0, 0)
 
-	# 攻撃アニメ（GLB 内蔵）
-	var atk_anim: String = "attack-melee-right" if attacker.side == BattleUnit.Side.PLAYER \
-		else "attack-melee-left"
+	# 攻撃アニメ（GLB 内蔵）または Tween 突進（敵フォールバック）
+	var idle_anim: String = "idle"
 	var has_atk_anim := false
-	if is_instance_valid(anim_a) and anim_a.has_animation(atk_anim):
-		anim_a.play(atk_anim)
-		has_atk_anim = true
+	var lunge_tween: Tween = null
+
+	if attacker.side == BattleUnit.Side.PLAYER:
+		var atk_anim := "attack-melee-right"
+		if is_instance_valid(anim_a) and anim_a.has_animation(atk_anim):
+			anim_a.play(atk_anim)
+			has_atk_anim = true
+	else:
+		var ed := attacker.source_data as EnemyData
+		idle_anim = ed.idle_anim if ed else "idle"
+		var e_atk := ed.attack_anim if ed else ""
+		if not e_atk.is_empty() and is_instance_valid(anim_a) and anim_a.has_animation(e_atk):
+			anim_a.play(e_atk)
+			has_atk_anim = true
+		elif ch_a:
+			# Tween 突進フォールバック：前進→後退
+			var origin := ch_a.position
+			lunge_tween = create_tween()
+			lunge_tween.tween_property(ch_a, "position",
+				origin + dir * enemy_lunge_dist, enemy_lunge_in_time).set_ease(Tween.EASE_OUT)
+			lunge_tween.tween_property(ch_a, "position",
+				origin, enemy_lunge_out_time).set_ease(Tween.EASE_IN)
 
 	# 振り下ろしタイミングまで待機してから被弾エフェクトを発火
 	if attack_impact_delay > 0.0:
@@ -923,7 +951,9 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		while is_instance_valid(anim_a) and anim_a.is_playing():
 			await get_tree().process_frame
 		if is_instance_valid(anim_a):
-			anim_a.play("idle")
+			anim_a.play(idle_anim)
+	elif lunge_tween:
+		await lunge_tween.finished
 	elif hit_tween:
 		await hit_tween.finished
 	await get_tree().create_timer(unit_action_show_duration).timeout
@@ -937,8 +967,13 @@ func _on_unit_died(unit: BattleUnit) -> void:
 		return
 	_spawn_death_particles(ch.global_position)
 	var anim: AnimationPlayer = _unit_anims.get(unit) as AnimationPlayer
-	if is_instance_valid(anim) and anim.has_animation("die"):
-		anim.play("die")
+	var death_anim_name := "die"
+	if unit.side == BattleUnit.Side.ENEMY:
+		var ed := unit.source_data as EnemyData
+		if ed:
+			death_anim_name = ed.death_anim
+	if is_instance_valid(anim) and anim.has_animation(death_anim_name):
+		anim.play(death_anim_name)
 	else:
 		# フォールバック：GLB アニメが取れない場合の Tween
 		var tw := create_tween()

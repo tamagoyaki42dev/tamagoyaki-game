@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://c4irr27738lwl"
+path="res://.godot/imported/Pigeon.obj-64a2a7f82cc1d13bdf95c74fc4efbeb8.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Pigeon.obj-64a2a7f82cc1d13bdf95c74fc4efbeb8.mesh"]
+
+source_file="res://assets/quaternius-ultimate-monsters/Flying/OBJ/Pigeon.obj"
+dest_files=["res://.godot/imported/Pigeon.obj-64a2a7f82cc1d13bdf95c74fc4efbeb8.mesh", "res://.godot/imported/Pigeon.obj-64a2a7f82cc1d13bdf95c74fc4efbeb8.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false
