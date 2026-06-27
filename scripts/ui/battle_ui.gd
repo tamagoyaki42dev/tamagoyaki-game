@@ -4,6 +4,13 @@ extends Control
 const PANEL_W      := 420.0
 const LOG_SPLIT    := 0.55
 const PORTRAIT_W   := 56.0
+const STAT_FONT_SIZE   := 12
+const NAME_FONT_SIZE   := 16
+const JOB_FONT_SIZE    := 12
+const HP_FONT_SIZE     := 13
+const HP_ROW_Y         := 27.0
+const BAR_Y            := 48.0
+const STAT_X_OFFSET    := 86.0   # HP数値の右に攻/速/持ちを横並びにするための x オフセット
 
 
 var _font: Font = null
@@ -24,6 +31,7 @@ var _party_entries: Dictionary = {} # BattleUnit → Panel
 var _party_portraits: Dictionary = {} # BattleUnit → TextureRect
 var _party_job_lbls: Dictionary = {}  # BattleUnit → Label（番号＋職名）
 var _party_hp_lbls: Dictionary = {}   # BattleUnit → Label（HP数値 現在/最大）
+var _party_stat_lbls: Dictionary = {}  # BattleUnit → Label（攻ライン）
 
 @export_range(1.0, 10.0, 0.5) var countdown_seconds: float = 3.0
 
@@ -172,6 +180,7 @@ func _build_party_panel(units: Array) -> void:
 		es.bg_color = Color(0.08, 0.10, 0.18, 0.55)
 		es.set_corner_radius_all(4)
 		entry.add_theme_stylebox_override("panel", es)
+		entry.clip_contents = true
 		add_child(entry)
 		_party_entries[unit] = entry
 
@@ -197,21 +206,35 @@ func _build_party_panel(units: Array) -> void:
 		_party_portraits[unit] = portrait
 
 		var content_x := PORTRAIT_W + 8.0
-		# 名前を大きく（番号付き）、職種を小さく下に
-		_lbl(entry, "%d  %s" % [i + 1, unit.unit_name],
-			Vector2(content_x, 3.0), 19, Color(0.86, 0.90, 0.98))
+		# 1行目：名前（番号付き・左）＋職種。職種は名前の直後（2スペースぶんの間隔）に続ける。
+		# 浮いた1行ぶんで HP・ステータスのフォントを大きくして可読性を上げる。
+		var name_text := "%d  %s  " % [i + 1, unit.unit_name]
+		_lbl(entry, name_text.strip_edges(true, false),
+			Vector2(content_x, 2.0), NAME_FONT_SIZE, Color(0.86, 0.90, 0.98))
+		var name_w := float(name_text.length()) * NAME_FONT_SIZE * 0.6
+		if _font:
+			name_w = _font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_FONT_SIZE).x
 		var job_name: String = CharacterJob.get_display_name(cd.job) if cd else unit.unit_name
 		var job_lbl := _lbl(entry, job_name,
-			Vector2(content_x, 28.0), 12, Color(0.58, 0.65, 0.80))
+			Vector2(content_x + name_w, 6.0), JOB_FONT_SIZE, Color(0.66, 0.74, 0.90))
 		_party_job_lbls[unit] = job_lbl
 
+		# 2行目：HP数値＋その右にステータス（攻/速/持ち）を横並び（バーの縦帯に被らせない）
 		var hp_lbl := _lbl(entry, "HP %d/%d" % [unit.hp, unit.hp_max],
-			Vector2(content_x, 45.0), 14, Color(0.80, 0.88, 0.80))
+			Vector2(content_x, HP_ROW_Y), HP_FONT_SIZE, Color(0.80, 0.88, 0.80))
 		_party_hp_lbls[unit] = hp_lbl
 
+		var stat_text: String = _build_atk_text(unit) + "  速 %d" % unit.speed
+		var items_text: String = _build_stat_items_text(unit)
+		if not items_text.is_empty():
+			stat_text += "  " + items_text
+		var stat_lbl := _lbl(entry, stat_text,
+			Vector2(content_x + STAT_X_OFFSET, HP_ROW_Y), STAT_FONT_SIZE, Color(0.72, 0.80, 0.90))
+		_party_stat_lbls[unit] = stat_lbl
+
 		var bar := ProgressBar.new()
-		bar.position = Vector2(content_x, 66.0)
-		bar.size = Vector2(PANEL_W - 24.0 - PORTRAIT_W, 8.0)
+		bar.position = Vector2(content_x, BAR_Y)
+		bar.size = Vector2(PANEL_W - 24.0 - PORTRAIT_W, 5.0)
 		bar.min_value = 0.0
 		bar.max_value = float(unit.hp_max)
 		bar.value = float(unit.hp)
@@ -282,6 +305,31 @@ func _lbl(parent: Node, text: String, pos: Vector2,
 		l.add_theme_font_override("font", _font)
 	parent.add_child(l)
 	return l
+
+static func _build_atk_text(unit: BattleUnit) -> String:
+	var s: String = "攻 %d" % unit.attack
+	if unit.attack_hits > 1:
+		s += "×%d" % unit.attack_hits
+	if unit.is_stone_attack:
+		s += " 石"
+	return s
+
+static func _build_stat_items_text(unit: BattleUnit) -> String:
+	var parts: Array[String] = []
+	if unit.indirect_attack > 0:
+		parts.append("間 %d" % unit.indirect_attack)
+	if unit.atk_bonus > 0:
+		if unit.atk_bonus_is_row:
+			parts.append("攻補列 %d" % unit.atk_bonus)
+		else:
+			parts.append("攻補 %d" % unit.atk_bonus)
+	if unit.def_bonus > 0:
+		parts.append("防補 %d" % unit.def_bonus)
+	if unit.self_regen > 0:
+		parts.append("自 %d" % unit.self_regen)
+	if unit.row_regen > 0:
+		parts.append("列 %d" % unit.row_regen)
+	return "  ".join(parts)
 
 # ── Signal handlers ──────────────────────────────────────────────
 

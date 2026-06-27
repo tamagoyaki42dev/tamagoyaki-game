@@ -22,10 +22,11 @@
 ## UI（戦場⇔パネル紐付け）
 
 Phase 1（色アクセントリング＋番号バッジ＋パネル左帯で色対応）完了。
-Phase 2（右パネル再構成：正面ポートレート＋職名＋HP数値。ポートレートは事前ベイクPNG）完了。残り：
+Phase 2（右パネル再構成：正面ポートレート＋職名＋HP数値＋ステータス横並び。ポートレートは事前ベイクPNG）完了。残り：
 
 - [ ] Phase 3：ホバー パネル→戦場（行ホバーで対応ユニットのリングを強調）
 - [ ] Phase 4：ホバー 戦場→パネル（3Dマウスピッキング導入。SubViewport `physics_object_picking`）
+- [ ] 持ちステータスが多い職（聖騎士・神官など）で font12 の横幅未確認。登場編成で右端の切れがないか確認し、切れるなら持ちステータスのみ font11 か2行化
 
 ## ゲームシステム
 
@@ -35,7 +36,8 @@ Phase 2（右パネル再構成：正面ポートレート＋職名＋HP数値�
 
 ## プロト2以降の検討
 
-- [ ] キャラ基盤を KayKit Adventurers（Kay Lousberg / CC0・$0ティアあり）へ乗せ換え検討。ファンタジーRPG native（Mage/Knight/Barbarian/Rogue/Ranger＋武器・帽子・杖同梱）でジャンル適合が高い。modular でパーツ着せ替え可。グラデアトラスで色替えも Blender 不要
+- [ ] **最終形はキャラ基盤を KayKit に寄せる（方針決定済み・2026-06-25）**。女性キャラが欲しい場合は髪パーツを自分で Blender 制作するのが最良、という結論。
+  - KayKit Adventurers（Kay Lousberg / CC0・$0ティアあり）。ファンタジーRPG native（Mage/Knight/Barbarian/Rogue/Ranger＋武器・帽子・杖同梱）でジャンル適合が高い。modular でパーツ着せ替え可。グラデアトラスで色替えも Blender 不要
   - **乗り換え可否の最大の関門：アニメ名が現行コード依存（`idle` / `attack-melee-right` / `attack-melee-left` / `die`）と一致するか。不一致ならアニメ呼び出しコードの差し替えが必要**
   - 進め方：Free版を落として Mage 1体スパイク → アニメ名・見栄え・色替えを確認してから全替え判断
   - Kenney mini と混在禁止（やるなら全部 KayKit に寄せる）
