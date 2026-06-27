@@ -40,73 +40,18 @@ def get_last_commit_message():
     return result.stdout.strip()
 
 
-def ask_screenshot_ready() -> bool:
-    """F12スクショ確認ダイアログ。Trueならスクショ存在確認済み。"""
+def check_screenshot_silent() -> bool:
+    """F12スクショが存在すれば使う。タイムスタンプは問わない。"""
     if "--no-screenshot" in sys.argv:
         return False
-
-    msg = ("ゲーム内で F12 を押してスクショを撮りましたか？\n"
-           "（撮影すると tools/screenshot.png に保存されます）")
-    try:
-        import tkinter as tk
-        from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
-        took_shot = messagebox.askyesno("スクショ確認", msg)
-        root.destroy()
-    except Exception:
-        try:
-            took_shot = input("F12でスクショを撮りましたか？ [y/N]: ").strip().lower() == "y"
-        except EOFError:
-            print("非インタラクティブ環境。手動で tools/post_update.py を実行してください。")
-            return False
-
-    if not took_shot:
-        print("スクショを撮ってから再実行してください。")
-        sys.exit(0)
-
-    if not SCREENSHOT.exists():
-        print("スクショが見つかりません。F12 で撮影後に再実行してください。")
-        sys.exit(1)
-
-    commit_time = subprocess.run(
-        ["git", "log", "-1", "--pretty=%ct"],
-        capture_output=True, text=True, cwd=PROJECT_DIR
-    ).stdout.strip()
-    if commit_time and SCREENSHOT.stat().st_mtime <= int(commit_time) + 30:
-        print("スクショが古いです。F12 で撮り直してから再実行してください。")
-        sys.exit(1)
-
-    return True
+    return SCREENSHOT.exists()
 
 
-def preview_and_confirm(text, has_screenshot):
+def print_post_summary(text, has_screenshot):
     print("\n" + "━" * 40)
     print(text)
     print("━" * 40)
-    if has_screenshot:
-        print(f"\nスクショ: {SCREENSHOT}")
-        os.startfile(SCREENSHOT)
-    else:
-        print("\n（スクショなし）")
-    print()
-
-    preview = text[:100] + ("…" if len(text) > 100 else "")
-    try:
-        import tkinter as tk
-        from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
-        result = messagebox.askyesno("SNS投稿確認", f"{preview}\n\nこの内容で投稿しますか？")
-        root.destroy()
-        return result
-    except Exception:
-        try:
-            answer = input("この内容で投稿しますか？ [y/N]: ").strip().lower()
-        except EOFError:
-            print("非インタラクティブ環境を検出。手動で tools/post_update.py を実行してください。")
-            return False
-        return answer == "y"
+    print(f"\nスクショ: {'あり' if has_screenshot else 'なし'}\n")
 
 
 def post_to_x(text, has_screenshot):
@@ -171,23 +116,31 @@ def main():
         s_no_url = s.replace(url_placeholder, "x" * 23)
         return sum(2 if ord(c) > 0x2E7F else 1 for c in s_no_url)
 
-    post_x = x_len(text) <= 280
-    if not post_x:
-        print(f"X 文字数オーバー（{x_len(text)}/280）。X への投稿をスキップします。")
+    if x_len(text) > 280:
+        suffix = f"\n\n{repo_url}\n\n{hashtags}"
+        suffix_len = x_len(suffix)
+        prefix = "【開発更新】"
+        prefix_len = x_len(prefix)
+        budget = 280 - prefix_len - suffix_len - 1  # 1 for "…"
+        shortened = ""
+        count = 0
+        for ch in commit_msg:
+            w = 2 if ord(ch) > 0x2E7F else 1
+            if count + w > budget:
+                break
+            shortened += ch
+            count += w
+        text = f"{prefix}{shortened}…{suffix}"
 
-    has_screenshot = ask_screenshot_ready()
-
-    if not preview_and_confirm(text, has_screenshot):
-        print("投稿をキャンセルしました。")
-        sys.exit(0)
+    has_screenshot = check_screenshot_silent()
+    print_post_summary(text, has_screenshot)
 
     errors = []
 
-    if post_x:
-        try:
-            post_to_x(text, has_screenshot)
-        except Exception as e:
-            errors.append(f"X エラー: {e}")
+    try:
+        post_to_x(text, has_screenshot)
+    except Exception as e:
+        errors.append(f"X エラー: {e}")
 
     try:
         post_to_bluesky(text, has_screenshot)
