@@ -1,4 +1,4 @@
-# たまごやきゲームズ — ローテーションハクスラ
+# たまごやきゲームズ — ローテーションバトル
 
 > 完全開示（オープン開発）スタイルで作るインディーゲーム。コードも進捗も全部公開。
 
@@ -18,12 +18,16 @@
 
 - PC（デスクトップ）横画面
 
+## 現在の状態
+
+プロトタイプ1制作中。敵情報画面 → 編成 → 戦闘 → 3戦クリアまでの基本ループが動いています。
+
 ## 技術スタック
 
 - **エンジン**: Godot 4 (GDScript)
-- **データ**: Godot Resource + JSON（完全オフライン）
-- **ツール**: Python / GUT（自動テスト）
-- **公開**: itch.io / Steam（デスクトップビルドのみ）
+- **データ**: Godot Resource（完全オフライン）
+- **自動テスト**: GUT
+- **公開予定**: itch.io / Steam（デスクトップビルドのみ）
 
 ## 開発ログ
 
@@ -31,8 +35,17 @@
 
 ## 開発スタイル
 
-Claude Code（AI）と人間（CEO: たまごやき）の協働開発。  
+[Claude Code](https://claude.ai/code) と人間（CEO: たまごやき）の協働開発。  
+ゲームデザイン・意思決定は人間、コード実装はほぼ Claude Code が担当。  
 コードもプロンプトも全部 GitHub で公開。
+
+## リンク
+
+- X: [@tamagoyaki42dev](https://x.com/tamagoyaki42dev)
+- Bluesky: [@tamagoyaki42dev.bsky.social](https://bsky.app/profile/tamagoyaki42dev.bsky.social)
+- YouTube: [@たまごやきgames](https://www.youtube.com/@たまごやきgames)
+- TikTok: [@tamagoyaki42dev](https://www.tiktok.com/@tamagoyaki42dev)
+- itch.io: [tamagoyakigames](https://tamagoyaki42dev.itch.io/tamagoyakigames)
 
 ---
 
