@@ -124,12 +124,13 @@ static func get_bench() -> Array:
 static func get_bench_ordered() -> Array:
 	var bench := get_bench()
 	var ordered: Array = []
+	# bench_orderにないキャラ（初期メンバー・新解禁）を先に並べる
+	for c in bench:
+		if not bench_order.has(c):
+			ordered.append(c)
+	# グリッドから移動したキャラ（bench_order）を末尾に追加順で並べる
 	for c in bench_order:
 		if bench.has(c):
-			ordered.append(c)
-	# bench_orderにない未配置キャラ（新解禁キャラ含む）を末尾に追加
-	for c in bench:
-		if not ordered.has(c):
 			ordered.append(c)
 	return ordered
 

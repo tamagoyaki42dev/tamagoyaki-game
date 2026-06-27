@@ -2,14 +2,16 @@
 ## scenes/formation.tscn の Node にアタッチして起動
 extends Node
 
-const CARD_W   := 170.0
-const CARD_H   := 100.0
-const CARD_GAP := 10.0
-const ROW_GAP  := 14.0
-const BENCH_W  := 155.0
-const BENCH_H  := 85.0
-const GRID_X   := 70.0
+const CARD_W   := 240.0
+const CARD_H   := 130.0
+const CARD_GAP := 14.0
+const ROW_GAP  := 18.0
+const BENCH_W  := 215.0
+const BENCH_H  := 110.0
 const GRID_Y   := 90.0
+
+var GRID_X: float  # _ready() で左エリア中央に計算
+const FONT_PATH := "res://assets/fonts/851CHIKARA-DZUYOKU_kanaA_004.ttf"
 
 var SW: float
 var SH: float
@@ -19,13 +21,16 @@ var _root: Control
 var _cards_root: Control   # グリッド＋ベンチカード（更新時に全差し替え）
 var _detail_root: Control  # 右パネルコンテンツ（更新時に全差し替え）
 var _selected: CharacterData = null
+var _font: Font
 
 func _ready() -> void:
 	GameState.ensure_init()
+	_font = load(FONT_PATH) as Font
 	var vp := get_viewport().get_visible_rect().size
 	SW = vp.x
 	SH = vp.y
 	DIVIDER_X = SW * 0.68
+	GRID_X = (DIVIDER_X - (4.0 * (CARD_W + CARD_GAP) - CARD_GAP)) / 2.0
 	_build_static_ui()
 	_refresh()
 
@@ -48,7 +53,7 @@ func _build_static_ui() -> void:
 	# 行ラベル（前・中・後）
 	for r in 3:
 		var ry := GRID_Y + r * (CARD_H + ROW_GAP) + (CARD_H - 20.0) / 2.0
-		_lbl(_root, ["前", "中", "後"][r], Vector2(20.0, ry), 18, Color(0.55, 0.55, 0.65))
+		_lbl(_root, ["前", "中", "後"][r], Vector2(GRID_X - 46.0, ry), 18, Color(0.55, 0.55, 0.65))
 
 	# 列番号（1〜4）
 	for c in 4:
@@ -138,13 +143,13 @@ func _make_grid_card(pos: Vector2i, cd: CharacterData, card_pos: Vector2) -> voi
 	var p := _panel(_cards_root, card_pos, Vector2(CARD_W, CARD_H), bg_col, bdr_col)
 
 	if cd:
-		_lbl(p, cd.char_name, Vector2(8.0, 6.0), 15)
-		_lbl(p, CharacterJob.get_display_name(cd.job), Vector2(8.0, 26.0), 11, Color(0.65, 0.75, 1.00))
+		_lbl(p, cd.char_name, Vector2(8.0, 4.0), 18)
+		_lbl(p, CharacterJob.get_display_name(cd.job), Vector2(8.0, 28.0), 14, Color(0.65, 0.75, 1.00))
 		_lbl(p, "HP%-3d ATK%-3d SPD%d" % [cd.hp_max, cd.attack, cd.speed],
-			Vector2(8.0, 48.0), 11, Color(0.75, 0.80, 0.90))
+			Vector2(8.0, 52.0), 13, Color(0.75, 0.80, 0.90))
 		var supp := _support_str(cd)
 		if supp != "":
-			_lbl(p, supp, Vector2(8.0, 70.0), 10, Color(0.55, 0.85, 0.65))
+			_lbl(p, supp, Vector2(8.0, 74.0), 12, Color(0.55, 0.85, 0.65))
 
 	var btn := Button.new()
 	btn.position = Vector2.ZERO
@@ -170,17 +175,19 @@ func _build_bench_cards() -> void:
 				Vector2(GRID_X, bench_y + 20.0), 13, Color(0.35, 0.38, 0.45))
 		return
 
+	const BENCH_COLS := 4
 	for i in bench.size():
 		var cd: CharacterData = bench[i]
 		var is_sel := (cd == _selected)
 		var bg_col  := Color(0.10, 0.06, 0.16, 0.90) if is_sel else Color(0.08, 0.06, 0.12, 0.88)
 		var bdr_col := Color(1.00, 0.90, 0.00) if is_sel else Color(0.45, 0.35, 0.65)
-		var px := GRID_X + i * (BENCH_W + CARD_GAP)
-		var p := _panel(_cards_root, Vector2(px, bench_y), Vector2(BENCH_W, BENCH_H), bg_col, bdr_col)
-		_lbl(p, cd.char_name, Vector2(8.0, 6.0), 14)
-		_lbl(p, CharacterJob.get_display_name(cd.job), Vector2(8.0, 24.0), 11, Color(0.65, 0.75, 1.00))
+		var px := GRID_X + (i % BENCH_COLS) * (BENCH_W + CARD_GAP)
+		var py := bench_y + (i / BENCH_COLS) * (BENCH_H + CARD_GAP)
+		var p := _panel(_cards_root, Vector2(px, py), Vector2(BENCH_W, BENCH_H), bg_col, bdr_col)
+		_lbl(p, cd.char_name, Vector2(8.0, 4.0), 16)
+		_lbl(p, CharacterJob.get_display_name(cd.job), Vector2(8.0, 26.0), 13, Color(0.65, 0.75, 1.00))
 		_lbl(p, "HP%-3d ATK%d" % [cd.hp_max, cd.attack],
-			Vector2(8.0, 44.0), 11, Color(0.70, 0.75, 0.85))
+			Vector2(8.0, 50.0), 13, Color(0.70, 0.75, 0.85))
 		var btn := Button.new()
 		btn.position = Vector2.ZERO
 		btn.size = Vector2(BENCH_W, BENCH_H)
@@ -192,10 +199,12 @@ func _build_bench_cards() -> void:
 		btn.pressed.connect(_on_bench_clicked.bind(cd))
 		p.add_child(btn)
 
-	# グリッドキャラが選択されているとき右端に「ベンチへ移動」を表示
+	# グリッドキャラが選択されているとき次のセルに「ベンチへ移動」を表示
 	if grid_selected:
-		var px := GRID_X + bench.size() * (BENCH_W + CARD_GAP)
-		_make_bench_move_slot(_cards_root, Vector2(px, bench_y))
+		var n := bench.size()
+		var px := GRID_X + (n % BENCH_COLS) * (BENCH_W + CARD_GAP)
+		var py := bench_y + (n / BENCH_COLS) * (BENCH_H + CARD_GAP)
+		_make_bench_move_slot(_cards_root, Vector2(px, py))
 
 func _make_bench_move_slot(parent: Node, pos: Vector2) -> void:
 	var p := _panel(parent, pos, Vector2(BENCH_W, BENCH_H),
@@ -232,8 +241,8 @@ func _build_detail_content() -> void:
 
 	var gender := "女" if CharacterJob.is_female(cd.job) else "男"
 	_lbl(_detail_root, "%s  %s" % [CharacterJob.get_display_name(cd.job), gender],
-		Vector2(lx, y), 15, Color(0.65, 0.75, 1.00))
-	y += 36.0
+		Vector2(lx, y), 18, Color(0.65, 0.75, 1.00))
+	y += 40.0
 
 	_crect(_detail_root, Vector2(12.0, y), Vector2(pw - 24.0, 1.0), Color(0.22, 0.28, 0.42))
 	y += 14.0
@@ -255,28 +264,28 @@ func _build_detail_content() -> void:
 		rows.append(["列回復", str(cd.row_regen)])
 
 	for row: Array in rows:
-		_lbl(_detail_root, row[0], Vector2(lx, y), 14, Color(0.60, 0.65, 0.75))
-		_lbl(_detail_root, row[1], Vector2(vx, y), 14, Color(0.98, 0.92, 0.75))
-		y += 28.0
+		_lbl(_detail_root, row[0], Vector2(lx, y), 16, Color(0.60, 0.65, 0.75))
+		_lbl(_detail_root, row[1], Vector2(vx, y), 16, Color(0.98, 0.92, 0.75))
+		y += 30.0
 
 	y += 8.0
 	_crect(_detail_root, Vector2(12.0, y), Vector2(pw - 24.0, 1.0), Color(0.22, 0.28, 0.42))
 	y += 14.0
 
 	var crit_pct := int(CharacterJob.crit_rate(cd.job) * 100.0)
-	_lbl(_detail_root, "クリティカル率", Vector2(lx, y), 13, Color(0.52, 0.57, 0.67))
-	_lbl(_detail_root, "%d%%" % crit_pct, Vector2(vx, y), 13, Color(0.92, 0.82, 0.28))
-	y += 26.0
+	_lbl(_detail_root, "クリティカル率", Vector2(lx, y), 15, Color(0.52, 0.57, 0.67))
+	_lbl(_detail_root, "%d%%" % crit_pct, Vector2(vx, y), 15, Color(0.92, 0.82, 0.28))
+	y += 28.0
 
 	var hits := CharacterJob.attack_hits(cd.job)
 	if hits > 1:
-		_lbl(_detail_root, "攻撃回数", Vector2(lx, y), 13, Color(0.52, 0.57, 0.67))
-		_lbl(_detail_root, "×%d" % hits, Vector2(vx, y), 13, Color(0.92, 0.82, 0.28))
-		y += 26.0
+		_lbl(_detail_root, "攻撃回数", Vector2(lx, y), 15, Color(0.52, 0.57, 0.67))
+		_lbl(_detail_root, "×%d" % hits, Vector2(vx, y), 15, Color(0.92, 0.82, 0.28))
+		y += 28.0
 
 	if CharacterJob.is_stone_attack(cd.job):
-		_lbl(_detail_root, "特殊効果", Vector2(lx, y), 13, Color(0.52, 0.57, 0.67))
-		_lbl(_detail_root, "石化攻撃", Vector2(vx, y), 13, Color(0.72, 0.58, 0.95))
+		_lbl(_detail_root, "特殊効果", Vector2(lx, y), 15, Color(0.52, 0.57, 0.67))
+		_lbl(_detail_root, "石化攻撃", Vector2(vx, y), 15, Color(0.72, 0.58, 0.95))
 
 func _support_str(cd: CharacterData) -> String:
 	var parts: Array[String] = []
@@ -368,6 +377,8 @@ func _style_button(btn: Button, border_col: Color) -> void:
 	btn.add_theme_stylebox_override("pressed",  _make_stylebox(mid_bg, border_col.lightened(0.5), 6, 2))
 	btn.add_theme_stylebox_override("disabled", _make_stylebox(Color(0.05, 0.05, 0.08, 0.5), Color(0.2, 0.2, 0.25), 6, 1))
 	btn.add_theme_stylebox_override("focus",    _make_stylebox(mid_bg, border_col.lightened(0.3), 6, 2))
+	if _font:
+		btn.add_theme_font_override("font", _font)
 	btn.add_theme_color_override("font_color",          Color.WHITE)
 	btn.add_theme_color_override("font_hover_color",    Color.WHITE)
 	btn.add_theme_color_override("font_pressed_color",  Color.WHITE)
@@ -386,6 +397,8 @@ func _lbl(parent: Node, text: String, pos: Vector2, font_size: int = 16,
 	var l := Label.new()
 	l.text = text
 	l.position = pos
+	if _font:
+		l.add_theme_font_override("font", _font)
 	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color)
 	parent.add_child(l)

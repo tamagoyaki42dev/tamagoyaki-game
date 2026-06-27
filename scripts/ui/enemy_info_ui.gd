@@ -3,13 +3,16 @@ extends Node
 
 const HEADER_H  := 70.0
 const DIVIDER_X := 870.0  # 左(プレビュー)と右(テキスト)の仕切り位置
+const FONT_PATH := "res://assets/fonts/851CHIKARA-DZUYOKU_kanaA_004.ttf"
 
 var SW: float
 var SH: float
 var _root: Control
+var _font: Font
 
 func _ready() -> void:
 	GameState.ensure_init()
+	_font = load(FONT_PATH) as Font
 	var vp := get_viewport().get_visible_rect().size
 	SW = vp.x
 	SH = vp.y
@@ -108,8 +111,8 @@ func _build_stats() -> void:
 	_crect(_root, Vector2(lx, y), Vector2(SW - lx - 40.0, 1.0), Color(0.25, 0.35, 0.55))
 	y += 16.0
 
-	_lbl(_root, "── ステータス", Vector2(lx, y), 14, Color(0.50, 0.60, 0.80))
-	y += 28.0
+	_lbl(_root, "── ステータス", Vector2(lx, y), 18, Color(0.50, 0.60, 0.80))
+	y += 32.0
 
 	var stats: Array = [
 		["HP",      str(ed.hp_max)],
@@ -118,25 +121,25 @@ func _build_stats() -> void:
 		["自己回復", str(ed.self_regen)],
 	]
 	for row: Array in stats:
-		_lbl(_root, row[0], Vector2(lx, y), 18, Color(0.60, 0.65, 0.75))
-		_lbl(_root, row[1], Vector2(vx, y), 18, Color(0.98, 0.92, 0.75))
-		y += 34.0
+		_lbl(_root, row[0], Vector2(lx, y), 22, Color(0.60, 0.65, 0.75))
+		_lbl(_root, row[1], Vector2(vx, y), 22, Color(0.98, 0.92, 0.75))
+		y += 38.0
 
 	y += 12.0
 	_crect(_root, Vector2(lx, y), Vector2(SW - lx - 40.0, 1.0), Color(0.25, 0.35, 0.55))
 	y += 16.0
 
-	_lbl(_root, "── 行動パターン", Vector2(lx, y), 14, Color(0.50, 0.60, 0.80))
-	y += 28.0
-	_lbl(_root, EnemyData.format_action_cycle(ed.action_cycle), Vector2(lx, y), 18)
-	y += 50.0
+	_lbl(_root, "── 行動パターン", Vector2(lx, y), 18, Color(0.50, 0.60, 0.80))
+	y += 32.0
+	_lbl(_root, EnemyData.format_action_cycle(ed.action_cycle), Vector2(lx, y), 22)
+	y += 56.0
 
 	_crect(_root, Vector2(lx, y), Vector2(SW - lx - 40.0, 1.0), Color(0.25, 0.35, 0.55))
 	y += 16.0
 
-	_lbl(_root, "── 思考タイプ", Vector2(lx, y), 14, Color(0.50, 0.60, 0.80))
-	y += 28.0
-	_lbl(_root, ed.format_thought_type(), Vector2(lx, y), 18)
+	_lbl(_root, "── 思考タイプ", Vector2(lx, y), 18, Color(0.50, 0.60, 0.80))
+	y += 32.0
+	_lbl(_root, ed.format_thought_type(), Vector2(lx, y), 22)
 
 func _get_enemy_data() -> EnemyData:
 	var enemies := GameState.get_battle_enemy()
@@ -159,6 +162,8 @@ func _lbl(parent: Node, text: String, pos: Vector2, font_size: int = 16,
 	var l := Label.new()
 	l.text = text
 	l.position = pos
+	if _font:
+		l.add_theme_font_override("font", _font)
 	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color)
 	parent.add_child(l)
@@ -180,6 +185,8 @@ func _style_button(btn: Button, border_col: Color) -> void:
 	btn.add_theme_stylebox_override("pressed",  _make_stylebox(mid_bg, border_col.lightened(0.5), 6, 2))
 	btn.add_theme_stylebox_override("disabled", _make_stylebox(Color(0.05, 0.05, 0.08, 0.5), Color(0.2, 0.2, 0.25), 6, 1))
 	btn.add_theme_stylebox_override("focus",    _make_stylebox(mid_bg, border_col.lightened(0.3), 6, 2))
+	if _font:
+		btn.add_theme_font_override("font", _font)
 	btn.add_theme_color_override("font_color",          Color.WHITE)
 	btn.add_theme_color_override("font_hover_color",    Color.WHITE)
 	btn.add_theme_color_override("font_pressed_color",  Color.WHITE)
