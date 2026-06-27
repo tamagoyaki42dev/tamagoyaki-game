@@ -46,6 +46,9 @@ enum ActionType {
 @export var attack_anim: String = ""   # 空なら Tween 突進にフォールバック
 @export var death_anim: String = "die"
 @export var model_scale: float = 1.0
+@export var battle_model_scale: float = 0.0  # 0 = model_scale を使う
+@export var model_offset: Vector3 = Vector3.ZERO
+@export var notes: String = ""
 
 func get_label() -> String:
 	return enemy_name

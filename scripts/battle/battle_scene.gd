@@ -873,7 +873,8 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 			var ed := unit.source_data as EnemyData
 			var e_path  := ed.model_path if ed and not ed.model_path.is_empty() else _ENEMY_CHAR_PATH
 			var e_idle  := ed.idle_anim  if ed else "idle"
-			var e_scale := enemy_char_scale * (ed.model_scale if ed else 1.0)
+			var _ms := ed.battle_model_scale if (ed and ed.battle_model_scale > 0.0) else (ed.model_scale if ed else 1.0)
+			var e_scale := enemy_char_scale * _ms
 			var ch := _spawn_char(m, 0.0, e_scale, e_path, e_idle)
 			if not ch:
 				continue

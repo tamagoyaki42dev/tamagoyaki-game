@@ -49,7 +49,7 @@ static func is_female(type: Type) -> bool:
 
 static func crit_rate(type: Type) -> float:
 	match type:
-		Type.SAMURAI, Type.ILLUSIONIST:
+		Type.SAMURAI, Type.NINJA:
 			return 0.1
 	return 0.05
 

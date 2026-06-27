@@ -22,6 +22,8 @@ var _cards_root: Control   # グリッド＋ベンチカード（更新時に全
 var _detail_root: Control  # 右パネルコンテンツ（更新時に全差し替え）
 var _selected: CharacterData = null
 var _font: Font
+var _preview_svp: SubViewport = null
+var _preview_model: Node3D = null
 
 func _ready() -> void:
 	GameState.ensure_init()
@@ -83,6 +85,7 @@ func _build_static_ui() -> void:
 	_detail_root.size = Vector2(pw, SH - 48.0)
 	_root.add_child(_detail_root)
 
+	_build_preview_viewport()
 	_build_controls()
 
 func _build_controls() -> void:
@@ -186,8 +189,11 @@ func _build_bench_cards() -> void:
 		var p := _panel(_cards_root, Vector2(px, py), Vector2(BENCH_W, BENCH_H), bg_col, bdr_col)
 		_lbl(p, cd.char_name, Vector2(8.0, 4.0), 16)
 		_lbl(p, CharacterJob.get_display_name(cd.job), Vector2(8.0, 26.0), 13, Color(0.65, 0.75, 1.00))
-		_lbl(p, "HP%-3d ATK%d" % [cd.hp_max, cd.attack],
-			Vector2(8.0, 50.0), 13, Color(0.70, 0.75, 0.85))
+		_lbl(p, "HP%d ATK%d SPD%d" % [cd.hp_max, cd.attack, cd.speed],
+			Vector2(8.0, 48.0), 12, Color(0.70, 0.75, 0.85))
+		var supp := _support_str(cd)
+		if supp != "":
+			_lbl(p, supp, Vector2(8.0, 68.0), 11, Color(0.55, 0.85, 0.65))
 		var btn := Button.new()
 		btn.position = Vector2.ZERO
 		btn.size = Vector2(BENCH_W, BENCH_H)
@@ -225,14 +231,15 @@ func _make_bench_move_slot(parent: Node, pos: Vector2) -> void:
 	p.add_child(btn)
 
 func _build_detail_content() -> void:
+	_update_preview_model()
 	var pw := SW - DIVIDER_X - 40.0
 	if _selected == null:
 		_lbl(_detail_root, "キャラクターを\n選択してください",
-			Vector2(20.0, 80.0), 15, Color(0.38, 0.42, 0.52))
+			Vector2(20.0, 660.0), 15, Color(0.38, 0.42, 0.52))
 		return
 
 	var cd := _selected
-	var y := 68.0
+	var y := 652.0  # 3Dプレビュー(y=64,h=600)の下端+余白 - _detail_root offset(24)
 	var lx := 20.0
 	var vx := pw * 0.55
 
@@ -343,6 +350,90 @@ func _on_start_pressed() -> void:
 	if GameState.formation.is_empty():
 		return
 	get_tree().change_scene_to_file("res://scenes/battle.tscn")
+
+# ══════════════════════════════════ 3Dプレビュー ══════════════════════════════
+
+func _build_preview_viewport() -> void:
+	var px := DIVIDER_X + 24.0
+	var pw := SW - DIVIDER_X - 40.0
+	const PREVIEW_Y := 64.0
+	const PREVIEW_H := 600.0
+	var vp_w := int(pw - 8.0)
+	var vp_h := int(PREVIEW_H)
+
+	var container := SubViewportContainer.new()
+	container.position = Vector2(px + 4.0, PREVIEW_Y)
+	container.size = Vector2(vp_w, vp_h)
+	_root.add_child(container)
+
+	_preview_svp = SubViewport.new()
+	_preview_svp.size = Vector2i(vp_w, vp_h)
+	_preview_svp.transparent_bg = true
+	_preview_svp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	container.add_child(_preview_svp)
+
+	var env_node := WorldEnvironment.new()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.65, 0.65, 0.75)
+	env.ambient_light_energy = 0.6
+	env_node.environment = env
+	_preview_svp.add_child(env_node)
+
+	var light := DirectionalLight3D.new()
+	light.look_at_from_position(Vector3(3.0, 5.0, 4.0), Vector3.ZERO, Vector3.UP)
+	light.light_energy = 1.2
+	_preview_svp.add_child(light)
+
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 1.5
+	cam.look_at_from_position(Vector3(0.0, 1.5, 5.0), Vector3(0.0, 0.75, 0.0), Vector3.UP)
+	_preview_svp.add_child(cam)
+
+func _update_preview_model() -> void:
+	if _preview_model:
+		_preview_model.queue_free()
+		_preview_model = null
+
+	if _selected == null or _preview_svp == null:
+		return
+
+	var path: String = BattleScene._JOB_CHAR_PATHS.get(_selected.job, "")
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return
+
+	var res := load(path) as PackedScene
+	if not res:
+		return
+
+	_preview_model = res.instantiate() as Node3D
+	_preview_svp.add_child(_preview_model)
+
+	var tint: Color = BattleScene.job_tint_or_white(_selected.job)
+	if tint != Color.WHITE:
+		_tint_model(_preview_model, tint)
+
+	var anim: AnimationPlayer = _preview_model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if anim and anim.has_animation("idle"):
+		anim.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
+		anim.play("idle")
+
+func _tint_model(node: Node, tint: Color) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh:
+			for i: int in range(mi.mesh.get_surface_count()):
+				var base_mat: Material = mi.get_surface_override_material(i)
+				if not base_mat:
+					base_mat = mi.mesh.surface_get_material(i)
+				if base_mat is StandardMaterial3D:
+					var tinted := (base_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+					tinted.albedo_color = tint
+					mi.set_surface_override_material(i, tinted)
+	for child: Node in node.get_children():
+		_tint_model(child, tint)
 
 # ══════════════════════════════════ ヘルパー ══════════════════════════════════
 

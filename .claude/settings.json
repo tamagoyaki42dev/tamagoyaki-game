@@ -13,7 +13,8 @@
       "Bash(python tools/post_update.py)",
       "Bash(\"C:/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path \"d:/dev/tamagoyaki-game\" -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -gexit)",
       "Bash(ls \"/c/Users/djbsh/.claude/projects/d--dev-tamagoyaki-game/memory/\")",
-      "Read(//c/Users/djbsh/.claude/projects/d--dev-tamagoyaki-game/memory//**)"
+      "Read(//c/Users/djbsh/.claude/projects/d--dev-tamagoyaki-game/memory//**)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path \"d:/dev/tamagoyaki-game\" -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -gexit)"
     ]
   },
   "hooks": {

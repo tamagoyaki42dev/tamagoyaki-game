@@ -90,6 +90,7 @@ func _build_preview() -> void:
 		if res:
 			var model: Node3D = res.instantiate()
 			model.scale = Vector3.ONE * ed.model_scale
+			model.position = ed.model_offset
 			svp.add_child(model)
 			var anim: AnimationPlayer = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			if anim and anim.has_animation(ed.idle_anim):
@@ -140,6 +141,14 @@ func _build_stats() -> void:
 	_lbl(_root, "── 思考タイプ", Vector2(lx, y), 18, Color(0.50, 0.60, 0.80))
 	y += 32.0
 	_lbl(_root, ed.format_thought_type(), Vector2(lx, y), 22)
+	y += 56.0
+
+	_crect(_root, Vector2(lx, y), Vector2(SW - lx - 40.0, 1.0), Color(0.25, 0.35, 0.55))
+	y += 16.0
+	_lbl(_root, "── 特記事項", Vector2(lx, y), 18, Color(0.50, 0.60, 0.80))
+	y += 32.0
+	var notes_text := ed.notes if not ed.notes.is_empty() else "―"
+	_lbl(_root, notes_text, Vector2(lx, y), 20)
 
 func _get_enemy_data() -> EnemyData:
 	var enemies := GameState.get_battle_enemy()

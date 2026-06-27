@@ -5,12 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://dok1flg1d0tjw" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-detail.glb" id="d_detail"]
 [ext_resource type="PackedScene" uid="uid://hqpub7kt74jt" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-floor-detail-a.glb" id="d_detlA"]
 [ext_resource type="PackedScene" uid="uid://b2ppmgoxwjhmn" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-floor-detail.glb" id="d_flrDtl"]
-[ext_resource type="PackedScene" uid="uid://cgujlkd2rvx2p" path="res://assets/kenney-dungeon-kit/Models/GLB format/gate-door.glb" id="d_gate"]
 [ext_resource type="PackedScene" uid="uid://dbnidmvqh3l1a" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-floor.glb" id="d_plain"]
-[ext_resource type="PackedScene" uid="uid://d0urwuss2eap0" path="res://assets/kenney-dungeon-kit/Models/GLB format/stairs.glb" id="d_stair"]
-[ext_resource type="PackedScene" uid="uid://dgve0cc7v50ko" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-wall.glb" id="d_wall"]
-[ext_resource type="PackedScene" uid="uid://c30gwejqbpq7q" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-wall-corner.glb" id="d_wallC"]
-[ext_resource type="PackedScene" uid="uid://cblki5glavlgc" path="res://assets/kenney-dungeon-kit/Models/GLB format/template-wall-top.glb" id="d_wallT"]
 
 [sub_resource type="Environment" id="Environment_glow"]
 background_mode = 1
@@ -29,6 +24,7 @@ albedo_color = Color(0.5, 0.36, 0.22, 1)
 
 [node name="BattleScene" type="Node" unique_id=1899993504]
 script = ExtResource("1_bscn")
+camera_target = Vector3(-1, 0, 0)
 player_char_scale = Vector3(2, 2, 2)
 enemy_char_scale = Vector3(4, 4, 4)
 spark_color = Color(1, 0.15686275, 0, 1)
@@ -50,7 +46,7 @@ light_energy = 0.5
 shadow_enabled = true
 
 [node name="PlayerGrid" type="Node3D" parent="World" unique_id=793369952]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.89930177, 0, 7.186639)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 9)
 
 [node name="Slot_r0_c0" type="Marker3D" parent="World/PlayerGrid" unique_id=1113474702]
 
@@ -88,6 +84,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 4)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 4)
 
 [node name="EnemyGrid" type="Node3D" parent="World" unique_id=714317864]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 2)
 
 [node name="ESlot_0" type="Marker3D" parent="World/EnemyGrid" unique_id=1416092646]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.82355595, 0, 0.48530388)
@@ -279,42 +276,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 16)
 
 [node name="Floor_c9r5" parent="World/Background" unique_id=40000060 instance=ExtResource("d_plain")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, 16)
-
-[node name="WallB_1" parent="World/Background" unique_id=200000030 instance=ExtResource("d_wall")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -6, 0, -2.3298616)
-
-[node name="WallB_2" parent="World/Background" unique_id=200000031 instance=ExtResource("d_wall")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -1, 0, -2.3998308)
-
-[node name="WallB_3" parent="World/Background" unique_id=200000032 instance=ExtResource("d_wall")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 4, 0, -2.693)
-
-[node name="WallB_4" parent="World/Background" unique_id=200000033 instance=ExtResource("d_wall")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 9, 0, -26.216398)
-
-[node name="WallTB_1" parent="World/Background" unique_id=200000040 instance=ExtResource("d_wallT")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -3, 0, -2.1639996)
-
-[node name="WallTB_2" parent="World/Background" unique_id=200000041 instance=ExtResource("d_wallT")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 3, 0, -6.973913)
-
-[node name="WallTB_3" parent="World/Background" unique_id=200000042 instance=ExtResource("d_wallT")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 9, 0, -29.389114)
-
-[node name="CornerBL" parent="World/Background" unique_id=200000050 instance=ExtResource("d_wallC")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -9, 0, -12)
-
-[node name="CornerBR" parent="World/Background" unique_id=200000051 instance=ExtResource("d_wallC")]
-transform = Transform3D(0, 0, -1.5, 0, 1.5, 0, 1.5, 0, 0, 13, 0, -12)
-
-[node name="Stair_L" parent="World/Background" unique_id=200000060 instance=ExtResource("d_stair")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -26.222525, 0, 3)
-
-[node name="Stair_R" parent="World/Background" unique_id=200000061 instance=ExtResource("d_stair")]
-transform = Transform3D(-2, 0, -3.019916e-07, 0, 2, 0, 3.019916e-07, 0, -2, 10.67119, 0.0862751, -14.698668)
-
-[node name="Gate_B" parent="World/Background" unique_id=200000070 instance=ExtResource("d_gate")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 3, 0, -2.52217)
 
 [node name="Prop_01" parent="World/Background" unique_id=200000100 instance=ExtResource("d_detail")]
 transform = Transform3D(1.3, 0, 0, 0, 1.3, 0, 0, 0, 1.3, -13, 0, -4)

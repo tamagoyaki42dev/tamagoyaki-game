@@ -128,10 +128,11 @@ static func make_battle2() -> EnemyData:
 	e.stat_type   = EnemyData.StatType.TANK
 	e.thought_type = EnemyData.ThoughtType.STRONG_TARGET
 	e.action_cycle = [EnemyData.ActionType.NORMAL]
-	e.model_path  = _MONSTER_DIR + "Big/glTF/Tribal.gltf"
-	e.idle_anim   = "Idle"
-	e.death_anim  = "Death"
-	e.model_scale = 0.7
+	e.model_path   = _MONSTER_DIR + "Big/glTF/Tribal.gltf"
+	e.idle_anim    = "Idle"
+	e.death_anim   = "Death"
+	e.model_scale  = 0.7
+	e.model_offset = Vector3(0.0, -0.2, 0.0)
 	return e
 
 # 第3戦：ドラゴン（Dragon_Evolved / Flying）― 強化バランス・補助狙い・溜め→通常×3
@@ -146,8 +147,10 @@ static func make_battle3() -> EnemyData:
 	e.thought_type = EnemyData.ThoughtType.SUPPORT_TARGET
 	e.action_cycle = [EnemyData.ActionType.CHARGE,
 		EnemyData.ActionType.NORMAL, EnemyData.ActionType.NORMAL, EnemyData.ActionType.NORMAL]
-	e.model_path  = _MONSTER_DIR + "Flying/glTF/Dragon_Evolved.gltf"
-	e.idle_anim   = "Flying_Idle"
-	e.death_anim  = "Death"
-	e.model_scale = 0.9
+	e.model_path   = _MONSTER_DIR + "Flying/glTF/Dragon_Evolved.gltf"
+	e.idle_anim    = "Flying_Idle"
+	e.death_anim   = "Death"
+	e.model_scale        = 0.9
+	e.battle_model_scale = 0.56
+	e.model_offset = Vector3(0.0, -0.6, 0.0)
 	return e
