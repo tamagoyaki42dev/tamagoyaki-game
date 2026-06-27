@@ -1,6 +1,9 @@
 class_name BattleUI
 extends Control
 
+# Phase 3：パネル行ホバーで戦場の対応ユニットを強調する通知。BattleScene が購読しリングを光らせる。
+signal unit_row_hovered(unit: BattleUnit, hovered: bool)
+
 const PANEL_W      := 420.0
 const LOG_SPLIT    := 0.55
 const PORTRAIT_W   := 56.0
@@ -11,6 +14,8 @@ const HP_FONT_SIZE     := 13
 const HP_ROW_Y         := 27.0
 const BAR_Y            := 48.0
 const STAT_X_OFFSET    := 86.0   # HP数値の右に攻/速/持ちを横並びにするための x オフセット
+const ENTRY_BG_COLOR := Color(0.08, 0.10, 0.18, 0.55)   # 通常時の行背景
+const ENTRY_BG_HOVER := Color(0.18, 0.24, 0.40, 0.78)   # ホバー時の行背景（明るく）
 
 
 var _font: Font = null
@@ -32,6 +37,7 @@ var _party_portraits: Dictionary = {} # BattleUnit → TextureRect
 var _party_job_lbls: Dictionary = {}  # BattleUnit → Label（番号＋職名）
 var _party_hp_lbls: Dictionary = {}   # BattleUnit → Label（HP数値 現在/最大）
 var _party_stat_lbls: Dictionary = {}  # BattleUnit → Label（攻ライン）
+var _party_entry_styles: Dictionary = {} # BattleUnit → StyleBoxFlat（行背景。ホバー明滅用）
 
 @export_range(1.0, 10.0, 0.5) var countdown_seconds: float = 3.0
 
@@ -177,17 +183,23 @@ func _build_party_panel(units: Array) -> void:
 		entry.position = Vector2(px + 4.0, ey)
 		entry.size = Vector2(PANEL_W - 8.0, slot_h - 4.0)
 		var es := StyleBoxFlat.new()
-		es.bg_color = Color(0.08, 0.10, 0.18, 0.55)
+		es.bg_color = ENTRY_BG_COLOR
 		es.set_corner_radius_all(4)
 		entry.add_theme_stylebox_override("panel", es)
 		entry.clip_contents = true
+		# 行全体をホバー対象にする。子（ポートレート・ラベル等）が mouse を奪うと
+		# 親 Panel の mouse_entered/exited が安定しないため、子は _lbl 等で IGNORE にしてある。
+		entry.mouse_entered.connect(_on_entry_hover.bind(unit, true))
+		entry.mouse_exited.connect(_on_entry_hover.bind(unit, false))
 		add_child(entry)
 		_party_entries[unit] = entry
+		_party_entry_styles[unit] = es
 
 		var strip := ColorRect.new()
 		strip.position = Vector2(0.0, 0.0)
 		strip.size = Vector2(5.0, slot_h - 4.0)
 		strip.color = BattleScene.accent_color_for(i)
+		strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		entry.add_child(strip)
 
 		# 正面ポートレート（事前ベイク PNG）。共有モデルの色分けは戦場と同じ tint を modulate で一致させる
@@ -196,6 +208,7 @@ func _build_party_panel(units: Array) -> void:
 		portrait.size = Vector2(PORTRAIT_W, slot_h - 12.0)
 		portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var cd := unit.source_data as CharacterData
 		if cd:
 			var ppath := BattleScene.portrait_path_for_job(cd.job)
@@ -239,6 +252,7 @@ func _build_party_panel(units: Array) -> void:
 		bar.max_value = float(unit.hp_max)
 		bar.value = float(unit.hp)
 		bar.show_percentage = false
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var bar_fill := StyleBoxFlat.new()
 		bar_fill.bg_color = BattleScene.HP_COLOR_GREEN
 		bar_fill.set_corner_radius_all(2)
@@ -301,10 +315,17 @@ func _lbl(parent: Node, text: String, pos: Vector2,
 	l.position = pos
 	l.add_theme_font_size_override("font_size", sz)
 	l.add_theme_color_override("font_color", color)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if _font:
 		l.add_theme_font_override("font", _font)
 	parent.add_child(l)
 	return l
+
+func _on_entry_hover(unit: BattleUnit, hovered: bool) -> void:
+	if _party_entry_styles.has(unit):
+		var st := _party_entry_styles[unit] as StyleBoxFlat
+		st.bg_color = ENTRY_BG_HOVER if hovered else ENTRY_BG_COLOR
+	unit_row_hovered.emit(unit, hovered)
 
 static func _build_atk_text(unit: BattleUnit) -> String:
 	var s: String = "攻 %d" % unit.attack

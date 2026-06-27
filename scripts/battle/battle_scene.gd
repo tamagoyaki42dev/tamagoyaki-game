@@ -245,6 +245,9 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var accent_ring_inner: float = 0.35
 @export var accent_ring_outer: float = 0.45
 @export var accent_ring_y: float     = 0.02
+# Phase 3：パネル行ホバー時のリング強調量
+@export_range(0.0, 1.0, 0.05) var ring_hover_brighten: float       = 0.5  # 白側への lerp 量
+@export_range(0.0, 6.0, 0.1)  var ring_hover_emission_energy: float = 2.0  # 発光の強さ
 
 # 戦場グリッド表示
 @export var grid_cell_size: Vector2      = Vector2(1.85, 1.85)
@@ -310,6 +313,7 @@ var _unit_nodes: Dictionary = {}    # BattleUnit → Node3D
 var _unit_anims: Dictionary = {}    # BattleUnit → AnimationPlayer
 var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
 var _unit_rings: Dictionary = {}    # BattleUnit → StandardMaterial3D（アクセントリング。Phase3ホバー用）
+var _ring_base_colors: Dictionary = {}  # BattleUnit → Color（リング基準色。ホバー解除時の復帰用）
 var _label_font: Font = null
 var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニメ処理中）
 var _row_heal_queue: Array = []          # 待機中の列回復バッチ
@@ -395,6 +399,7 @@ func _start_battle() -> void:
 	_manager.defense_support_used.connect(_on_defense_support_used)
 	_manager.row_heal_batch.connect(_on_row_heal_batch)
 	_battle_ui.setup(_manager)
+	_battle_ui.unit_row_hovered.connect(_on_row_hovered)
 	_manager.start_battle(GameState.get_battle_entries(), GameState.get_battle_enemy())
 
 # ── ヘルパー ─────────────────────────────────────────────────────
@@ -714,6 +719,22 @@ func _spawn_accent_ring(ch: Node3D, unit: BattleUnit, accent: Color) -> void:
 	mi.position = Vector3(0.0, accent_ring_y, 0.0)
 	ch.add_child(mi)
 	_unit_rings[unit] = mat
+	_ring_base_colors[unit] = accent
+
+# Phase 3：パネル行ホバーで対応ユニットの足元リングを明るく光らせる／戻す
+func _on_row_hovered(unit: BattleUnit, hovered: bool) -> void:
+	var mat: StandardMaterial3D = _unit_rings.get(unit) as StandardMaterial3D
+	if not mat:
+		return
+	var base: Color = _ring_base_colors.get(unit, mat.albedo_color)
+	if hovered:
+		mat.albedo_color = base.lerp(Color.WHITE, ring_hover_brighten)
+		mat.emission_enabled = true
+		mat.emission = base
+		mat.emission_energy_multiplier = ring_hover_emission_energy
+	else:
+		mat.albedo_color = base
+		mat.emission_enabled = false
 
 func _spawn_hit_sparks(pos: Vector3, is_crit: bool) -> void:
 	var particles := GPUParticles3D.new()
