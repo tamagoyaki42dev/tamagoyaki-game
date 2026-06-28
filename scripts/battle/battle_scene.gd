@@ -6,6 +6,8 @@ signal unit_3d_hovered(unit: BattleUnit, hovered: bool)
 
 const _ENEMY_INFO_SCENE := "res://scenes/enemy_info.tscn"
 const _CLEAR_SCENE      := "res://scenes/clear.tscn"
+const _BG_GRASS    := preload("res://scenes/bg_grass.tscn")
+const _BG_DUNGEON  := preload("res://scenes/bg_dungeon.tscn")
 
 # 敵は gitignore 外のコミット済みモデルを使用
 const _ENEMY_CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
@@ -321,6 +323,7 @@ var _spark_mesh: QuadMesh
 @onready var _player_grid: Node3D        = $World/PlayerGrid
 @onready var _enemy_grid: Node3D         = $World/EnemyGrid
 @onready var _characters: Node3D         = $World/Characters
+@onready var _background: Node3D         = $World/Background
 @onready var _battle_ui: BattleUI        = $CanvasLayer/BattleUI
 
 var _manager: BattleManager
@@ -358,7 +361,16 @@ func _ready() -> void:
 			jf.set_fallbacks([load(EN) as Font])
 		_label_font = jf
 	_setup_world()
+	_setup_background()
 	_start_battle()
+
+func _setup_background() -> void:
+	var is_grass: bool = GameState.battle_index < 2
+	var scene: PackedScene = _BG_GRASS if is_grass else _BG_DUNGEON
+	_background.add_child(scene.instantiate())
+	if is_grass:
+		var env: Environment = _env_node.environment
+		env.background_color = Color(0.45, 0.68, 0.92)
 
 func _setup_world() -> void:
 	get_viewport().physics_object_picking = true
@@ -404,6 +416,8 @@ func _setup_grid_overlay() -> void:
 			_player_grid.add_child(lbl)
 
 func _start_battle() -> void:
+	var bgm := AudioManager.BGM_BATTLE3 if GameState.battle_index >= 2 else AudioManager.BGM_BATTLE12
+	AudioManager.play_bgm(bgm)
 	_manager = BattleManager.new()
 	add_child(_manager)
 	_manager.battle_started.connect(_on_battle_started)

@@ -2,6 +2,7 @@
 extends Node
 
 func _ready() -> void:
+	AudioManager.play_bgm(AudioManager.BGM_MENU)
 	var vp := get_viewport().get_visible_rect().size
 	var sw := vp.x
 	var sh := vp.y

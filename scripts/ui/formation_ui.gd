@@ -27,6 +27,7 @@ var _preview_model: Node3D = null
 
 func _ready() -> void:
 	GameState.ensure_init()
+	AudioManager.play_bgm(AudioManager.BGM_MENU)
 	_font = load(FONT_PATH) as Font
 	var vp := get_viewport().get_visible_rect().size
 	SW = vp.x

@@ -47,6 +47,13 @@
 - TikTok: [@tamagoyaki42dev](https://www.tiktok.com/@tamagoyaki42dev)
 - itch.io: [tamagoyakigames](https://tamagoyaki42dev.itch.io/tamagoyakigames)
 
+## Credits
+
+- **BGM:** Eric Matyas (Soundimage.org)
+- **3Dキャラクター:** Kenney (kenney.nl) — CC0
+- **モンスター:** Quaternius (quaternius.com) — CC0
+- **武器:** Quaternius RPG Items — CC0
+
 ---
 
 *by たまごやきゲームズ*
