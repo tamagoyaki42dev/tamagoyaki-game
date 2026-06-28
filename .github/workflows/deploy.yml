@@ -33,17 +33,20 @@ jobs:
       - name: Import project
         run: godot --headless --import || true
 
-      - name: Export HTML5
+      - name: Export Windows
         run: |
-          mkdir -p build/web
-          godot --headless --export-release "Web" "$PWD/build/web/index.html"
+          mkdir -p build/windows
+          godot --headless --export-release "Windows Desktop" "$PWD/build/windows/tamagoyakigames.exe"
+
+      - name: Zip Windows build
+        run: cd build && zip -r windows.zip windows/
 
       - name: Push to itch.io
         uses: josephbmanley/butler-publish-itchio-action@master
         env:
           BUTLER_CREDENTIALS: ${{ secrets.ITCHIO_API_KEY }}
-          CHANNEL: html5
+          CHANNEL: windows
           ITCH_USER: tamagoyaki42dev
           ITCH_GAME: tamagoyakigames
-          PACKAGE: build/web
+          PACKAGE: build/windows.zip
           VERSION: ${{ github.run_number }}

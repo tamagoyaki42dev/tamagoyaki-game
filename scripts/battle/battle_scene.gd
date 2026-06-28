@@ -330,6 +330,7 @@ var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
 var _unit_rings: Dictionary = {}    # BattleUnit → StandardMaterial3D（アクセントリング。Phase3ホバー用）
 var _ring_base_colors: Dictionary = {}  # BattleUnit → Color（リング基準色。ホバー解除時の復帰用）
 var _unit_areas: Dictionary = {}    # BattleUnit → Area3D（Phase4：3Dマウスピッキング用）
+var _petrified_mats: Dictionary = {}  # BattleUnit → { MeshInstance3D → Array } 石化前マテリアル退避
 var _label_font: Font = null
 var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニメ処理中）
 var _row_heal_queue: Array = []          # 待機中の列回復バッチ
@@ -414,6 +415,10 @@ func _start_battle() -> void:
 	_manager.battle_ended.connect(_on_battle_ended)
 	_manager.attack_support_used.connect(_on_attack_support_used)
 	_manager.defense_support_used.connect(_on_defense_support_used)
+	_manager.enemy_shield_activated.connect(_on_enemy_shield_activated)
+	_manager.enemy_first_attack_activated.connect(_on_enemy_first_attack_activated)
+	_manager.unit_petrified.connect(_on_unit_petrified)
+	_manager.unit_stone_cleared.connect(_on_unit_stone_cleared)
 	_manager.row_heal_batch.connect(_on_row_heal_batch)
 	_battle_ui.setup(_manager)
 	_battle_ui.unit_row_hovered.connect(_on_row_hovered)
@@ -996,6 +1001,10 @@ func _on_unit_healed(unit: BattleUnit, amount: int) -> void:
 		_do_flash(ch, heal_flash_color, heal_flash_duration)
 
 func _on_rotated() -> void:
+	# ローテーション時に石化ビジュアルを一括クリア（Managerは unit_stone_cleared を出さないため）
+	for unit: BattleUnit in _petrified_mats.keys().duplicate():
+		var ch: Node3D = _unit_nodes.get(unit) as Node3D
+		_clear_stone_visual(unit, ch)
 	var moves: Array[Dictionary] = []
 	for unit: BattleUnit in _unit_nodes.keys():
 		if unit.side == BattleUnit.Side.ENEMY:
@@ -1064,6 +1073,87 @@ func _on_defense_support_used(supporter: BattleUnit, target: BattleUnit) -> void
 	if ch_tgt:
 		_do_flash(ch_tgt, def_flash_color, def_flash_duration)
 		_spawn_def_support_label(ch_tgt.global_position)
+
+func _on_enemy_shield_activated(enemy: BattleUnit) -> void:
+	var ch: Node3D = _unit_nodes.get(enemy) as Node3D
+	if ch:
+		_do_flash(ch, def_flash_color, def_flash_duration)
+		_spawn_def_support_label(ch.global_position)
+
+func _on_enemy_first_attack_activated(enemy: BattleUnit) -> void:
+	var ch: Node3D = _unit_nodes.get(enemy) as Node3D
+	if ch:
+		_do_flash(ch, supp_flash_color, supp_flash_duration)
+		_spawn_atk_support_label(ch.global_position)
+
+func _on_unit_petrified(unit: BattleUnit) -> void:
+	var ch: Node3D = _unit_nodes.get(unit) as Node3D
+	if not ch:
+		return
+	_spawn_stone_label(ch.global_position)
+	_apply_stone_tint(unit, ch)
+	var anim: AnimationPlayer = _unit_anims.get(unit) as AnimationPlayer
+	if anim:
+		anim.pause()
+
+func _on_unit_stone_cleared(unit: BattleUnit) -> void:
+	var ch: Node3D = _unit_nodes.get(unit) as Node3D
+	_clear_stone_visual(unit, ch)
+
+func _clear_stone_visual(unit: BattleUnit, ch: Node3D) -> void:
+	_restore_stone_tint(unit, ch)
+	var anim: AnimationPlayer = _unit_anims.get(unit) as AnimationPlayer
+	if anim:
+		var idle_name := "idle"
+		if unit.side == BattleUnit.Side.ENEMY:
+			var ed := unit.source_data as EnemyData
+			if ed:
+				idle_name = ed.idle_anim
+		if anim.has_animation(idle_name):
+			anim.play(idle_name)
+
+func _apply_stone_tint(unit: BattleUnit, ch: Node3D) -> void:
+	var meshes: Array[MeshInstance3D] = []
+	_collect_meshes(ch, meshes)
+	var saved: Dictionary = {}
+	for mesh: MeshInstance3D in meshes:
+		if not mesh.mesh:
+			continue
+		var surf_count := mesh.mesh.get_surface_count()
+		var orig_mats: Array = []
+		for i: int in range(surf_count):
+			orig_mats.append(mesh.get_surface_override_material(i))
+		saved[mesh] = orig_mats
+		for i: int in range(surf_count):
+			var base: Material = orig_mats[i] if orig_mats[i] else mesh.mesh.surface_get_material(i)
+			if base is StandardMaterial3D:
+				var gray: StandardMaterial3D = (base as StandardMaterial3D).duplicate() as StandardMaterial3D
+				gray.albedo_color = Color(0.45, 0.45, 0.50, 1.0)
+				mesh.set_surface_override_material(i, gray)
+	_petrified_mats[unit] = saved
+
+func _restore_stone_tint(unit: BattleUnit, ch: Node3D) -> void:
+	if not _petrified_mats.has(unit):
+		return
+	var saved: Dictionary = _petrified_mats[unit] as Dictionary
+	if ch:
+		var meshes: Array[MeshInstance3D] = []
+		_collect_meshes(ch, meshes)
+		for mesh: MeshInstance3D in meshes:
+			if not saved.has(mesh) or not mesh.mesh:
+				continue
+			var orig_mats: Array = saved[mesh] as Array
+			for i: int in range(mini(orig_mats.size(), mesh.mesh.get_surface_count())):
+				mesh.set_surface_override_material(i, orig_mats[i] as Material)
+	_petrified_mats.erase(unit)
+
+func _spawn_stone_label(pos: Vector3) -> void:
+	var lbl := BattleScene._make_support_label(
+		"Petrified", pos, supp_font_size, dmg_pixel_size, def_label_color, supp_label_offset)
+	if _label_font:
+		lbl.font = _label_font
+	_characters.add_child(lbl)
+	_animate_floating_label(lbl, supp_rise, supp_duration)
 
 static func _make_heal_label(pos: Vector3, text: String, font_size: int,
 		pixel_size: float, label_color: Color) -> Label3D:

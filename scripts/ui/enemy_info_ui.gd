@@ -115,11 +115,14 @@ func _build_stats() -> void:
 	_lbl(_root, "── ステータス", Vector2(lx, y), 18, Color(0.50, 0.60, 0.80))
 	y += 32.0
 
+	var atk_mult_text := ("× %.1f" % ed.initial_attack_mult) if ed.initial_attack_mult > 1.0 else "―"
 	var stats: Array = [
 		["HP",      str(ed.hp_max)],
 		["ATK",     str(ed.attack)],
 		["SPD",     str(ed.speed)],
 		["自己回復", str(ed.self_regen)],
+		["初回防御", str(ed.initial_defense)],
+		["初回ATK",  atk_mult_text],
 	]
 	for row: Array in stats:
 		_lbl(_root, row[0], Vector2(lx, y), 22, Color(0.60, 0.65, 0.75))

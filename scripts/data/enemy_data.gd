@@ -36,6 +36,8 @@ enum ActionType {
 @export var attack: int = 10
 @export var speed: int = 8
 @export var self_regen: int = 0
+@export var initial_defense: int = 0       # 初回防御値（ローテのたびに復活）
+@export var initial_attack_mult: float = 1.0  # 初回攻撃倍率（ローテのたびに復活）
 @export var stat_type: StatType = StatType.BALANCE
 @export var thought_type: ThoughtType = ThoughtType.RANDOM
 @export var action_cycle: Array[int] = []

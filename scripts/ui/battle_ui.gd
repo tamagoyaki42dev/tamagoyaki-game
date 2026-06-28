@@ -48,6 +48,11 @@ var _party_entry_styles: Dictionary = {} # BattleUnit → StyleBoxFlat（行背�
 @export var stay_btn_size: Vector2                             = Vector2(240.0, 85.0)
 @export_range(0.0, 1.0, 0.01) var countdown_y_ratio: float    = 0.65
 @export_range(12, 120, 2)     var countdown_font_size: int    = 72
+@export_range(50.0, 600.0, 10.0)   var timer_bar_w: float        = 300.0
+@export_range(4.0, 20.0, 1.0)      var timer_bar_h: float        = 8.0
+@export_range(60.0, 150.0, 5.0)    var timer_bar_y_offset: float = 88.0
+@export_range(-100.0, 100.0, 1.0)  var timer_bar_x_offset: float = -22.0
+@export var timer_bar_color: Color = Color(1.0, 0.85, 0.2, 0.9)
 @export_range(0.0, 1.0, 0.01) var phase_lbl_y_ratio: float    = 0.70
 @export_range(12, 80, 1)      var phase_font_size: int        = 44
 @export_range(0.0, 1.0, 0.01) var action_panel_x_ratio: float  = 0.60
@@ -59,6 +64,9 @@ var _party_entry_styles: Dictionary = {} # BattleUnit → StyleBoxFlat（行背�
 
 var _countdown_time: float = -1.0
 var _countdown_lbl: Label
+var _timer_bar_left: ColorRect
+var _timer_bar_right: ColorRect
+var _bar_cx: float = 0.0
 var _pending_rotate: bool = false
 
 func _ready() -> void:
@@ -79,6 +87,11 @@ func _process(delta: float) -> void:
 		return
 	_countdown_time -= delta
 	_countdown_lbl.text = str(ceili(_countdown_time)) if _countdown_time > 0.0 else ""
+	var ratio := clampf(_countdown_time / countdown_seconds, 0.0, 1.0)
+	var half_w := timer_bar_w * 0.5 * ratio
+	_timer_bar_left.size.x = half_w
+	_timer_bar_left.position.x = _bar_cx - half_w
+	_timer_bar_right.size.x = half_w
 	if _countdown_time <= 0.0:
 		_countdown_time = -1.0
 		_execute_pending_action()
@@ -88,6 +101,8 @@ func _start_selection_phase() -> void:
 	_rotate_btn.disabled = false
 	_stay_btn.disabled = false
 	_countdown_time = countdown_seconds
+	_timer_bar_left.visible = true
+	_timer_bar_right.visible = true
 	_phase_lbl.text = "Stay..."
 	_update_selection_visual()
 
@@ -95,6 +110,8 @@ func _execute_pending_action() -> void:
 	if not _manager or _manager.is_over or _rotate_btn.disabled:
 		return
 	_countdown_lbl.text = ""
+	_timer_bar_left.visible = false
+	_timer_bar_right.visible = false
 	_rotate_btn.disabled = true
 	_stay_btn.disabled = true
 	_phase_lbl.text = "Rotate..." if _pending_rotate else "Stay..."
@@ -148,11 +165,27 @@ func _build_ui() -> void:
 	_turn_lbl = _lbl(self, "Turn 0", Vector2(16.0, 16.0), 22, Color(0.88, 0.78, 0.30))
 
 	var cx := sw * ui_center_x_ratio
+	_bar_cx = cx + timer_bar_x_offset
 	var btn_y := sh * btn_y_ratio
 	_phase_lbl = _lbl(self, "", Vector2(cx - 100.0, sh * phase_lbl_y_ratio), phase_font_size, Color(0.88, 0.78, 0.30))
 	_phase_lbl.size = Vector2(200.0, 40.0)
 	_phase_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_countdown_lbl = _lbl(self, "", Vector2(cx - 45.0, sh * countdown_y_ratio), countdown_font_size, Color(1.0, 0.85, 0.2))
+
+	var bar_y := sh * countdown_y_ratio + timer_bar_y_offset
+	var half_w := timer_bar_w * 0.5
+	_timer_bar_left = ColorRect.new()
+	_timer_bar_left.color = timer_bar_color
+	_timer_bar_left.size = Vector2(half_w, timer_bar_h)
+	_timer_bar_left.position = Vector2(_bar_cx - half_w, bar_y)
+	_timer_bar_left.visible = false
+	add_child(_timer_bar_left)
+	_timer_bar_right = ColorRect.new()
+	_timer_bar_right.color = timer_bar_color
+	_timer_bar_right.size = Vector2(half_w, timer_bar_h)
+	_timer_bar_right.position = Vector2(_bar_cx, bar_y)
+	_timer_bar_right.visible = false
+	add_child(_timer_bar_right)
 
 	_rotate_btn = _build_btn("ローテーション", Vector2(cx - rotate_btn_size.x - 20.0, btn_y),
 		rotate_btn_size, Color(0.55, 0.28, 0.03), _on_rotate_pressed)
@@ -424,6 +457,8 @@ func _on_def_support(supporter: BattleUnit, target: BattleUnit) -> void:
 func _on_battle_ended(won: bool, _loot: Array) -> void:
 	_countdown_time = -1.0
 	_countdown_lbl.text = ""
+	_timer_bar_left.visible = false
+	_timer_bar_right.visible = false
 	_pending_rotate = false
 	_rotate_btn.disabled = true
 	_stay_btn.disabled   = true

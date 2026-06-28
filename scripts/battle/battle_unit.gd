@@ -22,6 +22,8 @@ var is_stone_attack: bool = false  # 石化攻撃か（祈祷師）
 var charge_multiplier: float = 1.0  # 力を溜める: 次の攻撃のATK倍率
 var atk_support_used: bool = false  # 攻撃補助使用済み（ローテーションでリセット）
 var def_support_used: bool = false  # 防御補助使用済み（ローテーションでリセット）
+var shield_active: bool = false     # 敵の初回防御が有効か（ローテーションで復活）
+var first_attack_active: bool = false  # 敵の初回攻撃ボーナスが有効か（ローテーションで復活）
 var is_petrified: bool = false      # 石化状態
 var charge_excess: int = 0          # クリティカルチャージ余剰回復量
 var source_data: Resource
@@ -62,8 +64,10 @@ static func from_enemy(data: EnemyData, row: int = 0, col: int = 0) -> BattleUni
 	unit.attack      = data.attack
 	unit.speed       = data.speed
 	unit.self_regen  = data.self_regen
-	unit.crit_rate   = 0.0  # 敵はクリティカルなし
-	unit.source_data = data
+	unit.crit_rate           = 0.0  # 敵はクリティカルなし
+	unit.shield_active       = data.initial_defense > 0
+	unit.first_attack_active = data.initial_attack_mult > 1.0
+	unit.source_data         = data
 	return unit
 
 # 防御補助なし: damage = raw_attack / 防御補助あり: damage = max(0, raw_attack - def_support)

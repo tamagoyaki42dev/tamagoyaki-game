@@ -13,6 +13,8 @@ signal action_announced(action_name: String)
 signal battle_ended(player_won: bool, loot: Array)
 signal attack_support_used(supporter: BattleUnit, attacker: BattleUnit)
 signal defense_support_used(supporter: BattleUnit, target: BattleUnit)
+signal enemy_shield_activated(enemy: BattleUnit)
+signal enemy_first_attack_activated(enemy: BattleUnit)
 signal row_heal_batch(entries: Array)   # [{unit, amount}] 右から左アニメ用
 signal row_heal_anim_done               # シーンがキュー処理完了時に emit → manager が await
 signal rotate_anim_done                 # シーンがローテーションアニメ完了時に emit → manager が await
@@ -63,6 +65,12 @@ func advance_turn(do_rotate: bool = false) -> void:
 			unit.is_petrified = false
 		for unit: BattleUnit in enemy_grid.get_all_alive():
 			unit.is_petrified = false
+			var _ed := unit.source_data as EnemyData
+			if _ed:
+				if _ed.initial_defense > 0:
+					unit.shield_active = true
+				if _ed.initial_attack_mult > 1.0:
+					unit.first_attack_active = true
 		rotated.emit()
 		await rotate_anim_done
 	turn_number += 1
@@ -173,6 +181,15 @@ func _execute_enemy_action(attacker: BattleUnit) -> void:
 	var eff_atk := ceili(float(attacker.attack) * attacker.charge_multiplier)
 	attacker.charge_multiplier = 1.0
 
+	# 初回攻撃ボーナス（ローテーションで復活・最初の攻撃アクションのみ適用）
+	if attacker.first_attack_active:
+		var _ed := attacker.source_data as EnemyData
+		if _ed and _ed.initial_attack_mult > 1.0:
+			eff_atk = ceili(float(eff_atk) * _ed.initial_attack_mult)
+		attacker.first_attack_active = false
+		enemy_first_attack_activated.emit(attacker)
+		await get_tree().create_timer(SUPPORT_DELAY).timeout
+
 	match action:
 		EnemyData.ActionType.DOUBLE, EnemyData.ActionType.TRIPLE, EnemyData.ActionType.QUAD:
 			var hits := 2
@@ -276,6 +293,13 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 			def_support = mid.def_bonus
 			mid.def_support_used = true
 			await get_tree().create_timer(SUPPORT_DELAY).timeout
+	elif attacker.side == BattleUnit.Side.PLAYER and target.side == BattleUnit.Side.ENEMY and target.shield_active:
+		var _ed := target.source_data as EnemyData
+		if _ed:
+			def_support = _ed.initial_defense
+		target.shield_active = false
+		enemy_shield_activated.emit(target)
+		await get_tree().create_timer(SUPPORT_DELAY).timeout
 
 	var actual := BattleMath.calc_actual_damage(raw, def_support)
 

@@ -114,7 +114,9 @@ static func make_battle1() -> EnemyData:
 	e.idle_anim    = "Idle"
 	e.attack_anim  = "Bite_Front"
 	e.death_anim   = "Death"
-	e.model_scale  = 0.55  # Quaternius は Kenney より元スケールが大きいため逆に下げる
+	e.model_scale        = 0.55  # Quaternius は Kenney より元スケールが大きいため逆に下げる
+	e.initial_defense    = 5
+	e.initial_attack_mult = 1.5
 	return e
 
 # 第2戦：トライバル（Tribal / Big）― タンク・強者狙い・自己回復30
@@ -131,8 +133,10 @@ static func make_battle2() -> EnemyData:
 	e.model_path   = _MONSTER_DIR + "Big/glTF/Tribal.gltf"
 	e.idle_anim    = "Idle"
 	e.death_anim   = "Death"
-	e.model_scale  = 0.7
-	e.model_offset = Vector3(0.0, -0.2, 0.0)
+	e.model_scale        = 0.7
+	e.model_offset       = Vector3(0.0, -0.2, 0.0)
+	e.initial_defense    = 8
+	e.initial_attack_mult = 1.5
 	return e
 
 # 第3戦：ドラゴン（Dragon_Evolved / Flying）― 強化バランス・補助狙い・溜め→通常×3
@@ -152,5 +156,7 @@ static func make_battle3() -> EnemyData:
 	e.death_anim   = "Death"
 	e.model_scale        = 0.9
 	e.battle_model_scale = 0.56
-	e.model_offset = Vector3(0.0, -0.6, 0.0)
+	e.model_offset       = Vector3(0.0, -0.6, 0.0)
+	e.initial_defense    = 10
+	e.initial_attack_mult = 1.5
 	return e

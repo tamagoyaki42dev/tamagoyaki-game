@@ -234,8 +234,8 @@ func _build_detail_content() -> void:
 	_update_preview_model()
 	var pw := SW - DIVIDER_X - 40.0
 	if _selected == null:
-		_lbl(_detail_root, "キャラクターを\n選択してください",
-			Vector2(20.0, 660.0), 15, Color(0.38, 0.42, 0.52))
+		_lbl(_detail_root, "キャラクターを選択してください",
+			Vector2(16.0, 40.0), 18, Color.WHITE)
 		return
 
 	var cd := _selected
