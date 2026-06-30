@@ -466,11 +466,17 @@ func _on_battle_ended(won: bool, _loot: Array) -> void:
 	_log_add("\n[b]%s[/b]" % ("=== 勝利！ ===" if won else "=== 撤退... ==="))
 
 func _on_rotate_pressed() -> void:
+	AudioManager.play_se(AudioManager.SE_ROTATE_SELECT)
+	get_tree().create_timer(0.09).timeout.connect(
+		func() -> void: AudioManager.play_se(AudioManager.SE_ROTATE_SELECT))
+	get_tree().create_timer(0.18).timeout.connect(
+		func() -> void: AudioManager.play_se(AudioManager.SE_ROTATE_SELECT))
 	_pending_rotate = true
 	_phase_lbl.text = "Rotate..."
 	_update_selection_visual()
 
 func _on_stay_pressed() -> void:
+	AudioManager.play_se(AudioManager.SE_DECIDE)
 	_pending_rotate = false
 	_phase_lbl.text = "Stay..."
 	_update_selection_visual()

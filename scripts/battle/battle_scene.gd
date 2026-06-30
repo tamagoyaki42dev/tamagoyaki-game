@@ -71,7 +71,7 @@ const _WEAPON_PATHS: Dictionary = {
 	CharacterJob.Type.MAGE:          _WEAPON_DIR + "Crystal1.fbx",
 	CharacterJob.Type.WITCH:         _WEAPON_DIR + "Crystal1.fbx",
 	CharacterJob.Type.ARCHER:        _WEAPON_DIR + "Bow_Wooden.fbx",
-	CharacterJob.Type.VALKYRIE:      _WEAPON_DIR + "Sword.fbx",
+	CharacterJob.Type.VALKYRIE:      _WEAPON_DIR + "Bow_Wooden.fbx",
 	CharacterJob.Type.SHAMAN:        _WEAPON_DIR + "Hammer_Double.fbx",
 	CharacterJob.Type.SHRINE_MAIDEN: _WEAPON_DIR + "Crystal1.fbx",
 	CharacterJob.Type.SAMURAI:       _WEAPON_DIR + "Sword.fbx",
@@ -275,6 +275,17 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var grid_label_color: Color      = Color(0.85, 0.92, 1.0, 0.9)
 @export var grid_label_offset: Vector3   = Vector3(-1.3, 0.8, 0.0)
 
+# クレイ（マット粘土）作風シェーダー
+@export var clay_enabled: bool = true
+@export var clay_shadow_tint: Color = Color(0.55, 0.42, 0.32)
+@export_range(0.0, 1.0, 0.01) var clay_light_threshold: float = 0.45
+@export_range(0.0, 1.0, 0.01) var clay_rim_strength: float = 0.25
+@export var clay_rim_color: Color = Color(0.92, 0.96, 1.0)
+@export var clay_outline_enabled: bool = true
+@export_range(0.5, 4.0, 0.5) var clay_outline_thickness: float = 1.0
+@export_range(0.0, 0.5, 0.01) var clay_outline_threshold: float = 0.15
+@export var clay_outline_color: Color = Color(0.1, 0.06, 0.02, 0.9)
+
 const _FLASH_CODE := """
 shader_type spatial;
 render_mode blend_add, unshaded, cull_back;
@@ -312,10 +323,59 @@ render_mode unshaded, blend_add, cull_disabled;
 void fragment() { ALBEDO = COLOR.rgb; ALPHA = COLOR.a; }
 """
 
+const _CLAY_CODE := """
+shader_type spatial;
+render_mode diffuse_lambert, specular_disabled;
+uniform sampler2D albedo_tex   : source_color, hint_default_white;
+uniform vec4  albedo_color    : source_color               = vec4(1.0, 1.0, 1.0, 1.0);
+uniform vec4  shadow_tint     : source_color               = vec4(0.55, 0.42, 0.32, 1.0);
+uniform float light_threshold : hint_range(0.0, 1.0, 0.01) = 0.45;
+uniform float rim_strength    : hint_range(0.0, 1.0, 0.01) = 0.25;
+uniform vec4  rim_color       : source_color               = vec4(0.92, 0.96, 1.0, 1.0);
+void fragment() {
+	vec3 base  = texture(albedo_tex, UV).rgb * albedo_color.rgb;
+	ALBEDO    = base;
+	ROUGHNESS = 1.0;
+	METALLIC  = 0.0;
+	SPECULAR  = 0.0;
+	float rim  = pow(1.0 - max(0.0, dot(NORMAL, VIEW)), 3.0);
+	EMISSION   = rim_color.rgb * rim * rim_strength;
+}
+void light() {
+	float NdotL  = max(0.0, dot(NORMAL, LIGHT));
+	float in_lit = smoothstep(light_threshold - 0.04, light_threshold + 0.04, NdotL);
+	vec3  surface = mix(ALBEDO * shadow_tint.rgb, ALBEDO, in_lit);
+	DIFFUSE_LIGHT += surface * ATTENUATION * LIGHT_COLOR;
+}
+"""
+
+const _OUTLINE_CODE := """
+shader_type canvas_item;
+render_mode unshaded;
+uniform sampler2D screen_tex : hint_screen_texture, repeat_disable, filter_nearest;
+uniform float thickness : hint_range(0.5, 4.0, 0.5) = 1.0;
+uniform float threshold : hint_range(0.0, 0.5, 0.01) = 0.15;
+uniform vec4  line_color : source_color = vec4(0.1, 0.06, 0.02, 0.9);
+float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+void fragment() {
+	vec2 d   = SCREEN_PIXEL_SIZE * thickness;
+	vec4 src = texture(screen_tex, SCREEN_UV);
+	float c  = luma(src.rgb);
+	float r  = luma(texture(screen_tex, SCREEN_UV + vec2( d.x, 0.0)).rgb);
+	float l  = luma(texture(screen_tex, SCREEN_UV + vec2(-d.x, 0.0)).rgb);
+	float u  = luma(texture(screen_tex, SCREEN_UV + vec2(0.0,  d.y)).rgb);
+	float dn = luma(texture(screen_tex, SCREEN_UV + vec2(0.0, -d.y)).rgb);
+	float edge    = max(max(abs(c-r), abs(c-l)), max(abs(c-u), abs(c-dn)));
+	float outline = step(threshold, edge);
+	COLOR = mix(src, vec4(line_color.rgb, 1.0), outline * line_color.a);
+}
+"""
+
 var _flash_shader: Shader
 var _hp_bar_shader: Shader
 var _spark_shader_mat: ShaderMaterial
 var _spark_mesh: QuadMesh
+var _clay_shader: Shader
 
 @onready var _camera: Camera3D           = $World/Camera3D
 @onready var _env_node: WorldEnvironment = $World/WorldEnvironment
@@ -324,6 +384,7 @@ var _spark_mesh: QuadMesh
 @onready var _enemy_grid: Node3D         = $World/EnemyGrid
 @onready var _characters: Node3D         = $World/Characters
 @onready var _background: Node3D         = $World/Background
+@onready var _canvas: CanvasLayer        = $CanvasLayer
 @onready var _battle_ui: BattleUI        = $CanvasLayer/BattleUI
 
 var _manager: BattleManager
@@ -353,6 +414,9 @@ func _ready() -> void:
 	_spark_mesh = QuadMesh.new()
 	_spark_mesh.size = Vector2(0.1, 0.1)
 	_spark_mesh.material = _spark_shader_mat
+	if clay_enabled:
+		_clay_shader = Shader.new()
+		_clay_shader.code = _CLAY_CODE
 	const JP := "res://assets/fonts/851CHIKARA-DZUYOKU_kanaA_004.ttf"
 	const EN := "res://assets/fonts/Cinzel-Regular.ttf"
 	if ResourceLoader.exists(JP):
@@ -362,6 +426,7 @@ func _ready() -> void:
 		_label_font = jf
 	_setup_world()
 	_setup_background()
+	_setup_outline()
 	_start_battle()
 
 func _setup_background() -> void:
@@ -394,6 +459,22 @@ func _setup_world() -> void:
 	_light.look_at_from_position(key_light_from, Vector3.ZERO, Vector3.UP)
 	_light.light_energy = key_light_energy
 	_setup_grid_overlay()
+
+func _setup_outline() -> void:
+	if not clay_outline_enabled:
+		return
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var shader := Shader.new()
+	shader.code = _OUTLINE_CODE
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("thickness",  clay_outline_thickness)
+	mat.set_shader_parameter("threshold",  clay_outline_threshold)
+	mat.set_shader_parameter("line_color", clay_outline_color)
+	rect.material = mat
+	_canvas.add_child(rect)
+	_canvas.move_child(rect, 0)  # UI より前（奥）に描画
 
 func _setup_grid_overlay() -> void:
 	for row: int in RotationGrid.ROW_COUNT:
@@ -506,6 +587,24 @@ func _do_camera_shake(intensity: float) -> void:
 func _do_hit_effects(is_crit: bool) -> void:
 	await _do_hitstop()
 	_do_camera_shake(shake_crit_intensity if is_crit else shake_intensity)
+
+static func _resolve_attack_se(attacker: BattleUnit) -> String:
+	if attacker.side == BattleUnit.Side.ENEMY:
+		return AudioManager.SE_PUNCH
+	var cd := attacker.source_data as CharacterData
+	if not cd:
+		return AudioManager.SE_PUNCH
+	match cd.job:
+		CharacterJob.Type.ARCHER, CharacterJob.Type.VALKYRIE:
+			return AudioManager.SE_ARROW
+		CharacterJob.Type.MAGE, CharacterJob.Type.WITCH, CharacterJob.Type.ILLUSIONIST, \
+		CharacterJob.Type.SHAMAN, CharacterJob.Type.SHRINE_MAIDEN:
+			return AudioManager.SE_MAGIC
+		CharacterJob.Type.MONK, CharacterJob.Type.CLERIC, CharacterJob.Type.WARRIOR, \
+		CharacterJob.Type.HOLY_KNIGHT:
+			return AudioManager.SE_PUNCH
+		_:
+			return AudioManager.SE_SLASH
 
 static func _resolve_hit_flash_color(attacker: BattleUnit,
 		melee_color: Color, magic_color: Color, ranged_color: Color) -> Color:
@@ -682,13 +781,41 @@ func _tint_char(ch: Node3D, tint: Color) -> void:
 		if not mesh.mesh:
 			continue
 		for i: int in range(mesh.mesh.get_surface_count()):
-			var base_mat: Material = mesh.get_surface_override_material(i)
-			if not base_mat:
-				base_mat = mesh.mesh.surface_get_material(i)
+			var over: Material = mesh.get_surface_override_material(i)
+			if over is ShaderMaterial:
+				(over as ShaderMaterial).set_shader_parameter("albedo_color", tint)
+				continue
+			var base_mat: Material = over if over else mesh.mesh.surface_get_material(i)
 			if base_mat is StandardMaterial3D:
 				var tinted: StandardMaterial3D = (base_mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 				tinted.albedo_color = tint
 				mesh.set_surface_override_material(i, tinted)
+
+func _apply_clay_shader(ch: Node3D) -> void:
+	var meshes: Array[MeshInstance3D] = []
+	_collect_meshes(ch, meshes)
+	for mesh: MeshInstance3D in meshes:
+		if not mesh.mesh:
+			continue
+		for i: int in range(mesh.mesh.get_surface_count()):
+			var orig_mat: Material = mesh.get_surface_override_material(i)
+			if not orig_mat:
+				orig_mat = mesh.mesh.surface_get_material(i)
+			var base_color := Color.WHITE
+			var base_tex: Texture2D = null
+			if orig_mat is StandardMaterial3D:
+				var sm := orig_mat as StandardMaterial3D
+				base_color = sm.albedo_color
+				base_tex   = sm.albedo_texture
+			var mat := ShaderMaterial.new()
+			mat.shader = _clay_shader
+			mat.set_shader_parameter("albedo_tex",      base_tex)
+			mat.set_shader_parameter("albedo_color",    base_color)
+			mat.set_shader_parameter("shadow_tint",     clay_shadow_tint)
+			mat.set_shader_parameter("light_threshold", clay_light_threshold)
+			mat.set_shader_parameter("rim_strength",    clay_rim_strength)
+			mat.set_shader_parameter("rim_color",       clay_rim_color)
+			mesh.set_surface_override_material(i, mat)
 
 func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: String,
 		idle_anim_name: String = "idle") -> Node3D:
@@ -705,6 +832,8 @@ func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: Stri
 		anim.get_animation(idle_anim_name).loop_mode = Animation.LOOP_LINEAR
 		anim.play(idle_anim_name)
 	_setup_flash(ch)
+	if clay_enabled:
+		_apply_clay_shader(ch)
 	return ch
 
 func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
@@ -952,6 +1081,8 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 			hit_flash_melee_color, hit_flash_magic_color, hit_flash_ranged_color))
 		_do_hit_effects(is_crit)
 		_spawn_hit_sparks(ch_t.global_position, is_crit)
+		var _se := AudioManager.SE_CRITICAL if is_crit else _resolve_attack_se(attacker)
+		AudioManager.play_se(_se, 10.0 if _se == AudioManager.SE_ARROW else 0.0)
 		var t_origin := ch_t.position
 		var kb_dir := -dir
 		var shake := Vector3(randf_range(-hit_shake_amount, hit_shake_amount),
@@ -983,6 +1114,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		_manager.unit_action_anim_done.emit()
 
 func _on_unit_died(unit: BattleUnit) -> void:
+	AudioManager.play_se(AudioManager.SE_DIE)
 	var ch: Node3D = _unit_nodes.get(unit) as Node3D
 	if not ch:
 		return
@@ -1007,14 +1139,16 @@ func _on_unit_died(unit: BattleUnit) -> void:
 func _on_unit_healed(unit: BattleUnit, amount: int) -> void:
 	_update_hp_bar(unit)
 	if _row_heal_units.has(unit):
-		return  # 視覚は _on_row_heal_batch が担当
+		return  # 視覚・音は _on_row_heal_batch が担当
 	var ch: Node3D = _unit_nodes.get(unit) as Node3D
 	if ch:
 		var text := "+%d" % amount if amount > 0 else "MAX"
 		_spawn_floating_label(ch.global_position, text, heal_label_color)
 		_do_flash(ch, heal_flash_color, heal_flash_duration)
+		AudioManager.play_se(AudioManager.SE_HEAL_SELF)
 
 func _on_rotated() -> void:
+	AudioManager.play_se(AudioManager.SE_ROTATE_SELECT)
 	# ローテーション時に石化ビジュアルを一括クリア（Managerは unit_stone_cleared を出さないため）
 	for unit: BattleUnit in _petrified_mats.keys().duplicate():
 		var ch: Node3D = _unit_nodes.get(unit) as Node3D
@@ -1036,6 +1170,7 @@ func _on_rotated() -> void:
 	for entry: Dictionary in moves:
 		tw.tween_property(entry["ch"], "position", entry["to"], rotate_duration)
 	await tw.finished
+	AudioManager.play_se(AudioManager.SE_ROTATE_STEP)
 	# 到着フラッシュ（スカッシュと同時に発火）
 	for entry: Dictionary in moves:
 		_do_flash(entry["ch"], arrive_flash_color, arrive_flash_duration)
@@ -1071,6 +1206,7 @@ func _on_phase_started(phase: StringName) -> void:
 				_manager.self_heal_anim_done.emit()
 
 func _on_attack_support_used(supporter: BattleUnit, attacker: BattleUnit) -> void:
+	AudioManager.play_se(AudioManager.SE_SUPPORT)
 	var ch_supp: Node3D = _unit_nodes.get(supporter) as Node3D
 	var ch_atk: Node3D  = _unit_nodes.get(attacker)  as Node3D
 	if ch_supp:
@@ -1080,6 +1216,7 @@ func _on_attack_support_used(supporter: BattleUnit, attacker: BattleUnit) -> voi
 		_spawn_atk_support_label(ch_atk.global_position)
 
 func _on_defense_support_used(supporter: BattleUnit, target: BattleUnit) -> void:
+	AudioManager.play_se(AudioManager.SE_SUPPORT)
 	var ch_supp: Node3D = _unit_nodes.get(supporter) as Node3D
 	var ch_tgt: Node3D  = _unit_nodes.get(target)    as Node3D
 	if ch_supp:
@@ -1089,18 +1226,21 @@ func _on_defense_support_used(supporter: BattleUnit, target: BattleUnit) -> void
 		_spawn_def_support_label(ch_tgt.global_position)
 
 func _on_enemy_shield_activated(enemy: BattleUnit) -> void:
+	AudioManager.play_se(AudioManager.SE_SUPPORT)
 	var ch: Node3D = _unit_nodes.get(enemy) as Node3D
 	if ch:
 		_do_flash(ch, def_flash_color, def_flash_duration)
 		_spawn_def_support_label(ch.global_position)
 
 func _on_enemy_first_attack_activated(enemy: BattleUnit) -> void:
+	AudioManager.play_se(AudioManager.SE_SUPPORT)
 	var ch: Node3D = _unit_nodes.get(enemy) as Node3D
 	if ch:
 		_do_flash(ch, supp_flash_color, supp_flash_duration)
 		_spawn_atk_support_label(ch.global_position)
 
 func _on_unit_petrified(unit: BattleUnit) -> void:
+	AudioManager.play_se(AudioManager.SE_PETRIFY)
 	var ch: Node3D = _unit_nodes.get(unit) as Node3D
 	if not ch:
 		return
@@ -1111,6 +1251,7 @@ func _on_unit_petrified(unit: BattleUnit) -> void:
 		anim.pause()
 
 func _on_unit_stone_cleared(unit: BattleUnit) -> void:
+	AudioManager.play_se(AudioManager.SE_STONE_CLEAR)
 	var ch: Node3D = _unit_nodes.get(unit) as Node3D
 	_clear_stone_visual(unit, ch)
 
@@ -1139,11 +1280,13 @@ func _apply_stone_tint(unit: BattleUnit, ch: Node3D) -> void:
 			orig_mats.append(mesh.get_surface_override_material(i))
 		saved[mesh] = orig_mats
 		for i: int in range(surf_count):
-			var base: Material = orig_mats[i] if orig_mats[i] else mesh.mesh.surface_get_material(i)
-			if base is StandardMaterial3D:
-				var gray: StandardMaterial3D = (base as StandardMaterial3D).duplicate() as StandardMaterial3D
-				gray.albedo_color = Color(0.45, 0.45, 0.50, 1.0)
-				mesh.set_surface_override_material(i, gray)
+			var over: Material = orig_mats[i]
+			var base: Material = over if over else mesh.mesh.surface_get_material(i)
+			if not (over is ShaderMaterial or base is StandardMaterial3D):
+				continue
+			var gray := StandardMaterial3D.new()
+			gray.albedo_color = Color(0.45, 0.45, 0.50, 1.0)
+			mesh.set_surface_override_material(i, gray)
 	_petrified_mats[unit] = saved
 
 func _restore_stone_tint(unit: BattleUnit, ch: Node3D) -> void:
@@ -1200,6 +1343,7 @@ func _process_row_heal_queue() -> void:
 				var text := "+%d" % amount if amount > 0 else "MAX"
 				_spawn_floating_label(ch.global_position, text, heal_label_color)
 				_do_flash(ch, heal_flash_color, heal_flash_duration)
+				AudioManager.play_se(AudioManager.SE_HEAL_ROW)
 			await get_tree().create_timer(heal_row_stagger).timeout
 		if not _row_heal_queue.is_empty():
 			await get_tree().create_timer(heal_batch_gap).timeout

@@ -23,7 +23,7 @@ signal unit_action_anim_done            # シーンがユニット行動アニ�
 signal phase_started(phase: StringName)
 
 const TURN_LIMIT    = 100
-const SUPPORT_DELAY   : float = 1.0   # 補助演出→攻撃の間隔
+@export var support_delay: float = 1.0   # 補助演出→攻撃の間隔
 
 var player_grid: RotationGrid
 var enemy_grid: RotationGrid
@@ -136,7 +136,7 @@ func _execute_player_action(attacker: BattleUnit) -> void:
 	var is_row_attack := false
 	if mid:
 		attack_support_used.emit(mid, attacker)
-		await get_tree().create_timer(SUPPORT_DELAY).timeout
+		await get_tree().create_timer(support_delay).timeout
 		bonus         = mid.atk_bonus
 		is_row_attack = mid.atk_bonus_is_row
 		mid.atk_support_used = true
@@ -188,7 +188,7 @@ func _execute_enemy_action(attacker: BattleUnit) -> void:
 			eff_atk = ceili(float(eff_atk) * _ed.initial_attack_mult)
 		attacker.first_attack_active = false
 		enemy_first_attack_activated.emit(attacker)
-		await get_tree().create_timer(SUPPORT_DELAY).timeout
+		await get_tree().create_timer(support_delay).timeout
 
 	match action:
 		EnemyData.ActionType.DOUBLE, EnemyData.ActionType.TRIPLE, EnemyData.ActionType.QUAD:
@@ -218,7 +218,7 @@ func _execute_enemy_action(attacker: BattleUnit) -> void:
 					mid.def_support_used = true
 					row_had_support = true
 			if row_had_support:
-				await get_tree().create_timer(SUPPORT_DELAY).timeout
+				await get_tree().create_timer(support_delay).timeout
 			var any_emitted: bool = false
 			for target: BattleUnit in row_targets:
 				if is_over: break
@@ -292,14 +292,14 @@ func _do_single_hit(attacker: BattleUnit, target: BattleUnit, base_atk: int,
 			defense_support_used.emit(mid, target)
 			def_support = mid.def_bonus
 			mid.def_support_used = true
-			await get_tree().create_timer(SUPPORT_DELAY).timeout
+			await get_tree().create_timer(support_delay).timeout
 	elif attacker.side == BattleUnit.Side.PLAYER and target.side == BattleUnit.Side.ENEMY and target.shield_active:
 		var _ed := target.source_data as EnemyData
 		if _ed:
 			def_support = _ed.initial_defense
 		target.shield_active = false
 		enemy_shield_activated.emit(target)
-		await get_tree().create_timer(SUPPORT_DELAY).timeout
+		await get_tree().create_timer(support_delay).timeout
 
 	var actual := BattleMath.calc_actual_damage(raw, def_support)
 

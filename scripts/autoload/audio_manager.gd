@@ -4,7 +4,28 @@ const BGM_BATTLE12 := "res://assets/audio/bgm_battle12.ogg"
 const BGM_BATTLE3  := "res://assets/audio/bgm_menu.ogg"
 const BGM_MENU     := "res://assets/audio/bgm_battle3.mp3"
 
-@export var volume_db: float = 0.0
+const SE_START         := "res://assets/audio/se_start.ogg"
+const SE_DECIDE        := "res://assets/audio/se_decide.ogg"
+const SE_CURSOR        := "res://assets/audio/se_cursor.ogg"
+const SE_CANCEL        := "res://assets/audio/se_cancel.ogg"
+const SE_SLASH         := "res://assets/audio/se_slash.ogg"
+const SE_PUNCH         := "res://assets/audio/se_punch.ogg"
+const SE_MAGIC         := "res://assets/audio/se_magic.ogg"
+const SE_ARROW         := "res://assets/audio/se_arrow.ogg"
+const SE_ENEMY_HIT     := "res://assets/audio/se_enemy_hit.ogg"
+const SE_ENEMY_ROW     := "res://assets/audio/se_enemy_row.ogg"
+const SE_HEAL_SELF     := "res://assets/audio/se_heal_self.ogg"
+const SE_HEAL_ROW      := "res://assets/audio/se_heal_row.ogg"
+const SE_PETRIFY       := "res://assets/audio/se_petrify.ogg"
+const SE_STONE_CLEAR   := "res://assets/audio/se_stone_clear.ogg"
+const SE_CRITICAL      := "res://assets/audio/se_critical.ogg"
+const SE_DIE           := "res://assets/audio/se_die.ogg"
+const SE_ROTATE_SELECT := "res://assets/audio/se_rotate_select.ogg"
+const SE_ROTATE_STEP   := "res://assets/audio/se_rotate_step.ogg"
+const SE_SUPPORT       := "res://assets/audio/se_support.ogg"
+const SE_SHIELD        := "res://assets/audio/se_shield.ogg"
+
+@export var volume_db: float = -5.0
 
 var _player: AudioStreamPlayer
 
@@ -25,3 +46,15 @@ func play_bgm(path: String) -> void:
 
 func stop_bgm() -> void:
 	_player.stop()
+
+func play_se(path: String, extra_db: float = 0.0) -> void:
+	var p := AudioStreamPlayer.new()
+	p.volume_db = extra_db
+	add_child(p)
+	var stream: AudioStream = load(path)
+	if not stream:
+		p.queue_free()
+		return
+	p.stream = stream
+	p.play()
+	p.finished.connect(p.queue_free)

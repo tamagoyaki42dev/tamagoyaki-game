@@ -97,6 +97,7 @@ func _build_controls() -> void:
 	info_btn.position = Vector2(GRID_X, cy)
 	info_btn.size = Vector2(140.0, 42.0)
 	info_btn.pressed.connect(func():
+		AudioManager.play_se(AudioManager.SE_CANCEL)
 		get_tree().change_scene_to_file("res://scenes/enemy_info.tscn"))
 	_style_button(info_btn, Color(0.40, 0.50, 0.70))
 	_root.add_child(info_btn)
@@ -310,6 +311,7 @@ func _support_str(cd: CharacterData) -> String:
 # ══════════════════════════════════ クリック処理 ══════════════════════════════
 
 func _on_grid_clicked(pos: Vector2i) -> void:
+	AudioManager.play_se(AudioManager.SE_DECIDE)
 	var cd := GameState.get_at(pos)
 	if _selected == null:
 		_selected = cd
@@ -327,6 +329,7 @@ func _on_grid_clicked(pos: Vector2i) -> void:
 	_refresh()
 
 func _on_bench_clicked(cd: CharacterData) -> void:
+	AudioManager.play_se(AudioManager.SE_DECIDE)
 	if _selected == null:
 		_selected = cd
 	elif _selected == cd:
@@ -350,6 +353,7 @@ func _selected_grid_pos() -> Vector2i:
 func _on_start_pressed() -> void:
 	if GameState.formation.is_empty():
 		return
+	AudioManager.play_se(AudioManager.SE_START)
 	get_tree().change_scene_to_file("res://scenes/battle.tscn")
 
 # ══════════════════════════════════ 3Dプレビュー ══════════════════════════════
@@ -475,6 +479,7 @@ func _style_button(btn: Button, border_col: Color) -> void:
 	btn.add_theme_color_override("font_hover_color",    Color.WHITE)
 	btn.add_theme_color_override("font_pressed_color",  Color.WHITE)
 	btn.add_theme_color_override("font_disabled_color", Color(0.35, 0.35, 0.40))
+	btn.mouse_entered.connect(func() -> void: AudioManager.play_se(AudioManager.SE_CURSOR))
 
 func _crect(parent: Node, pos: Vector2, size: Vector2, color: Color) -> ColorRect:
 	var r := ColorRect.new()

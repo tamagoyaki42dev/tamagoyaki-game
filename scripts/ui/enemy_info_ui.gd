@@ -47,6 +47,7 @@ func _build_formation_button() -> void:
 	btn.size = Vector2(190.0, 42.0)
 	btn.add_theme_font_size_override("font_size", 16)
 	btn.pressed.connect(func():
+		AudioManager.play_se(AudioManager.SE_CANCEL)
 		get_tree().change_scene_to_file("res://scenes/formation.tscn"))
 	_style_button(btn, Color(1.0, 0.55, 0.10))
 	_root.add_child(btn)
@@ -204,3 +205,4 @@ func _style_button(btn: Button, border_col: Color) -> void:
 	btn.add_theme_color_override("font_hover_color",    Color.WHITE)
 	btn.add_theme_color_override("font_pressed_color",  Color.WHITE)
 	btn.add_theme_color_override("font_disabled_color", Color(0.35, 0.35, 0.40))
+	btn.mouse_entered.connect(func() -> void: AudioManager.play_se(AudioManager.SE_CURSOR))
