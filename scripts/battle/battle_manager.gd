@@ -69,7 +69,7 @@ func advance_turn(do_rotate: bool = false) -> void:
 			if _ed:
 				if _ed.initial_defense > 0:
 					unit.shield_active = true
-				if _ed.initial_attack_mult > 1.0:
+				if _ed.initial_attack_bonus > 0:
 					unit.first_attack_active = true
 		rotated.emit()
 		await rotate_anim_done
@@ -184,8 +184,8 @@ func _execute_enemy_action(attacker: BattleUnit) -> void:
 	# 初回攻撃ボーナス（ローテーションで復活・最初の攻撃アクションのみ適用）
 	if attacker.first_attack_active:
 		var _ed := attacker.source_data as EnemyData
-		if _ed and _ed.initial_attack_mult > 1.0:
-			eff_atk = ceili(float(eff_atk) * _ed.initial_attack_mult)
+		if _ed and _ed.initial_attack_bonus > 0:
+			eff_atk += _ed.initial_attack_bonus
 		attacker.first_attack_active = false
 		enemy_first_attack_activated.emit(attacker)
 		await get_tree().create_timer(support_delay).timeout

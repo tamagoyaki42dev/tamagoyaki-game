@@ -66,7 +66,7 @@ static func from_enemy(data: EnemyData, row: int = 0, col: int = 0) -> BattleUni
 	unit.self_regen  = data.self_regen
 	unit.crit_rate           = 0.0  # 敵はクリティカルなし
 	unit.shield_active       = data.initial_defense > 0
-	unit.first_attack_active = data.initial_attack_mult > 1.0
+	unit.first_attack_active = data.initial_attack_bonus > 0
 	unit.source_data         = data
 	return unit
 

@@ -12,10 +12,9 @@ glow_bloom = 0.2
 adjustment_enabled = true
 adjustment_saturation = 0.45
 
-
 [node name="BattleScene" type="Node" unique_id=1899993504]
 script = ExtResource("1_bscn")
-camera_target = Vector3(-1, 0, 0)
+camera_target = Vector3(-1, 0, 2)
 player_char_scale = Vector3(2, 2, 2)
 enemy_char_scale = Vector3(4, 4, 4)
 spark_color = Color(1, 0.15686275, 0, 1)
@@ -28,6 +27,7 @@ shake_intensity = 0.07
 [node name="World" type="Node3D" parent="." unique_id=675163681]
 
 [node name="Camera3D" type="Camera3D" parent="World" unique_id=1717128047]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.618886, 0, 7.845063)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="World" unique_id=240829725]
 environment = SubResource("Environment_glow")
@@ -37,7 +37,7 @@ light_energy = 0.5
 shadow_enabled = true
 
 [node name="PlayerGrid" type="Node3D" parent="World" unique_id=793369952]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.0519953, 0, 9)
 
 [node name="Slot_r0_c0" type="Marker3D" parent="World/PlayerGrid" unique_id=1113474702]
 
@@ -83,7 +83,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.82355595, 0, 0.48530388)
 [node name="Characters" type="Node3D" parent="World" unique_id=1604422702]
 
 [node name="Background" type="Node3D" parent="World" unique_id=200000001]
-
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=819628350]
 

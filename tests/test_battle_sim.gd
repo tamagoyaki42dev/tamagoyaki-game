@@ -44,14 +44,17 @@ func _make_char(job: CharacterJob.Type) -> CharacterData:
 	return data
 
 func _make_enemy(hp: int, atk: int, spd: int, regen: int,
-				 thought: EnemyData.ThoughtType, cycle: Array[int]) -> EnemyData:
+				 thought: EnemyData.ThoughtType, cycle: Array[int],
+				 initial_def: int = 0, initial_atk_bonus: int = 0) -> EnemyData:
 	var ed := EnemyData.new()
-	ed.hp_max       = hp
-	ed.attack       = atk
-	ed.speed        = spd
-	ed.self_regen   = regen
-	ed.thought_type = thought
-	ed.action_cycle = cycle
+	ed.hp_max               = hp
+	ed.attack               = atk
+	ed.speed                = spd
+	ed.self_regen           = regen
+	ed.thought_type         = thought
+	ed.action_cycle         = cycle
+	ed.initial_defense      = initial_def
+	ed.initial_attack_bonus = initial_atk_bonus
 	return ed
 
 # formation: Array of [CharacterJob.Type, row, col]
@@ -196,18 +199,21 @@ func test_balance_check() -> void:
 	# ── 敵データ（proto1_3battle_design.md §2 確定値） ──
 	var b1_enemy := _make_enemy(360, 13, 10, 0,
 		EnemyData.ThoughtType.RANDOM,
-		[EnemyData.ActionType.NORMAL] as Array[int])
+		[EnemyData.ActionType.NORMAL] as Array[int],
+		5, 0)
 
 	var b2_enemy := _make_enemy(110, 8, 5, 55,
 		EnemyData.ThoughtType.STRONG_TARGET,
-		[EnemyData.ActionType.NORMAL] as Array[int])
+		[EnemyData.ActionType.NORMAL] as Array[int],
+		8, 4)
 
 	var b3_enemy := _make_enemy(180, 16, 14, 6,
 		EnemyData.ThoughtType.SUPPORT_TARGET,
 		[EnemyData.ActionType.CHARGE,
 		 EnemyData.ActionType.NORMAL,
 		 EnemyData.ActionType.NORMAL,
-		 EnemyData.ActionType.NORMAL] as Array[int])
+		 EnemyData.ActionType.NORMAL] as Array[int],
+		10, 5)
 
 	# ── 編成テーブル（§5.3） ──
 	# B1: (r0c0)戦士 (r0c1)弓 (r0c2)幻 | (r1c0)魔女 (r1c1)神官 | (r2c0)僧侶 (r2c1)騎士

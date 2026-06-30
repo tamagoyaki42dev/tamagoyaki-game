@@ -111,11 +111,14 @@
 
 EnemyData を3体構築。ランダム生成ロジックはプロト2用に残す（本戦では未使用）。
 
-| 戦 | HP | ATK | SPD | 自己回復 | ステータスタイプ | 思考(thought) | 行動サイクル(action_cycle) |
-|---|---|---|---|---|---|---|---|
-| 1 | **360** | 13 | 10 | 0 | バランス | RANDOM（きまぐれ） | [NORMAL] |
-| 2 | 110 | 8 | 5 | **55** | タンク | STRONG_TARGET（強者狙い） | [NORMAL] |
-| 3 | 180 | 16 | 14 | 6 | 強化バランス | SUPPORT_TARGET（補助狙い） | [CHARGE, NORMAL, NORMAL, NORMAL] |
+| 戦 | HP | ATK | SPD | 自己回復 | initial_defense | initial_attack_bonus | ステータスタイプ | 思考(thought) | 行動サイクル(action_cycle) |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | **360** | 13 | 10 | 0 | 5 | **0** | バランス | RANDOM（きまぐれ） | [NORMAL] |
+| 2 | 110 | 8 | 5 | **55** | 8 | 4 | タンク | STRONG_TARGET（強者狙い） | [NORMAL] |
+| 3 | 180 | 16 | 14 | 6 | 10 | 5 | 強化バランス | SUPPORT_TARGET（補助狙い） | [CHARGE, NORMAL, NORMAL, NORMAL] |
+
+- **initial_defense**：ローテーションのたびに復活する初回防御値（敵への最初の攻撃ダメージを軽減）
+- **initial_attack_bonus**：ローテーションのたびに復活する初回攻撃ボーナス（加算）。溜め攻撃にも乗る。B1は0（ボーナスなし）＝ROTATE戦略への過剰ペナルティを避けるため
 
 想定ターン：1戦目 ~7／2戦目 ~4（正しく組めば）／3戦目 ~9。
 
