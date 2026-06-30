@@ -117,7 +117,7 @@ func _build_stats() -> void:
 	_lbl(_root, "── ステータス", Vector2(lx, y), 18, Color(0.50, 0.60, 0.80))
 	y += 32.0
 
-	var atk_mult_text := ("× %.1f" % ed.initial_attack_mult) if ed.initial_attack_mult > 1.0 else "―"
+	var atk_mult_text := ("+ %d" % ed.initial_attack_bonus) if ed.initial_attack_bonus > 0 else "―"
 	var stats: Array = [
 		["HP",      str(ed.hp_max)],
 		["ATK",     str(ed.attack)],
