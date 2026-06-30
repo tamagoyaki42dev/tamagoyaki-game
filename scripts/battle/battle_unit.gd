@@ -12,7 +12,6 @@ var attack: int = 0
 var speed: int = 0
 var indirect_attack: int = 0   # 間接攻撃力（アーチャー・ヴァルキリーのみ）
 var atk_bonus: int = 0         # 攻撃補助力
-var atk_bonus_is_row: bool = false  # true = 攻補(列)タイプ
 var def_bonus: int = 0         # 防御補助力
 var self_regen: int = 0        # 自回復
 var row_regen: int = 0         # 列回復
@@ -43,7 +42,6 @@ static func from_character(data: CharacterData, col: int = 0) -> BattleUnit:
 	unit.speed            = data.speed
 	unit.indirect_attack  = data.indirect_attack
 	unit.atk_bonus        = data.atk_bonus
-	unit.atk_bonus_is_row = data.atk_bonus_is_row
 	unit.def_bonus        = data.def_bonus
 	unit.self_regen       = data.self_regen
 	unit.row_regen        = data.row_regen

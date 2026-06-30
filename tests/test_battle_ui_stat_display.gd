@@ -38,20 +38,11 @@ func test_atk_text_multi_hit_and_stone() -> void:
 
 # ── 持ちステータス書式 ──
 
-func test_stat_items_atk_bonus_not_row() -> void:
+func test_stat_items_atk_bonus() -> void:
 	var unit := BattleUnit.new()
 	unit.atk_bonus = 3
-	unit.atk_bonus_is_row = false
 	var text: String = BattleUI._build_stat_items_text(unit)
-	assert_true(text.contains("攻補 3"), "攻補 N を含む（非列タイプ）")
-	assert_false(text.contains("攻補列"), "攻補列 は含まない")
-
-func test_stat_items_atk_bonus_row() -> void:
-	var unit := BattleUnit.new()
-	unit.atk_bonus = 5
-	unit.atk_bonus_is_row = true
-	var text: String = BattleUI._build_stat_items_text(unit)
-	assert_true(text.contains("攻補列 5"), "攻補列 N を含む（列タイプ）")
+	assert_true(text.contains("攻補 3"), "攻補 N を含む")
 
 func test_stat_items_indirect_shown() -> void:
 	var unit := BattleUnit.new()

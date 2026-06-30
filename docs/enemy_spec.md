@@ -147,15 +147,15 @@ EnemyData には以下のビジュアル関連フィールドがある。省略�
 | フィールド | 型 | 効果 |
 |---|---|---|
 | `initial_defense` | int | 被弾1撃目だけ減算される防御値。ローテーションで復活 |
-| `initial_attack_mult` | float | 攻撃アクション1回目のみ eff_atk に乗ずる倍率（1.0 = 無効）。ローテーションで復活 |
+| `initial_attack_bonus` | int | 攻撃アクション1回目のみ eff_atk に加算されるボーナス（0 = 無効）。ローテーションで復活 |
 
 ### proto1 設定値
 
-| 敵 | initial_defense | initial_attack_mult |
+| 敵 | initial_defense | initial_attack_bonus |
 |---|---|---|
-| マッシュナブ | 5 | 1.5 |
-| トライバル | 8 | 1.5 |
-| ドラゴン | 10 | 1.5 |
+| マッシュナブ | 5 | 0 |
+| トライバル | 8 | 4 |
+| ドラゴン | 10 | 5 |
 
 ## 未決定事項
 

@@ -133,38 +133,16 @@ func _execute_player_action(attacker: BattleUnit) -> void:
 	# 攻撃補助チェック
 	var mid := player_grid.get_unused_atk_supporter_at_col(attacker.col)
 	var bonus := 0
-	var is_row_attack := false
 	if mid:
 		attack_support_used.emit(mid, attacker)
 		await get_tree().create_timer(support_delay).timeout
-		bonus         = mid.atk_bonus
-		is_row_attack = mid.atk_bonus_is_row
+		bonus = mid.atk_bonus
 		mid.atk_support_used = true
 	var base_atk := attacker.attack + bonus
 
-	if is_row_attack:
-		# 攻補(列): 前列の攻撃が全敵を対象に。ダメージは敵数で除算
-		var enemies := _get_opp_front(enemy_grid)
-		if enemies.is_empty():
-			return
-		var per_atk := ceili(float(base_atk) / float(enemies.size()))
-		var had_charge := attacker.charge_excess >= 2 * attacker.hp_max
-		var any_emitted: bool = false
-		for i in attacker.attack_hits:
-			for target in enemies.duplicate():
-				if is_over or not target.is_alive:
-					continue
-				var emitted: bool = await _do_single_hit(attacker, target, per_atk, i == 0,
-					attacker.is_stone_attack, false, had_charge and i == 0)
-				any_emitted = any_emitted or emitted
-		if had_charge:
-			attacker.charge_excess = 0
-		if any_emitted:
-			await unit_action_anim_done
-	else:
-		var target := _pick_target(attacker)
-		if target:
-			await _do_hits(attacker, target, base_atk, attacker.attack_hits, attacker.is_stone_attack, false)
+	var target := _pick_target(attacker)
+	if target:
+		await _do_hits(attacker, target, base_atk, attacker.attack_hits, attacker.is_stone_attack, false)
 
 # ──────────────────── 敵行動 ────────────────────
 

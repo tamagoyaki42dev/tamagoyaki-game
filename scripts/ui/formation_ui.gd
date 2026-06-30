@@ -264,7 +264,7 @@ func _build_detail_content() -> void:
 	if cd.indirect_attack > 0:
 		rows.append(["間接攻撃", str(cd.indirect_attack)])
 	if cd.atk_bonus > 0:
-		rows.append(["攻補(%s)" % ("列" if cd.atk_bonus_is_row else "縦"), str(cd.atk_bonus)])
+		rows.append(["攻補", str(cd.atk_bonus)])
 	if cd.def_bonus > 0:
 		rows.append(["防御補助", str(cd.def_bonus)])
 	if cd.self_regen > 0:
@@ -299,7 +299,7 @@ func _build_detail_content() -> void:
 func _support_str(cd: CharacterData) -> String:
 	var parts: Array[String] = []
 	if cd.atk_bonus > 0:
-		parts.append("攻%d%s" % [cd.atk_bonus, "(列)" if cd.atk_bonus_is_row else ""])
+		parts.append("攻%d" % cd.atk_bonus)
 	if cd.def_bonus > 0:
 		parts.append("防%d" % cd.def_bonus)
 	if cd.self_regen > 0:

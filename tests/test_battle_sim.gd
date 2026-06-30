@@ -7,23 +7,23 @@ const K := 100
 
 # ──────── CharacterData ベース値（character_data.gd の BASE dict と同値・個体差なし） ────────
 const CHAR_BASE: Dictionary = {
-	0:  [35, 20, 15,  0,  0, false,  0,  0,  0],  # WARRIOR
-	1:  [30, 12,  8,  0,  0, false, 12,  8,  0],  # KNIGHT
-	2:  [28, 22,  5,  0, 12,  true,  0,  0,  0],  # GLADIATOR
-	3:  [22, 18, 22,  0,  0, false,  0,  6,  0],  # ILLUSIONIST
-	4:  [26, 12, 10,  0,  8,  true,  8,  6,  0],  # ADVENTURER
-	5:  [32, 10,  8,  0, 10,  true,  0,  0, 12],  # MONK
-	6:  [18,  8,  6,  0,  0, false, 20,  0, 15],  # CLERIC
-	7:  [20,  8,  5,  0, 20, false,  0,  0, 10],  # MAGE
-	8:  [22, 10, 16,  0, 14, false, 12,  0,  0],  # WITCH
-	9:  [24, 16, 12, 12,  0, false,  0,  0,  0],  # ARCHER
-	10: [18, 12, 18, 15,  0, false,  0,  8,  0],  # VALKYRIE
-	11: [24, 14,  5,  0,  0, false, 10,  8,  0],  # SHAMAN
-	12: [20,  6, 18,  0,  0, false,  0,  0, 14],  # SHRINE_MAIDEN
-	13: [28, 24, 28,  0,  0, false,  0,  0,  0],  # SAMURAI
-	14: [32, 18, 22,  0,  0, false,  0, 10,  0],  # NINJA
-	15: [40, 22, 12,  0,  0, false,  6,  0, 10],  # DARK_KNIGHT
-	16: [28, 10, 10,  0, 22,  true, 18,  0, 18],  # HOLY_KNIGHT
+	0:  [35, 20, 15,  0,  0,  0,  0,  0],  # WARRIOR
+	1:  [30, 12,  8,  0,  0, 12,  8,  0],  # KNIGHT
+	2:  [28, 22,  5,  0, 12,  0,  0,  0],  # GLADIATOR
+	3:  [22, 18, 22,  0,  0,  0,  6,  0],  # ILLUSIONIST
+	4:  [26, 12, 10,  0,  8,  8,  6,  0],  # ADVENTURER
+	5:  [32, 10,  8,  0, 10,  0,  0, 12],  # MONK
+	6:  [18,  8,  6,  0,  0, 20,  0, 15],  # CLERIC
+	7:  [20,  8,  5,  0, 20,  0,  0, 10],  # MAGE
+	8:  [22, 10, 16,  0, 14, 12,  0,  0],  # WITCH
+	9:  [24, 16, 12, 12,  0,  0,  0,  0],  # ARCHER
+	10: [18, 12, 18, 15,  0,  0,  8,  0],  # VALKYRIE
+	11: [24, 14,  5,  0,  0, 10,  8,  0],  # SHAMAN
+	12: [20,  6, 18,  0,  0,  0,  0, 14],  # SHRINE_MAIDEN
+	13: [28, 24, 28,  0,  0,  0,  0,  0],  # SAMURAI
+	14: [32, 18, 22,  0,  0,  0, 10,  0],  # NINJA
+	15: [40, 22, 12,  0,  0,  6,  0, 10],  # DARK_KNIGHT
+	16: [28, 10, 10,  0, 22, 18,  0, 18],  # HOLY_KNIGHT
 }
 
 # ──────── ヘルパー ────────
@@ -37,10 +37,9 @@ func _make_char(job: CharacterJob.Type) -> CharacterData:
 	data.speed            = b[2]
 	data.indirect_attack  = b[3]
 	data.atk_bonus        = b[4]
-	data.atk_bonus_is_row = b[5]
-	data.def_bonus        = b[6]
-	data.self_regen       = b[7]
-	data.row_regen        = b[8]
+	data.def_bonus        = b[5]
+	data.self_regen       = b[6]
+	data.row_regen        = b[7]
 	return data
 
 func _make_enemy(hp: int, atk: int, spd: int, regen: int,

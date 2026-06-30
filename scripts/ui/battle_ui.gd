@@ -383,10 +383,7 @@ static func _build_stat_items_text(unit: BattleUnit) -> String:
 	if unit.indirect_attack > 0:
 		parts.append("間 %d" % unit.indirect_attack)
 	if unit.atk_bonus > 0:
-		if unit.atk_bonus_is_row:
-			parts.append("攻補列 %d" % unit.atk_bonus)
-		else:
-			parts.append("攻補 %d" % unit.atk_bonus)
+		parts.append("攻補 %d" % unit.atk_bonus)
 	if unit.def_bonus > 0:
 		parts.append("防補 %d" % unit.def_bonus)
 	if unit.self_regen > 0:
