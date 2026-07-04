@@ -81,7 +81,8 @@ func advance_turn(do_rotate: bool = false) -> void:
 	if turn_number > 1:
 		phase_started.emit(&"recovery")
 		_apply_self_healing(player_grid)
-		_apply_enemy_healing()
+		if do_rotate:
+			_apply_enemy_healing()
 		await self_heal_anim_done
 		await _apply_row_healing(player_grid)  # 内部で row_heal_anim_done を await
 	var timeline := build_timeline()
@@ -399,8 +400,11 @@ func _pick_target(attacker: BattleUnit) -> BattleUnit:
 		EnemyData.ThoughtType.WEAK_TARGET:
 			candidates.sort_custom(func(a: BattleUnit, b: BattleUnit) -> bool: return a.hp < b.hp)
 			return candidates[0]
-		EnemyData.ThoughtType.STRONG_TARGET:
+		EnemyData.ThoughtType.HIGH_HP_TARGET:
 			candidates.sort_custom(func(a: BattleUnit, b: BattleUnit) -> bool: return a.hp > b.hp)
+			return candidates[0]
+		EnemyData.ThoughtType.HIGH_ATK_TARGET:
+			candidates.sort_custom(func(a: BattleUnit, b: BattleUnit) -> bool: return a.attack > b.attack)
 			return candidates[0]
 		EnemyData.ThoughtType.CENTER_TARGET:
 			var center := candidates.filter(func(u: BattleUnit) -> bool: return u.col == 1 or u.col == 2)

@@ -22,10 +22,15 @@ func test_format_thought_random() -> void:
 	ed.thought_type = EnemyData.ThoughtType.RANDOM
 	assert_true(ed.format_thought_type().begins_with("きまぐれ"))
 
-func test_format_thought_strong_target() -> void:
+func test_format_thought_high_hp_target() -> void:
 	var ed := EnemyData.new()
-	ed.thought_type = EnemyData.ThoughtType.STRONG_TARGET
-	assert_true(ed.format_thought_type().begins_with("強者狙い"))
+	ed.thought_type = EnemyData.ThoughtType.HIGH_HP_TARGET
+	assert_true(ed.format_thought_type().begins_with("高HP狙い"))
+
+func test_format_thought_high_atk_target() -> void:
+	var ed := EnemyData.new()
+	ed.thought_type = EnemyData.ThoughtType.HIGH_ATK_TARGET
+	assert_true(ed.format_thought_type().begins_with("高攻撃力狙い"))
 
 func test_format_thought_support_target() -> void:
 	var ed := EnemyData.new()

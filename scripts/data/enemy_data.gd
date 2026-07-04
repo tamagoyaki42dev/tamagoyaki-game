@@ -12,12 +12,13 @@ enum StatType {
 enum ThoughtType {
 	RANDOM,
 	WEAK_TARGET,
-	STRONG_TARGET,
+	HIGH_HP_TARGET,   # 旧STRONG_TARGET。現在HPが最も高い相手を狙う（タフい前衛から崩す）
 	CENTER_TARGET,
 	SUPPORT_TARGET,
 	DYING_TARGET,
 	FEMALE_TARGET,
 	MALE_TARGET,
+	HIGH_ATK_TARGET,  # 攻撃力が最も高い相手を狙う（末尾に追加・既存の並び順を崩さない）
 }
 
 enum ActionType {
@@ -86,7 +87,8 @@ static func format_action_cycle(cycle: Array[int]) -> String:
 
 func format_thought_type() -> String:
 	match thought_type:
-		ThoughtType.RANDOM:         return "きまぐれ（ランダムに攻撃対象を選ぶ）"
-		ThoughtType.STRONG_TARGET:  return "強者狙い（最も攻撃力の高い相手を狙う）"
-		ThoughtType.SUPPORT_TARGET: return "補助狙い（補助・回復役を集中攻撃する）"
-		_:                          return "不明"
+		ThoughtType.RANDOM:          return "きまぐれ（ランダムに攻撃対象を選ぶ）"
+		ThoughtType.HIGH_HP_TARGET:  return "高HP狙い（現在HPが最も高い相手を狙う）"
+		ThoughtType.HIGH_ATK_TARGET: return "高攻撃力狙い（攻撃力が最も高い相手を狙う）"
+		ThoughtType.SUPPORT_TARGET:  return "補助狙い（補助・回復役を集中攻撃する）"
+		_:                           return "不明"

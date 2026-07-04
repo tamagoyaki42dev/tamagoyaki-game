@@ -153,7 +153,7 @@ func _build_stats() -> void:
 	_lbl(_root, "── 特記事項", Vector2(lx, y), 18, Color(0.50, 0.60, 0.80))
 	y += 32.0
 	var notes_text := ed.notes if not ed.notes.is_empty() else "―"
-	_lbl(_root, notes_text, Vector2(lx, y), 20)
+	_lbl(_root, notes_text, Vector2(lx, y), 20, Color.WHITE, SW - lx - 40.0)
 
 func _get_enemy_data() -> EnemyData:
 	var enemies := GameState.get_battle_enemy()
@@ -172,8 +172,12 @@ func _crect(parent: Node, pos: Vector2, size: Vector2, color: Color) -> ColorRec
 	return r
 
 func _lbl(parent: Node, text: String, pos: Vector2, font_size: int = 16,
-		color: Color = Color.WHITE) -> Label:
+		color: Color = Color.WHITE, wrap_width: float = 0.0) -> Label:
 	var l := Label.new()
+	if wrap_width > 0.0:
+		l.custom_minimum_size.x = wrap_width
+		l.size.x = wrap_width
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.text = text
 	l.position = pos
 	if _font:
