@@ -317,6 +317,23 @@ void fragment() {
 }
 """
 
+const _HP_BAR_BG_CODE := """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_test_disabled;
+uniform vec4 bg_color : source_color = vec4(0.1, 0.1, 0.1, 0.8);
+void vertex() {
+	mat4 mv = VIEW_MATRIX * MODEL_MATRIX;
+	mv[0] = vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0);
+	mv[1] = vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0);
+	mv[2] = vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0);
+	POSITION = PROJECTION_MATRIX * mv * vec4(VERTEX, 1.0);
+}
+void fragment() {
+	ALBEDO = bg_color.rgb;
+	ALPHA = bg_color.a;
+}
+"""
+
 const _SPARK_CODE := """
 shader_type spatial;
 render_mode unshaded, blend_add, cull_disabled;
@@ -373,6 +390,7 @@ void fragment() {
 
 var _flash_shader: Shader
 var _hp_bar_shader: Shader
+var _hp_bar_bg_shader: Shader
 var _spark_shader_mat: ShaderMaterial
 var _spark_mesh: QuadMesh
 var _clay_shader: Shader
@@ -407,6 +425,8 @@ func _ready() -> void:
 	_flash_shader.code = _FLASH_CODE
 	_hp_bar_shader = Shader.new()
 	_hp_bar_shader.code = _HP_BAR_CODE
+	_hp_bar_bg_shader = Shader.new()
+	_hp_bar_bg_shader.code = _HP_BAR_BG_CODE
 	var spark_shader := Shader.new()
 	spark_shader.code = _SPARK_CODE
 	_spark_shader_mat = ShaderMaterial.new()
@@ -721,15 +741,16 @@ func _spawn_def_support_label(pos: Vector3) -> void:
 	_animate_floating_label(lbl, def_rise, def_duration)
 
 func _make_bg_bar() -> MeshInstance3D:
+	# fg（health_pct シェーダー）と同じ自前ビルボード計算のシェーダーを使う。
+	# 標準billboard_mode（Godot組込み）だとスケール反映の挙動がfgのシェーダーと食い違い、
+	# model_scaleを持つ敵（等身大以外）でbgがfgより短く見えるズレが出るため統一した。
 	var mi := MeshInstance3D.new()
 	var q := QuadMesh.new()
 	q.size = Vector2(hp_bar_width, hp_bar_height)
 	mi.mesh = q
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.1, 0.1, 0.1, 0.8)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.no_depth_test = true
+	var mat := ShaderMaterial.new()
+	mat.shader = _hp_bar_bg_shader
+	mat.set_shader_parameter("bg_color", Color(0.1, 0.1, 0.1, 0.8))
 	mat.render_priority = 1
 	mi.material_override = mat
 	return mi
