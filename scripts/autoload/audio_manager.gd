@@ -1,8 +1,8 @@
 extends Node
 
 const BGM_BATTLE12 := "res://assets/audio/bgm_battle12.ogg"
-const BGM_BATTLE3  := "res://assets/audio/bgm_menu.ogg"
-const BGM_MENU     := "res://assets/audio/bgm_battle3.mp3"
+const BGM_BATTLE3  := "res://assets/audio/bgm_battle3_dragon.ogg"
+const BGM_MENU     := "res://assets/audio/bgm_menu.mp3"
 
 const SE_START         := "res://assets/audio/se_start.ogg"
 const SE_DECIDE        := "res://assets/audio/se_decide.ogg"
@@ -27,13 +27,17 @@ const SE_SHIELD        := "res://assets/audio/se_shield.ogg"
 
 @export var volume_db: float = -5.0
 
+const _SETTINGS_PATH := "user://settings.cfg"
+
 var _player: AudioStreamPlayer
+var master_volume: float = 1.0
 
 func _ready() -> void:
 	_player = AudioStreamPlayer.new()
 	_player.volume_db = volume_db
 	add_child(_player)
 	_player.finished.connect(_player.play)
+	_load_settings()
 
 func play_bgm(path: String) -> void:
 	if _player.playing and _player.stream and _player.stream.resource_path == path:
@@ -58,3 +62,20 @@ func play_se(path: String, extra_db: float = 0.0) -> void:
 	p.stream = stream
 	p.play()
 	p.finished.connect(p.queue_free)
+
+func set_master_volume(v: float) -> void:
+	master_volume = clampf(v, 0.0, 1.0)
+	_apply_master_volume()
+	var cfg := ConfigFile.new()
+	cfg.set_value("audio", "master_volume", master_volume)
+	cfg.save(_SETTINGS_PATH)
+
+func _load_settings() -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(_SETTINGS_PATH) == OK:
+		master_volume = float(cfg.get_value("audio", "master_volume", 1.0))
+	_apply_master_volume()
+
+func _apply_master_volume() -> void:
+	var idx: int = AudioServer.get_bus_index("Master")
+	AudioServer.set_bus_volume_db(idx, linear_to_db(master_volume))

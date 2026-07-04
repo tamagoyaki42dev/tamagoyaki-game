@@ -3,12 +3,12 @@
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
 uid="uid://dsf3wq2a3mf2b"
-path="res://.godot/imported/bgm_menu.ogg-324432c9fc03dc060bbc17aa79e07c99.oggvorbisstr"
+path="res://.godot/imported/bgm_battle3_dragon.ogg-2c4eaa657f940f17d0e8f7c1702a0a11.oggvorbisstr"
 
 [deps]
 
-source_file="res://assets/audio/bgm_menu.ogg"
-dest_files=["res://.godot/imported/bgm_menu.ogg-324432c9fc03dc060bbc17aa79e07c99.oggvorbisstr"]
+source_file="res://assets/audio/bgm_battle3_dragon.ogg"
+dest_files=["res://.godot/imported/bgm_battle3_dragon.ogg-2c4eaa657f940f17d0e8f7c1702a0a11.oggvorbisstr"]
 
 [params]
 
