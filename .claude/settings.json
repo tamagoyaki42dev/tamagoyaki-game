@@ -72,7 +72,11 @@
       "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --path .)",
       "Bash(echo \"launched pid $!\")",
       "Bash(tasklist)",
-      "Bash(wmic process *)"
+      "Bash(wmic process *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d['hookSpecificOutput']['additionalContext']\\)\")",
+      "Bash(python -c \"import json,sys; c=json.load\\(sys.stdin\\)['hookSpecificOutput']['additionalContext']; print\\('behavior_detected:', 'ランダム性' in c or '生成' in c or 'export' in c\\)\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(python -c \"import json,sys; c=json.load\\(sys.stdin\\)['hookSpecificOutput']['additionalContext']; print\\('behavior_detected:', 'ランダム性' in c\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\djbsh\\Downloads\\extracted\\kenney_interface-sounds\\Audio"

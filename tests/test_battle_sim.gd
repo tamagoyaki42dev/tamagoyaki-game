@@ -8,6 +8,7 @@ const K := 100
 const ASSERT_BALANCE := true
 
 @export var verbose: bool = false
+var _variance: bool = false  # test_variance_impact 専用。true で個体差±20%切り上げを適用（character_data.gd と同式）
 
 # ──────── CharacterData ベース値（character_data.gd の BASE dict と同値・個体差なし） ────────
 const CHAR_BASE: Dictionary = {
@@ -36,14 +37,25 @@ func _make_char(job: CharacterJob.Type) -> CharacterData:
 	var b: Array = CHAR_BASE[int(job)]
 	var data := CharacterData.new()
 	data.job              = job
-	data.hp_max           = b[0]
-	data.attack           = b[1]
-	data.speed            = b[2]
-	data.indirect_attack  = b[3]
-	data.atk_bonus        = b[4]
-	data.def_bonus        = b[5]
-	data.self_regen       = b[6]
-	data.row_regen        = b[7]
+	if _variance:
+		# character_data.gd from_job と同式（±20%・切り上げ・最小1／0ステはそのまま）
+		data.hp_max          = maxi(1, ceili(b[0] * randf_range(0.8, 1.2)))
+		data.attack          = maxi(1, ceili(b[1] * randf_range(0.8, 1.2)))
+		data.speed           = maxi(1, ceili(b[2] * randf_range(0.8, 1.2)))
+		data.indirect_attack = maxi(0, ceili(b[3] * randf_range(0.8, 1.2))) if b[3] > 0 else 0
+		data.atk_bonus       = maxi(0, ceili(b[4] * randf_range(0.8, 1.2))) if b[4] > 0 else 0
+		data.def_bonus       = maxi(0, ceili(b[5] * randf_range(0.8, 1.2))) if b[5] > 0 else 0
+		data.self_regen      = maxi(0, ceili(b[6] * randf_range(0.8, 1.2))) if b[6] > 0 else 0
+		data.row_regen       = maxi(0, ceili(b[7] * randf_range(0.8, 1.2))) if b[7] > 0 else 0
+	else:
+		data.hp_max           = b[0]
+		data.attack           = b[1]
+		data.speed            = b[2]
+		data.indirect_attack  = b[3]
+		data.atk_bonus        = b[4]
+		data.def_bonus        = b[5]
+		data.self_regen       = b[6]
+		data.row_regen        = b[7]
 	return data
 
 func _make_enemy(hp: int, atk: int, spd: int, regen: int,
@@ -300,6 +312,48 @@ func _check_ok(label: String, win_rate: int) -> bool:
 	return true
 
 # ──────── テスト本体 ────────
+
+## 個体差（±20%切り上げ）が勝率にどれだけ影響するかを測る。assert なし・参考出力のみ。
+## 主要3シナリオ（B1-R / B2-S / B3-A）を「固定値 → 個体差あり」で各K回まわし勝率差を見る。
+func test_variance_impact() -> void:
+	var b1_enemy := _make_enemy(280, 14, 10, 0,
+		EnemyData.ThoughtType.RANDOM,
+		[EnemyData.ActionType.NORMAL, EnemyData.ActionType.NORMAL,
+		 EnemyData.ActionType.ROW, EnemyData.ActionType.NORMAL] as Array[int], 5, 0)
+	var b2_enemy := _make_enemy(350, 8, 5, 42,
+		EnemyData.ThoughtType.HIGH_HP_TARGET,
+		[EnemyData.ActionType.NORMAL, EnemyData.ActionType.DOUBLE,
+		 EnemyData.ActionType.NORMAL, EnemyData.ActionType.ABSORB] as Array[int], 8, 4)
+	var b3_enemy := _make_enemy(225, 11, 14, 6,
+		EnemyData.ThoughtType.SUPPORT_TARGET,
+		[EnemyData.ActionType.CHARGE, EnemyData.ActionType.NORMAL,
+		 EnemyData.ActionType.STONE, EnemyData.ActionType.ROW] as Array[int], 10, 0)
+	var b1_form: Array = [
+		[CharacterJob.Type.WARRIOR, 0, 0], [CharacterJob.Type.ARCHER, 0, 1],
+		[CharacterJob.Type.ILLUSIONIST, 0, 2], [CharacterJob.Type.WITCH, 1, 0],
+		[CharacterJob.Type.CLERIC, 1, 1], [CharacterJob.Type.MONK, 2, 0],
+		[CharacterJob.Type.KNIGHT, 2, 1]]
+	var b2_form: Array = [
+		[CharacterJob.Type.GLADIATOR, 0, 0], [CharacterJob.Type.SAMURAI, 0, 1],
+		[CharacterJob.Type.WARRIOR, 0, 2], [CharacterJob.Type.ADVENTURER, 1, 0],
+		[CharacterJob.Type.WITCH, 1, 1], [CharacterJob.Type.ARCHER, 2, 0],
+		[CharacterJob.Type.KNIGHT, 2, 2]]
+	var b3_form: Array = [
+		[CharacterJob.Type.WARRIOR, 0, 0], [CharacterJob.Type.SAMURAI, 0, 1],
+		[CharacterJob.Type.GLADIATOR, 0, 2], [CharacterJob.Type.CLERIC, 1, 0],
+		[CharacterJob.Type.WITCH, 1, 1], [CharacterJob.Type.KNIGHT, 1, 2],
+		[CharacterJob.Type.MONK, 2, 0]]
+
+	print("=== 個体差の影響測定（各K=%d・個体差なし→あり）===" % K)
+	_variance = false
+	await _run_scenario("B1-R 固定  ", b1_form, b1_enemy, "ROTATE",      "参考")
+	await _run_scenario("B2-S 固定  ", b2_form, b2_enemy, "STAY",        "参考")
+	await _run_scenario("B3-A 固定  ", b3_form, b3_enemy, "ADAPTIVE_B3", "参考")
+	_variance = true
+	await _run_scenario("B1-R 個体差", b1_form, b1_enemy, "ROTATE",      "参考")
+	await _run_scenario("B2-S 個体差", b2_form, b2_enemy, "STAY",        "参考")
+	await _run_scenario("B3-A 個体差", b3_form, b3_enemy, "ADAPTIVE_B3", "参考")
+	_variance = false
 
 func test_balance_check() -> void:
 	# ── 敵データ（proto1_3battle_design.md §2 確定値） ──

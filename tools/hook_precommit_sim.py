@@ -22,7 +22,7 @@ def main() -> int:
 
         result = subprocess.run(
             ["git", "diff", "--cached", "--name-only"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, encoding="utf-8", errors="replace", timeout=10,
         )
         staged = set(result.stdout.replace("\\", "/").splitlines())
         hit = [t for t in TARGET_FILES if t in staged]
