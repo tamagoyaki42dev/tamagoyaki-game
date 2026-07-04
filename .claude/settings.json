@@ -15,7 +15,67 @@
       "Bash(ls \"/c/Users/djbsh/.claude/projects/d--dev-tamagoyaki-game/memory/\")",
       "Read(//c/Users/djbsh/.claude/projects/d--dev-tamagoyaki-game/memory//**)",
       "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path \"d:/dev/tamagoyaki-game\" -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -gexit)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "WebSearch",
+      "Bash(cp \"/c/Users/djbsh/Downloads/Wild-West-Coast-Racing_9.ogg\" \"d:/dev/tamagoyaki-game/assets/audio/bgm_battle12.ogg\")",
+      "Bash(cp \"/c/Users/djbsh/Downloads/Our-Mountain_v003_Looping.mp3\" \"d:/dev/tamagoyaki-game/assets/audio/bgm_battle3.mp3\")",
+      "Bash(cp \"/c/Users/djbsh/Downloads/The-Voyage-Begins.ogg\" \"d:/dev/tamagoyaki-game/assets/audio/bgm_menu.ogg\")",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path /d/dev/tamagoyaki-game -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -gexit)",
+      "Bash(cp C:/Users/djbsh/Downloads/extracted/kenney_ui-audio/Audio/switch1.ogg d:/dev/tamagoyaki-game/assets/audio/se_start.ogg)",
+      "Bash(cp C:/Users/djbsh/Downloads/extracted/kenney_ui-audio/Audio/click1.ogg d:/dev/tamagoyaki-game/assets/audio/se_decide.ogg)",
+      "Bash(cp C:/Users/djbsh/Downloads/extracted/kenney_ui-audio/Audio/rollover1.ogg d:/dev/tamagoyaki-game/assets/audio/se_cursor.ogg)",
+      "Bash(cp C:/Users/djbsh/Downloads/extracted/kenney_ui-audio/Audio/click3.ogg d:/dev/tamagoyaki-game/assets/audio/se_cancel.ogg)",
+      "Bash(cp C:/Users/djbsh/Downloads/extracted/kenney_rpg-audio/Audio/knifeSlice.ogg d:/dev/tamagoyaki-game/assets/audio/se_slash.ogg)",
+      "Bash(cp C:/Users/djbsh/Downloads/extracted/kenney_interface-sounds/Audio/maximize_001.ogg d:/dev/tamagoyaki-game/assets/audio/se_heal_self.ogg)",
+      "Bash(cp C:/Users/djbsh/Downloads/extracted/kenney_interface-sounds/Audio/maximize_003.ogg d:/dev/tamagoyaki-game/assets/audio/se_heal_row.ogg)",
+      "Bash(cp \"C:/Users/djbsh/Downloads/extracted/kenney_interface-sounds/Audio/scratch_003.ogg\" \"d:/dev/tamagoyaki-game/assets/audio/se_arrow.ogg\")",
+      "Bash(\"C:/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path \"d:/dev/tamagoyaki-game\" -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -gtest=res://tests/test_battle_sim.gd -gexit)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -gtest=res://tests/test_battle_sim.gd -gexit)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -gexit)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/ -gexit -glog_level=5)",
+      "Bash(xargs wc -l)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_battle_sim.gd -gexit)",
+      "Bash(git commit *)",
+      "Bash(grep -v \"^[[:space:]]*[0-9]* total$\")",
+      "Edit(/.claude/skills/balance-verify/**)",
+      "Edit(/.claude/skills/audit/**)",
+      "Bash(python tools/session_start_hook.py)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); ctx=d['hookSpecificOutput']['additionalContext']; print\\('JSON OK / context length:', len\\(ctx\\)\\); print\\('--- head ---'\\); print\\(ctx[:200]\\); print\\('--- devlog marker ---'\\); print\\('devlog section found:', '# 最新devlog' in ctx\\)\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); ctx=d['hookSpecificOutput']['additionalContext']; print\\('JSON OK / context bytes:', len\\(ctx.encode\\('utf-8'\\)\\)\\); print\\('devlog section found:', '# 最新devlog' in ctx\\)\")",
+      "Bash(python -)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_battle_sim.gd -gexit --verbose)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --check-only --script d:/dev/tamagoyaki-game/scripts/ui/title_screen.gd)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --check-only --script d:/dev/tamagoyaki-game/scripts/autoload/audio_manager.gd)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --check-only --script d:/dev/tamagoyaki-game/scripts/ui/clear_ui.gd)",
+      "Read(//c/Users/djbsh/.claude/projects/d--dev-tamagoyaki-game/a1e8fdb0-0039-4753-a614-839efd2b565e/tasks/**)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gexit)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gh)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gselect=test_battle_sim -gexit)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gselect=test_game_state_loop -gexit)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(python tools/hook_design_guard.py)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(python tools/hook_precommit_sim.py)",
+      "Bash(git reset *)",
+      "Bash(python -c \"import json; json.load\\(open\\('.claude/settings.json', encoding='utf-8'\\)\\); print\\('valid JSON'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(git mv *)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --check-only --script d:/dev/tamagoyaki-game/scripts/battle/enemy_generator.gd)",
+      "Bash(echo \"gen EXIT:$?\")",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --check-only --script d:/dev/tamagoyaki-game/scripts/ui/enemy_info_ui.gd)",
+      "Bash(echo \"ui EXIT:$?\")",
+      "Bash(ls \"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/\" 2>&1 | head -20)",
+      "Read(//c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe//**)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --path .)",
+      "Bash(echo \"launched pid $!\")",
+      "Bash(tasklist)",
+      "Bash(wmic process *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\djbsh\\Downloads\\extracted\\kenney_interface-sounds\\Audio"
     ]
   },
   "hooks": {
@@ -24,7 +84,29 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -c \"import json, sys; content = open('docs/backlog.md', encoding='utf-8').read(); print(json.dumps({'hookSpecificOutput': {'hookEventName': 'SessionStart', 'additionalContext': content}}))\" 2>/dev/null || true"
+            "command": "python tools/session_start_hook.py 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python tools/hook_design_guard.py 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python tools/hook_precommit_sim.py 2>/dev/null || true"
           }
         ]
       }
