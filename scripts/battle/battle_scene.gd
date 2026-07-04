@@ -206,7 +206,7 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 
 # ローテーション
 @export var rotate_duration: float      = 0.55   # s
-@export var rotate_show_duration: float = 0.35   # s アニメ完了後の見せ時間
+@export var rotate_show_duration: float = 0.6   # s アニメ完了後の見せ時間
 
 # 着地スカッシュ
 @export var landing_squash_y: float        = 0.65  # 潰れ時のY軸スケール
@@ -225,7 +225,7 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 
 # ユニット行動
 @export var attack_impact_delay: float       = 0.2  # s アニメ開始→被弾エフェクト発火までの遅延
-@export var unit_action_show_duration: float = 0.6  # s アニメ完了後の見せ時間
+@export var unit_action_show_duration: float = 0.9  # s アニメ完了後の見せ時間
 # 敵攻撃突進フォールバック（EnemyData.attack_anim が空のとき使用）
 @export var enemy_lunge_dist: float          = 0.6  # m 突進距離
 @export var enemy_lunge_in_time: float       = 0.15 # s 前進時間
@@ -465,6 +465,7 @@ func _setup_outline() -> void:
 		return
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 全画面オーバーレイが3Dピッキング(Area3Dホバー)を吸収するのを防ぐ
 	var shader := Shader.new()
 	shader.code = _OUTLINE_CODE
 	var mat := ShaderMaterial.new()

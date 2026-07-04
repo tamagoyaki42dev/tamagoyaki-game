@@ -8,7 +8,7 @@
 
 **プロト1でやる（2026-07-04 決定・軽微な数値調整のみ）**
 - [x] ~~PlayerGrid の位置をエディタ上でずらしてキャラを右上寄りに配置~~ **完了（2026-07-04）**。`battle.tscn` の PlayerGrid（EnemyGrid含む）をギズモで直接移動・目視確認済み
-- [ ] 戦闘テンポを「読む瞬間」だけ遅くして可読性を上げる（一律スローは反復プレイで冗長化するので不可）。`battle_scene.gd` の `unit_action_show_duration` 0.6→0.9 / `rotate_show_duration` 0.35→0.6 を変更して目視。物足りなければ追加調整
+- [ ] 戦闘テンポ調整：`battle_scene.gd` の `unit_action_show_duration` 0.6→0.9 / `rotate_show_duration` 0.35→0.6 を変更済み。**目視確認待ち**（実戦を1回通して間延び感が出ていないか確認。物足りなければ追加調整）
 
 **リリース後の一挙改善パスに回す（2026-07-04 決定・新規作り込みのため）**
 - [ ] グロー/ブルーム（WorldEnvironment glow_enabled）
@@ -37,12 +37,7 @@
 - [x] ~~編成画面に「前に回す/後ろに回す」ボタンを追加~~ **実装完了（2026-07-04）・目視確認済み（2026-07-04）**。`GameState.rotate_formation(forward)`（列固定・行だけ戦闘と同じ周期で回転）＋`formation_ui.gd`にボタン2個をグリッド右側（前列側=上／後列側=下）に配置。押した際にカードがスライド移動するTween演出も追加（`rotate_slide_duration`で調整可）。GUT4件PASS
 - [x] ~~敵の特記事項（notes）を実装~~ **完了（2026-07-04）**。`enemy_info_ui.gd`の特記事項欄に3体分のフレーバーテキストを追加。3体を貫く「澱み」の世界観（滅び→再興のループで滅んだ文明が澱み、濃度が上がるほど怪物が強く聡くなる）を新設し矛盾なく統一。実装解につながる情報（B2のローテ連動回復・B3の防御補助集中等）はステータス面から匂わせない方針で除外。折り返し表示バグ（`custom_minimum_size`をtext設定前に入れる必要があった）と全角ダッシュのフォント欠けを修正、`AUTOWRAP_WORD_SMART`＋文単位の手動改行で読みやすく調整。目視確認済み
 - [x] ~~タイトル画面にDEBUGボタンを追加~~ **完了（2026-07-04）**。title_screen.tscnがmain_sceneになったことで`debug_launcher.tscn`への導線が無くなっていたため、左下に控えめな半透明「DEBUG」ボタンを追加。目視確認済み
-- [ ] **【リグレッション】戦闘画面：3D戦場の味方キャラにカーソルを置いた時、右パネルの同キャラ行がハイライトされる機能が効いていない**（2026-07-04報告）
-  - 対象は編成画面でなく**戦闘画面**（`battle_scene.gd` / `battle_ui.gd`）と判明済み。双方向の仕組み自体はコード上に現存：
-    - 3D→パネル：`battle_scene.gd:892` `_spawn_hover_area`（プレイヤーキャラにArea3D付与）→`_on_unit_area_entered/exited`（906-910）→`unit_3d_hovered`シグナル発火→`battle_ui.gd:367` `_on_unit_3d_hovered`が行の背景色を変更
-    - パネル→3D：`battle_ui.gd:228` 行の`mouse_entered/exited`→`_on_entry_hover`(360)→`unit_row_hovered`シグナル→`battle_scene.gd:913` `_on_row_hovered`が足元リングを発光
-  - 静的に読む限り配線は繋がって見える＝**まず実機で「どちら向きが効いていないか」を確認するのが先決**（3D→パネルのみ死んでいる場合、同日直った編成画面の`mouse_filter=STOP`吸収バグと同型＝battle_ui側のフルスクリーンControlが3DのArea3Dマウスピッキングをブロックしている可能性が濃厚）
-  - GUT対象外（マウスホバー・マテリアル色は視覚のみ）。修正後は実機目視確認が必須
+- [x] ~~【リグレッション】戦闘画面：3D戦場の味方キャラにカーソルを置いた時、右パネルの同キャラ行がハイライトされる機能が効いていない~~ **修正完了（2026-07-04）**。原因は`battle_scene.gd`の全画面アウトラインオーバーレイ（`_setup_outline`のColorRect）が`mouse_filter`未設定でArea3Dのマウスピッキングを吸収していたこと（編成画面の`mouse_filter=STOP`吸収バグと同型）。`MOUSE_FILTER_IGNORE`を追加して解消。3D→パネル/パネル→3D 両方向とも実機目視確認済み
 
 ## ロジック設計・仕様確定
 
