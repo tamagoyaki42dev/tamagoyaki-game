@@ -7,6 +7,8 @@ static var enemy_stat_type: int = 0    # _ready相当がないので ensure_init
 static var battle_index: int = 0       # 現在の戦（0=B1, 1=B2, 2=B3）
 static var bench_order: Array = []     # ベンチ追加順（新しいほど末尾）
 
+const MAX_PARTY := 7   # 戦闘参加は最大7人（グリッドは12マスあるが配置上限は7）
+
 static func ensure_init() -> void:
 	if not party_pool.is_empty():
 		return
@@ -86,11 +88,26 @@ static func _set_default_formation() -> void:
 static func get_at(pos: Vector2i) -> CharacterData:
 	return formation.get(pos, null)
 
-static func place(pos: Vector2i, char_data: CharacterData) -> void:
+## 配置に成功したら true。7人上限で拒否したら false
+static func place(pos: Vector2i, char_data: CharacterData) -> bool:
+	# 7人上限：グリッド外のキャラを空きマスに置いて8人目になる場合は拒否
+	var is_new := not is_in_formation(char_data)
+	var is_empty_cell := not formation.has(pos)
+	if is_new and is_empty_cell and formation.size() >= MAX_PARTY:
+		return false
 	_remove_from_grid(char_data)
 	formation.erase(pos)
 	formation[pos] = char_data
 	bench_order.erase(char_data)
+	return true
+
+## 前→後、中→前、後→中（forward=false は逆回転）。列(col)は固定・行(row)だけ回す
+static func rotate_formation(forward: bool = true) -> void:
+	var new_formation: Dictionary = {}
+	for pos: Vector2i in formation:
+		var new_row := (pos.x + 2) % 3 if forward else (pos.x + 1) % 3
+		new_formation[Vector2i(new_row, pos.y)] = formation[pos]
+	formation = new_formation
 
 static func swap(pos_a: Vector2i, pos_b: Vector2i) -> void:
 	var a := get_at(pos_a)

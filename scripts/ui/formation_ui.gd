@@ -9,6 +9,7 @@ const ROW_GAP  := 18.0
 const BENCH_W  := 215.0
 const BENCH_H  := 110.0
 const GRID_Y   := 90.0
+@export var rotate_slide_duration: float = 0.25
 
 var GRID_X: float  # _ready() で左エリア中央に計算
 const FONT_PATH := "res://assets/fonts/851CHIKARA-DZUYOKU_kanaA_004.ttf"
@@ -24,6 +25,10 @@ var _selected: CharacterData = null
 var _font: Font
 var _preview_svp: SubViewport = null
 var _preview_model: Node3D = null
+var _grid_card_nodes: Dictionary = {}  # Vector2i(row,col) → Panel（ローテ演出用）
+var _rotating: bool = false
+var _fwd_btn: Button
+var _back_btn: Button
 
 func _ready() -> void:
 	GameState.ensure_init()
@@ -70,7 +75,28 @@ func _build_static_ui() -> void:
 	# カード領域（_refresh()で毎回全差し替え）
 	_cards_root = Control.new()
 	_cards_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_cards_root.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 全面Controlが下のボタンのクリックを吸収しないように
 	_root.add_child(_cards_root)
+
+	# ローテーションボタン（グリッド右側。前列が上・後列が下なので上下の配置に合わせる）
+	var grid_right_x := GRID_X + 4.0 * (CARD_W + CARD_GAP) - CARD_GAP + 14.0
+	var rotate_w := 130.0
+	var rotate_h := 48.0
+	_fwd_btn = Button.new()
+	_fwd_btn.text = "前に回す"
+	_fwd_btn.position = Vector2(grid_right_x, GRID_Y)
+	_fwd_btn.size = Vector2(rotate_w, rotate_h)
+	_fwd_btn.pressed.connect(_on_rotate_pressed.bind(true))
+	_style_button(_fwd_btn, Color(0.55, 0.28, 0.03))
+	_root.add_child(_fwd_btn)
+
+	_back_btn = Button.new()
+	_back_btn.text = "後ろに回す"
+	_back_btn.position = Vector2(grid_right_x, GRID_Y + 2.0 * (CARD_H + ROW_GAP) + CARD_H - rotate_h)
+	_back_btn.size = Vector2(rotate_w, rotate_h)
+	_back_btn.pressed.connect(_on_rotate_pressed.bind(false))
+	_style_button(_back_btn, Color(0.55, 0.28, 0.03))
+	_root.add_child(_back_btn)
 
 	# 右パネル背景
 	var px := DIVIDER_X + 24.0
@@ -146,6 +172,7 @@ func _make_grid_card(pos: Vector2i, cd: CharacterData, card_pos: Vector2) -> voi
 		bdr_col = Color(0.25, 0.55, 0.95)
 
 	var p := _panel(_cards_root, card_pos, Vector2(CARD_W, CARD_H), bg_col, bdr_col)
+	_grid_card_nodes[pos] = p
 
 	if cd:
 		_lbl(p, cd.char_name, Vector2(8.0, 4.0), 18)
@@ -311,6 +338,8 @@ func _support_str(cd: CharacterData) -> String:
 # ══════════════════════════════════ クリック処理 ══════════════════════════════
 
 func _on_grid_clicked(pos: Vector2i) -> void:
+	if _rotating:
+		return
 	AudioManager.play_se(AudioManager.SE_DECIDE)
 	var cd := GameState.get_at(pos)
 	if _selected == null:
@@ -329,6 +358,8 @@ func _on_grid_clicked(pos: Vector2i) -> void:
 	_refresh()
 
 func _on_bench_clicked(cd: CharacterData) -> void:
+	if _rotating:
+		return
 	AudioManager.play_se(AudioManager.SE_DECIDE)
 	if _selected == null:
 		_selected = cd
@@ -349,6 +380,42 @@ func _selected_grid_pos() -> Vector2i:
 		if GameState.formation[pos] == _selected:
 			return pos
 	return Vector2i(-1, -1)
+
+func _on_rotate_pressed(forward: bool) -> void:
+	if _rotating:
+		return
+	AudioManager.play_se(AudioManager.SE_ROTATE_SELECT)
+
+	# 現在のカードを「どこへ動くか」だけ先に計算してから GameState を更新する
+	var moves: Array = []  # [{"panel": Panel, "to": Vector2}]
+	for pos: Vector2i in _grid_card_nodes:
+		if GameState.get_at(pos) == null:
+			continue
+		var new_row := (pos.x + 2) % 3 if forward else (pos.x + 1) % 3
+		var to := Vector2(
+			GRID_X + pos.y * (CARD_W + CARD_GAP),
+			GRID_Y + new_row * (CARD_H + ROW_GAP))
+		moves.append({"panel": _grid_card_nodes[pos], "to": to})
+
+	GameState.rotate_formation(forward)
+
+	if moves.is_empty():
+		_refresh()
+		return
+
+	_rotating = true
+	_fwd_btn.disabled = true
+	_back_btn.disabled = true
+	var tw := create_tween().set_parallel(true)
+	for m: Dictionary in moves:
+		tw.tween_property(m["panel"], "position", m["to"], rotate_slide_duration) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	await tw.finished
+
+	_rotating = false
+	_refresh()
+	_fwd_btn.disabled = false
+	_back_btn.disabled = false
 
 func _on_start_pressed() -> void:
 	if GameState.formation.is_empty():
