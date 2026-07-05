@@ -26,7 +26,7 @@
 - **エンジン**: Godot 4 (GDScript)
 - **データ**: Godot Resource（完全オフライン）
 - **自動テスト**: GUT
-- **公開予定**: itch.io / Steam（デスクトップビルドのみ）
+- **公開**: itch.io（Windowsデスクトップ版＋ブラウザで遊べるWeb体験版）／ Steam（将来・デスクトップ版）
 
 ## 開発ログ
 
