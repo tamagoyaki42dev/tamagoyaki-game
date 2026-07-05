@@ -8,9 +8,10 @@
 
 2026-07-05 着手。Windowsビルドの書き出し土台は完成（`export_presets.cfg` Windowsプリセット＋テンプレ4.6.3導入済み。`exclude_filter="tests/*, addons/gut/*"`。`build/Perrant.exe` 208MB・単一ファイル・起動確認済み）。手順の全文は devlog/2026-07-05 参照。
 
-- [ ] **exeファイルアイコンの目視確認**：`build/Perrant.exe` をエクスプローラで見て、卵焼きロゴになっているか確認。Godotロボのままなら rcedit を入れて（エディタ設定 → Export → Windows → Rcedit）再書き出し
+- [x] ~~**exeファイルアイコンの目視確認**~~ **完了（2026-07-05）**。rcedit v2.0.0 を `C:/Users/djbsh/AppData/Roaming/Godot/rcedit-x64.exe` に配置し、`editor_settings-4.6.tres` の `export/windows/rcedit` に登録して再書き出し。exeから抽出した32×32アイコンが卵焼きロゴであることを確認。※rceditパスとバイナリはこのマシンのローカル設定（リポジトリ外）。別マシンでビルドする場合は再セットアップが必要
 - [ ] **ゲーム固有アイコンの判断**：現行アイコンは「たまごやきGAMES」スタジオロゴ。Perrant作品固有のアイコンを作るか、当面スタジオロゴで通すか決める
-- [ ] **itch.ioへアップロード**：`butler push build/ tamagoyaki42dev/tamagoyakigames:windows`（初回 `butler login`）。ページのDraft/Public、価格、説明文・スクショの整備
+- [x] ~~**itch.ioへアップロード**~~ **完了（2026-07-05）**。butler v15.27.0 を `C:/Users/djbsh/butler/windows-amd64/` に配置（broth CDNが本環境でDNS不通のためGitHubリリースから取得）、`butler login`（ブラウザ認証・creds を `~/.config/itch/butler_creds` に保存）→ `butler push build/ tamagoyaki42dev/tamagoyakigames:windows` で windows チャンネル更新（ビルド#1773357・77MiBパッチ）。※butlerバイナリ・credsはこのマシンのローカル（リポジトリ外）
+  - [ ] **公開状態・ページ整備の確認（ユーザー作業）**：https://tamagoyaki42dev.itch.io/tamagoyakigames を開き、①新ビルドがDLでき起動するか ②ページがDraft/Publicどちらか ③価格・説明文・スクショが最新か を確認。既存の `html5` チャンネル（v17）も残っている点に注意（デスクトップのみ方針との整合）
 
 ## 演出化粧（演出土台完成後）
 
