@@ -14,13 +14,30 @@ const _ENEMY_CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
 
 const _CHAR_DIR := "res://assets/kenney-mini-characters/Models/GLB format/"
 const _PORTRAIT_DIR := "res://assets/portraits/"
+
+# KayKit移行済み職（剣闘士/騎士/魔女のみ。他はKenney内蔵アニメ方式のまま）
+const _KAYKIT_CHAR_DIR := "res://assets/kaykit/characters/"
+const _KAYKIT_ANIM_DIR := "res://assets/kaykit/animations/"
+# 合流するアニメライブラリ（ライブラリ名 → 供給元GLB）。KayKit採用キャラ全員で共通
+const _KAYKIT_ANIM_LIBS: Dictionary = {
+	"general": _KAYKIT_ANIM_DIR + "Rig_Medium_General.glb",
+	"melee":   _KAYKIT_ANIM_DIR + "Rig_Medium_CombatMelee.glb",
+	"ranged":  _KAYKIT_ANIM_DIR + "Rig_Medium_CombatRanged.glb",
+}
+# 職 → {idle, attack, death} クリップ名（"ライブラリ名/クリップ名"表記）
+const _KAYKIT_CLIPS: Dictionary = {
+	CharacterJob.Type.GLADIATOR: {"idle": "general/Idle_A", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
+	CharacterJob.Type.KNIGHT:    {"idle": "general/Idle_A", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
+	CharacterJob.Type.MAGE:      {"idle": "general/Idle_A", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
+}
+
 # 職業別キャラモデル（female 6職は1:1ユニーク、male 11職は5種を共有）
 const _JOB_CHAR_PATHS: Dictionary = {
 	CharacterJob.Type.WARRIOR:       _CHAR_DIR + "character-male-b.glb",
-	CharacterJob.Type.KNIGHT:        _CHAR_DIR + "character-male-c.glb",
-	CharacterJob.Type.GLADIATOR:     _CHAR_DIR + "character-male-d.glb",
+	CharacterJob.Type.KNIGHT:        _KAYKIT_CHAR_DIR + "Knight.glb",
+	CharacterJob.Type.GLADIATOR:     _KAYKIT_CHAR_DIR + "Barbarian.glb",
 	CharacterJob.Type.ADVENTURER:    _CHAR_DIR + "character-male-f.glb",
-	CharacterJob.Type.MAGE:          _CHAR_DIR + "character-male-e.glb",
+	CharacterJob.Type.MAGE:          _KAYKIT_CHAR_DIR + "Mage.glb",
 	CharacterJob.Type.MONK:          _CHAR_DIR + "character-male-b.glb",
 	CharacterJob.Type.DARK_KNIGHT:   _CHAR_DIR + "character-male-c.glb",
 	CharacterJob.Type.ARCHER:        _CHAR_DIR + "character-male-d.glb",
@@ -230,6 +247,10 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var enemy_lunge_dist: float          = 0.6  # m 突進距離
 @export var enemy_lunge_in_time: float       = 0.15 # s 前進時間
 @export var enemy_lunge_out_time: float      = 0.25 # s 後退時間
+# 味方近接キャラの接近攻撃（KayKit移行・魔法/弓職は対象外でその場攻撃のまま）
+@export var melee_approach_gap: float        = 2.2  # m 接近時に対象の手前で止まる距離（対象までの直線距離ベース）
+@export var melee_approach_time: float       = 0.25 # s 接近Tween時間
+@export var melee_return_time: float         = 0.3  # s 帰還Tween時間
 
 # 自己回復
 @export var self_heal_show_duration: float = 1.0  # s フラッシュ・数字の見せ時間
@@ -244,6 +265,11 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var weapon_scale: float    = 0.3
 # arm-right ボーンのローカル空間における手先位置（kenney-mini スケルトンのスキニングから実測）
 @export var weapon_offset: Vector3 = Vector3(-0.18, 0.18, 0.08)
+# KayKit採用職（剣闘士/騎士/魔女）用：handslot.rボーンでの武器スケール/位置（要目視調整）
+@export var kaykit_weapon_scale: float    = 0.3
+@export var kaykit_weapon_offset: Vector3 = Vector3(-0.18, 0.18, 0.08)
+# KayKit採用職の全体スケール補正（Kenneyとの身長差吸収・要目視調整）
+@export var kaykit_char_scale_mult: float = 0.6
 
 # 番号バッジ（足元）
 @export var number_badge_font_size: int    = 64
@@ -419,6 +445,7 @@ var _row_heal_queue: Array = []          # 待機中の列回復バッチ
 var _row_heal_animating: bool = false    # _process_row_heal_queue が動いているか
 var _shake_active: bool = false          # カメラシェイク二重起動防止
 var _unit_action_anim_pending: bool = false  # 多段ヒット時の二重 emit 防止
+var _unit_melee_hit_progress: Dictionary = {}  # BattleUnit → 現在のヒット数（近接接近攻撃の往復1回化に使用）
 
 func _ready() -> void:
 	_flash_shader = Shader.new()
@@ -609,6 +636,16 @@ func _do_hit_effects(is_crit: bool) -> void:
 	await _do_hitstop()
 	_do_camera_shake(shake_crit_intensity if is_crit else shake_intensity)
 
+# 近接接近攻撃の対象外（その場で詠唱/射撃する職）。SE・被弾フラッシュ色と同じ分類
+static func _is_ranged_or_magic_job(job: CharacterJob.Type) -> bool:
+	match job:
+		CharacterJob.Type.ARCHER, CharacterJob.Type.VALKYRIE, \
+		CharacterJob.Type.MAGE, CharacterJob.Type.WITCH, CharacterJob.Type.ILLUSIONIST, \
+		CharacterJob.Type.SHAMAN, CharacterJob.Type.SHRINE_MAIDEN:
+			return true
+		_:
+			return false
+
 static func _resolve_attack_se(attacker: BattleUnit) -> String:
 	if attacker.side == BattleUnit.Side.ENEMY:
 		return AudioManager.SE_PUNCH
@@ -796,6 +833,17 @@ static func _resolve_char_path(unit: BattleUnit) -> String:
 		return _ENEMY_CHAR_PATH
 	return _JOB_CHAR_PATHS.get(cd.job, _ENEMY_CHAR_PATH)
 
+# プレイヤーの idle/attack/death クリップ名。KayKit採用職は_KAYKIT_CLIPS、
+# それ以外はKenney内蔵アニメの固定名（idle / attack-melee-right / die）
+static func _resolve_player_anim_clip(unit: BattleUnit, kind: String) -> String:
+	var cd := unit.source_data as CharacterData
+	if cd and _KAYKIT_CLIPS.has(cd.job):
+		return (_KAYKIT_CLIPS[cd.job] as Dictionary).get(kind, "")
+	match kind:
+		"attack": return "attack-melee-right"
+		"death":  return "die"
+		_:        return "idle"
+
 func _tint_char(ch: Node3D, tint: Color) -> void:
 	var meshes: Array[MeshInstance3D] = []
 	_collect_meshes(ch, meshes)
@@ -849,7 +897,11 @@ func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: Stri
 	ch.scale = scale
 	ch.position = marker.global_position + Vector3(0.0, char_y_offset, 0.0)
 	_characters.add_child(ch)
-	var anim: AnimationPlayer = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var anim: AnimationPlayer
+	if char_path.begins_with(_KAYKIT_CHAR_DIR):
+		anim = _build_kaykit_anim_player(ch)
+	else:
+		anim = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if anim and anim.has_animation(idle_anim_name):
 		anim.get_animation(idle_anim_name).loop_mode = Animation.LOOP_LINEAR
 		anim.play(idle_anim_name)
@@ -858,6 +910,28 @@ func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: Stri
 		_apply_clay_shader(ch)
 	return ch
 
+# KayKit：本体GLBにアニメを内蔵していないため、新規AnimationPlayerをキャラルート直下に足し
+# _KAYKIT_ANIM_LIBS の各GLBからライブラリを合流させる（スパイクで検証済みのレシピ）
+static func _build_kaykit_anim_player(ch: Node3D) -> AnimationPlayer:
+	var anim := AnimationPlayer.new()
+	# add_child()はforce_readable_name省略時「@AnimationPlayer@123」のような内部名を
+	# 付ける（find_child("AnimationPlayer")で見つからなくなる）ため明示的に命名する
+	anim.name = "AnimationPlayer"
+	ch.add_child(anim)
+	anim.root_node = anim.get_path_to(ch)
+	for lib_name: String in _KAYKIT_ANIM_LIBS:
+		var src_scene: PackedScene = load(_KAYKIT_ANIM_LIBS[lib_name] as String)
+		if not src_scene:
+			continue
+		var src: Node3D = src_scene.instantiate()
+		var src_ap: AnimationPlayer = src.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if src_ap:
+			var libs: PackedStringArray = src_ap.get_animation_library_list()
+			if not libs.is_empty():
+				anim.add_animation_library(lib_name, src_ap.get_animation_library(libs[0]))
+		src.queue_free()
+	return anim
+
 func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 	var cd := unit.source_data as CharacterData
 	if not cd:
@@ -865,18 +939,20 @@ func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 	var path: String = _WEAPON_PATHS.get(cd.job, "")
 	if path.is_empty():
 		return
+	var is_kaykit: bool = (_JOB_CHAR_PATHS.get(cd.job, "") as String).begins_with(_KAYKIT_CHAR_DIR)
+	var bone_name: String = "handslot.r" if is_kaykit else "arm-right"
 	var skeleton: Skeleton3D = ch.find_child("Skeleton3D", true, false) as Skeleton3D
-	if not skeleton or skeleton.find_bone("arm-right") == -1:
+	if not skeleton or skeleton.find_bone(bone_name) == -1:
 		return
 	var attachment := BoneAttachment3D.new()
-	attachment.bone_name = "arm-right"
+	attachment.bone_name = bone_name
 	skeleton.add_child(attachment)
 	var weapon_scene: PackedScene = load(path)
 	if not weapon_scene:
 		return
 	var weapon: Node3D = weapon_scene.instantiate() as Node3D
-	weapon.scale = Vector3.ONE * weapon_scale
-	weapon.position = weapon_offset
+	weapon.scale = Vector3.ONE * (kaykit_weapon_scale if is_kaykit else weapon_scale)
+	weapon.position = kaykit_weapon_offset if is_kaykit else weapon_offset
 	attachment.add_child(weapon)
 	if cd.job == CharacterJob.Type.MAGE:
 		var start_y := weapon.position.y
@@ -1023,7 +1099,10 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 		var unit: BattleUnit = player_units[i]
 		var m: Marker3D = _get_player_marker(unit.row, unit.col)
 		if m:
-			var ch := _spawn_char(m, 180.0, player_char_scale, _resolve_char_path(unit))
+			var char_path := _resolve_char_path(unit)
+			var char_scale := player_char_scale * kaykit_char_scale_mult \
+				if char_path.begins_with(_KAYKIT_CHAR_DIR) else player_char_scale
+			var ch := _spawn_char(m, 180.0, char_scale, char_path, _resolve_player_anim_clip(unit, "idle"))
 			if not ch:
 				continue
 			_unit_nodes[unit] = ch
@@ -1059,6 +1138,19 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 	var anim_a: AnimationPlayer = _unit_anims.get(attacker) as AnimationPlayer
 	var dir: Vector3 = Vector3(1, 0, 0) if attacker.side == BattleUnit.Side.PLAYER \
 		else Vector3(-1, 0, 0)
+	var origin: Vector3 = ch_a.position if ch_a else Vector3.ZERO
+
+	# 近接接近攻撃：魔法/弓職とNPCは対象外（その場で攻撃）。多段ヒットは
+	# 1ヒット目で接近・最終ヒットで帰還し、往復は1アクションにつき1回にする
+	var cd_a := attacker.source_data as CharacterData
+	var is_melee_approach := attacker.side == BattleUnit.Side.PLAYER and ch_a != null \
+		and cd_a != null and not _is_ranged_or_magic_job(cd_a.job)
+	var melee_hit_index := 0
+	var melee_is_last_hit := true
+	if is_melee_approach:
+		melee_hit_index = _unit_melee_hit_progress.get(attacker, 0) + 1
+		_unit_melee_hit_progress[attacker] = melee_hit_index
+		melee_is_last_hit = melee_hit_index >= attacker.attack_hits or not target.is_alive
 
 	# 攻撃アニメ（GLB 内蔵）または Tween 突進（敵フォールバック）
 	var idle_anim: String = "idle"
@@ -1066,7 +1158,20 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 	var lunge_tween: Tween = null
 
 	if attacker.side == BattleUnit.Side.PLAYER:
-		var atk_anim := "attack-melee-right"
+		if is_melee_approach and melee_hit_index == 1 and ch_t:
+			# 元の立ち位置→対象への直線上で、対象の手前 gap m の点へ向かう
+			# （軸固定オフセットだと対象と同じ奥行きまで寄ってしまい、見下ろしカメラで
+			#   対象の影・シルエットに隠れて攻撃が見えなくなる）
+			var to_target: Vector3 = ch_t.position - origin
+			var travel_dist: float = to_target.length()
+			var approach_dir: Vector3 = to_target / travel_dist if travel_dist > 0.001 else dir
+			var approach_point: Vector3 = origin + approach_dir * max(travel_dist - melee_approach_gap, 0.0)
+			var approach_tween := create_tween()
+			approach_tween.tween_property(ch_a, "position", approach_point, melee_approach_time) \
+				.set_ease(Tween.EASE_OUT)
+			await approach_tween.finished
+		idle_anim = _resolve_player_anim_clip(attacker, "idle")
+		var atk_anim := _resolve_player_anim_clip(attacker, "attack")
 		if is_instance_valid(anim_a) and anim_a.has_animation(atk_anim):
 			anim_a.play(atk_anim)
 			has_atk_anim = true
@@ -1079,7 +1184,6 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 			has_atk_anim = true
 		elif ch_a:
 			# Tween 突進フォールバック：前進→後退
-			var origin := ch_a.position
 			lunge_tween = create_tween()
 			lunge_tween.tween_property(ch_a, "position",
 				origin + dir * enemy_lunge_dist, enemy_lunge_in_time).set_ease(Tween.EASE_OUT)
@@ -1130,6 +1234,15 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		await lunge_tween.finished
 	elif hit_tween:
 		await hit_tween.finished
+
+	if is_melee_approach and melee_is_last_hit:
+		_unit_melee_hit_progress.erase(attacker)
+		if ch_a:
+			var return_tween := create_tween()
+			return_tween.tween_property(ch_a, "position", origin, melee_return_time) \
+				.set_ease(Tween.EASE_IN)
+			await return_tween.finished
+
 	await get_tree().create_timer(unit_action_show_duration).timeout
 	_unit_action_anim_pending = false
 	if is_instance_valid(_manager):
@@ -1147,6 +1260,8 @@ func _on_unit_died(unit: BattleUnit) -> void:
 		var ed := unit.source_data as EnemyData
 		if ed:
 			death_anim_name = ed.death_anim
+	else:
+		death_anim_name = _resolve_player_anim_clip(unit, "death")
 	if is_instance_valid(anim) and anim.has_animation(death_anim_name):
 		anim.play(death_anim_name)
 	else:

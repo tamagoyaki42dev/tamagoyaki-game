@@ -11,7 +11,7 @@ const PORTRAIT_DIR := "res://assets/portraits/"
 
 func test_all_portrait_pngs_exist_and_loadable() -> void:
 	var paths: Array[String] = BattleScene.unique_player_model_paths()
-	assert_eq(paths.size(), 11, "ユニークなプレイヤーモデルは11件")
+	assert_eq(paths.size(), 14, "ユニークなプレイヤーモデルは14件（Kenney11＋KayKit3：剣闘士/騎士/魔女）")
 	for model_path: String in paths:
 		var stem: String = model_path.get_file().get_basename()
 		var png: String = PORTRAIT_DIR + stem + ".png"

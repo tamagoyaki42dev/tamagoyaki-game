@@ -2,8 +2,9 @@
 .godot/
 /android/
 
-# ビルド出力（書き出したexe。配布はitch/Steamへ、リポジトリには載せない）
+# ビルド出力（書き出したexe/Web版。配布はitch/Steamへ、リポジトリには載せない）
 /build/
+/build_web/
 
 # Secrets - NEVER commit these
 .env
@@ -32,6 +33,7 @@ Thumbs.db
 
 # Quaternius アセットパック（大容量のため除外・各自ダウンロード）
 assets/quaternius-rpg-items/
+assets/quaternius-ultimate-characters/
 
 # Kenney アセットパック（大容量のため除外・各自ダウンロード）
 assets/kenney-dungeon-kit/

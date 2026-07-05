@@ -77,8 +77,8 @@
 
 ## グラフィック方針
 
-- アセットはローポリCC0で統一。味方・背景は Kenney。Kenney に不足する敵モンスターは Quaternius（CC0・同系統ローポリ）を併用してよい
-- 人型モーション = Kenney GLB 内蔵アニメ（idle / attack-melee-right / attack-melee-left / die ほか計32種）。Mixamo は不要
+- アセットはローポリCC0で統一。味方は Kenney→KayKit へ移行中（2026-07-05〜・`docs/proto2_design.md`「最終形はKayKitに寄せる」参照）。背景・敵モンスターは Kenney/Quaternius（CC0・同系統ローポリ）のまま
+- 人型モーション：**Kenney組**＝GLB内蔵アニメをそのまま再生（idle / attack-melee-right / attack-melee-left / die ほか計32種）。**KayKit組**＝本体GLBにアニメが無いため、`battle_scene.gd` `_build_kaykit_anim_player` が実行時に外部アニメGLB（Rig_Medium系）から `AnimationLibrary` を合流させて専用の `AnimationPlayer` を組み立てる（`_KAYKIT_CLIPS` で職→クリップ名を解決）。動的生成する `AnimationPlayer` は **`.name` を明示してから `add_child()` する**こと（省略すると `@AnimationPlayer@123` のような内部名になり `find_child` で見失う＝2026-07-05に実際に踏んだ罠）。Mixamoは不要
 - 非人型 = モデルに内蔵アニメがある場合は内蔵アニメをフル活用する（idle / death / 攻撃など）。内蔵に該当アニメが無い動作（攻撃アニメ無しの敵の攻撃など）のみ Tween で補う（例：1歩前進→戻る突進）
 
 ## 助言義務

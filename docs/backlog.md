@@ -4,6 +4,79 @@
 
 ---
 
+## プロト2（継承育成）着手中
+
+継承育成ループの設計定義は完了（2026-07-05）。詳細は `docs/proto2_design.md`「継承育成ループの機構定義」＋`game_concept.md`「ゲームループの全体像」。以下は着手可能タスク。
+
+### KayKit 本番統合 ★次セッションはここから（2026-07-05 数値調整待ちで中断）
+
+**現状**：剣闘士/騎士/魔術師の3職がKayKitモデル・アニメで実戦動作済み（接近攻撃・攻撃/死亡アニメ再生・魔術師のその場詠唱まで全て実機確認済み）。GUT全183テストPASS。残るのは**見た目の数値調整のみ**（ロジック的な機能不足・バグは無い状態）。
+
+**次回やること（実機目視で数値を詰めるだけ・設計判断は不要）**：
+- [ ] **攻撃タイミングの同期**：ユーザー確認「モーションはできてるが動きがゆっくり過ぎて攻撃タイミング（ダメージ数字/被弾エフェクトの発火）と合っていない」。`attack_impact_delay`（現0.2s・Kenney用に調整済みの値）がKayKitの`Melee_1H_Attack_Chop`クリップの実際の振り下ろしタイミングと合っていない可能性が高い。KayKit職だけ別の遅延値を持たせる（`kaykit_attack_impact_delay`のような`@export`を追加）か、クリップの長さ・タイミングを見て`attack_impact_delay`自体を調整するかを実機で判断
+- [ ] **スケールをもう一段階縮小**：`kaykit_char_scale_mult`を1.0→0.6に調整済みだが、ユーザー確認「少し小さくなったがまだでかい」。0.45〜0.5あたりから試す
+- [ ] **武器オフセット実測**：`kaykit_weapon_offset`/`kaykit_weapon_scale`はKenney用の値を暫定コピーしたまま未実測。`handslot.r`での見た目を見ながら調整
+- [ ] （余裕があれば）魔術師の詠唱時に静止画だけでなく「待機中の微妙な揺れ」がちゃんと見えているかも再確認（ユーザーからは以前「ほぼ動いてない気もする」との声あり。Idle_Aクリップ自体が控えめな可能性もあるため、動いていること自体は前回のバグ修正で解決済みのはず＝見た目の印象の話）
+
+**ユーザーが出した方向（2026-07-05・確定）**：
+- 職→モデル対応：**Barbarian→剣闘士(Gladiator)／Knight→騎士(Knight)／Mage→魔女(Mage)**
+- **Mage(魔女)は攻撃モーションを魔法＝遠距離攻撃**（その場で詠唱。`Ranged_Magic_Spellcasting`／`Ranged_Magic_Shoot` 系。飛翔体を出すかは設計時に決める）
+- **近接キャラは敵の近くまで移動して殴る→戻る**（＝現状ゲームに無い新挙動。今はMarker上で不動・その場再生）
+
+**① 技術的な着手ポイント（スパイクで判明・再現レシピ）**：
+- リターゲット：キャラをインスタンス化→新 `AnimationPlayer` をキャラ**ルート直下**に足し `root_node`=**キャラルート**に向ける→各アニメGLBの `AnimationLibrary` を名前付きで `add_animation_library`。※root_node をSkeleton3Dの親(1階層深い)に向けると全トラック `couldn't resolve` で無音（ハマりどころ）
+- 現行の攻撃シーケンス＝`battle_scene.gd` `_on_unit_acted`（~1055行）。攻撃をその場再生→`attack_impact_delay`後に被弾→アニメ終了待ち→`_manager.unit_action_anim_done.emit()` で戦闘進行を解放。**"接近→殴る→戻る"の移動はこの emit までに完結させる**必要（多段ヒットは `_unit_action_anim_pending` で最初のコルーチンだけが emit 担当）
+- 職→モデルmap＝`_JOB_CHAR_PATHS`（`battle_scene.gd:18`）。生成は `_on_battle_started`（~1020行）と `_resolve_char_path(unit)`
+- 武器ボーン：`arm-right`→`handslot.r`/`.l`（`battle_scene.gd:869-872`）＋手先オフセット実測値（`battle_scene.gd:245`・Kenney固有）を再測定
+- アニメ名リマップ：`idle`→`Idle_A` / 近接攻撃→`Melee_1H_Attack_Chop`等（職×武器で対応表）/ `die`→`Death_A` / 魔女→`Ranged_Magic_*`
+
+**② 実装タスク（設計承認後）**：
+- [x] ~~全キャラ6体＋全 Rig_Medium アニメパック(8 GLB)を `assets/kaykit/` に取り込む~~ **範囲を確定3職分に縮小して完了（2026-07-05）**。剣闘士(Barbarian.glb)・騎士(Knight.glb)・魔女(Mage.glb)＋General/CombatMelee/CombatRangedの3アニメパックのみ取り込み。残り3体（Ranger/Rogue/Rogue_Hooded）と他アニメパックは「6モデルで15職を水増しする計画」（下記）着手時に追加。元zipは`assets/kaykit/_source/`へ退避（gitignore対象）
+- [x] ~~`_spawn_char` を「内蔵AnimationPlayer探索」→「共有 AnimationLibrary attach（上記レシピ）」方式へ置換~~ **完了（2026-07-05）**。`_KAYKIT_CHAR_DIR`で始まるパスのみ`_build_kaykit_anim_player`（static）でスパイクのレシピ通りに合流。Kenney/Quaternius組は従来の内蔵探索のまま分岐。**発見・修正済みバグ**：生成した`AnimationPlayer`に`name`を明示しないまま`add_child()`していたため、Godotが`@AnimationPlayer@123`のような内部名を自動付与し`find_child("AnimationPlayer")`で見失う→攻撃/死亡アニメだけ無音で失敗（idleは`_spawn_char`内部の直接参照のため気づかず動いていた）。`anim.name = "AnimationPlayer"`を1行追加して解消。回帰テスト`tests/test_kaykit_anim_player.gd`追加。GUT全183テストPASS
+- [x] ~~武器ボーン `handslot.r/.l` 変更＋オフセット再実測~~ **ボーン分岐は完了、オフセット実測は未（2026-07-05）**。`_attach_weapon`でKayKit採用職のみ`handslot.r`を使用。`kaykit_weapon_scale`/`kaykit_weapon_offset`を新設したが値はKenney用の暫定コピーのまま→**実機目視で再測定が必要**
+- [ ] Kenney→KayKit の基準スケール較正（素の身長差を吸収・戦場カメラ画角と合わせる）：`kaykit_char_scale_mult`（初期値1.0）を新設したが**実機目視での調整が必要**
+- [x] ~~近接：接近して殴る→戻る（Tween移動＋攻撃アニメ、emit前完結）~~ **実装完了・目視確認済み（2026-07-05）**。`battle_scene.gd` `_on_unit_acted` に実装（`melee_approach_gap`＝軸固定オフセットでなく**対象までの直線距離ベース**でN m手前に立つ方式・`melee_approach_time`・`melee_return_time`の3 `@export`、`_is_ranged_or_magic_job`で魔法/弓職を除外、`_unit_melee_hit_progress`で多段ヒット時も往復1回に統一）。**発見**：当初「攻撃者側の軸だけオフセット」で実装したところ、見下ろしカメラでは対象と同じ奥行きまで寄ってしまい大型ボス（マッシュナブ）の影・シルエットに隠れて攻撃が見えないバグを実機で発見→「元の立ち位置→対象への直線上でgap m手前に立つ」方式に修正して解消。`melee_approach_gap`最終値=2.2m（実機目視で確定）。GUT全179テストPASS。魔女：その場で詠唱・遠距離は既存の職分類のみで対応済み
+- [x] ~~アニメ名リマップ・職→攻撃クリップ対応表~~ **完了（2026-07-05）**。`_KAYKIT_CLIPS`（剣闘士/騎士→`melee/Melee_1H_Attack_Chop`・魔女→`ranged/Ranged_Magic_Spellcasting`・idle/death3職共通）＋`_resolve_player_anim_clip`。`_on_unit_acted`/`_on_unit_died`/`_on_battle_started`のハードコード文字列("idle"/"attack-melee-right"/"die")をこの解決関数経由に統一
+- [x] ~~【要ユーザー作業】ポートレートPNG再ベイク~~ **完了（2026-07-05）**。`tools/portrait_baker.tscn`をF6実行しBarbarian/Knight/Mage.png生成済み・目視で正常な正面idleポーズを確認。GUT179→182（当時）でPASS
+- [x] ~~【要目視確認】3職を実戦で確認~~ **アニメーション再生バグを発見・修正（2026-07-05）**。実戦で「攻撃/死亡アニメが一切再生されない（接近移動はするがその場で何も起きない）」を発見。デバッグ出力で切り分けた結果、`_build_kaykit_anim_player`が生成する`AnimationPlayer`に`name`を明示していなかったため`find_child("AnimationPlayer")`で見失っていたバグと判明（詳細は①の該当行）。修正後は3職とも攻撃/死亡アニメが正常再生。**残り確認事項**：スケール感（`kaykit_char_scale_mult`を1.0→0.6に調整済みだが引き続き目視で微調整可）・武器位置（`kaykit_weapon_offset`/`kaykit_weapon_scale`はKenney用の暫定値のまま未実測）
+- [x] ~~タイトル画面のDEBUGボタンを復元~~ **完了（2026-07-05）**。プロト1リリース準備（`ab2e323`）で除去したものを開発再開のため元通り復元（`title_screen.gd`）。プロト1再リリース前に再度外すか要判断
+- [ ] 6モデル vs 味方15職のシルエット水増し計画（色替えテクスチャ＋パーツ＋頭差し替え）
+- [ ] スパイク使い捨てファイル（`kaykit_spike.*`）の掃除判断（移行完了後）
+
+### 個体値＋偏差システム（継承の前段）
+
+- [x] ~~式を固める・実装~~ **完了（2026-07-05）**。`docs/proto2_design.md`「個体値＋偏差」参照。`CharacterData.roll_individual_stats()`（`character_data.gd:66`）に実装：アクティブな8ステータスを独立ロール（通常±20%・15%の確率で1ステだけ±50%の裾）→重み付き合計（unit_spec.mdの重みテーブル）が職のベース総量と一致するよう全ステ同率スケール補正→`roundi`で丸め→ステータス上限・下限（unit_spec.md）でクランプ。`ceili`だと丸めが常に切り上げで総量が体系的に+2〜3.5ズレるバグをGUTテストが検出→`roundi`に修正して解消。GUT新規3テストPASS（全182テストPASS）・balance-verify独立検算済み（式・重み・ガードレール値・非改変確認とも相違なし）
+- **意図的に未接続（ユーザー指示・2026-07-05）**：`from_job()`（実際のロスター生成に使われる関数）は無改変のまま。プロト2の生成・継承画面がまだ存在しないため、画面ができてから差し替える
+- [ ] `from_job()`を`roll_individual_stats()`に差し替える（proto2の拠点/生成画面が実装されるとき）
+- [ ] 子の継承式（親2人の個体値の重み付き合成）＝次の着手タスク。上記の式が入力になる
+- **【設計論点・未反映】個体値＝「全盛期」の天井として位置づける（2026-07-05 会話で発生）**：`roll_individual_stats()`が出す値は成長期/全盛期/衰退期のうち**全盛期時点のステータス上限**であり、現在の年齢がその何%を発揮するかを決める**年齢カーブ関数が別途必要**（今回はまだ未着手・未設計）。子の継承式を書く前に一度整理する
+
+### 継承ループ 簡易シミュレーター（v0） ★次セッションはここから（2026-07-05 作成・未目視確認）
+
+**目的**：画面を作り込む前に、選択肢遷移だけの最小フローで拠点⇔遠征⇔世代交代の**テンポ感**を確認する道具（`docs/proto2_design.md`の内側ループ定義の骨組みだけを仮数値で回す）。戦闘・結婚出産・親密度は未実装。
+
+- [x] ~~v0実装~~ **完了（2026-07-05）**。`scenes/meta_loop_debug.tscn` + `scripts/ui/meta_loop_debug.gd`。`battle_scene.tscn`（F5のmainシーン）とは無関係の独立シーン、**Godot標準機能のF6（現在のシーンを再生）**で単体起動する設計。ループ＝拠点[遠征に出る／募集する／時間を進める]→町を選んで自動抽選で防衛戦（勝率=ロスター人数/7）→拠点に戻る。町は放置しすぎると滅亡・`revival_days`後に復活。一定日数ごとにロスターが自動で1人引退。3町同時滅亡でGAME OVER。数値は全部`@export`でインスペクタから調整可能。GUT全182テストPASS（構文エラーなしを確認済み・専用テストは無し＝`debug_launcher.gd`と同じ「デバッグ専用ツールはGUT対象外」の既存慣習に合わせた）
+- [ ] **【要目視確認・次セッション最優先】実際に触ってテンポ感を確認する（ユーザー作業）**：F6で再生→町を放置/防衛を色々試し、「放置限界150日」「復活100日」「引退間隔200日」等の仮値が体感と合うか。数値をインスペクタでいじりながら様子見（ユーザーが2026-07-05終了時点で「疲れたので明日以降」と中断・まだ未実施）
+- [ ] テンポ感が固まったら、上記「個体値＝全盛期の天井＋年齢カーブ」の設計論点を先に片付けてから子の継承式に進む
+
+### 戦闘の手触り（ジュース＋自然な動き）— プロト2演出（2026-07-05 方針）
+
+**背景（2026-07-05 会話）**：ユーザーが「戦闘単体だとイマイチ面白さが分からなかった。原作の魅力は滑らかなアニメ・迫力SE・"本当に斬る/殴られる感"＝アート/演出が飛び抜けている点。KayKit環境でできるところまで演出を盛りたい」と表明。診断＝"斬る/殴られる感"の大部分はアニメ精度でなく **game feel（ジュース＝多チャンネル同期の衝撃フィードバック）**由来で、これは安く・モデル非依存で盛れる。現状ジュース部品（フラッシュ/火花/ヒットストップ/揺れ/職別SE）は揃っているので、不足（①被弾側の反応＝重さ ②同期 ③クリ格上げ）＋動きの自然さ（平行スライド→ジャンプ接近／ローテの脱ロボット化）を足す。
+
+**規律（厳守）**：**CLAUDE.md「演出は1個ずつ足す・複数同時追加禁止」。** 全て攻撃/ローテの await・タイマー・Signal連鎖（`_on_unit_acted` 等）に触るためテストで守れない＝各施策ごとに **GUT（プロパティ値の検証）＋目視確認手順** の両方を必ず付ける。1個入れて実戦で見て、良ければ次へ。
+
+**Tier1（モデル非依存・安い・高効果／この順で1個ずつ）**：
+- [ ] ① 被弾ノックバック（のけぞり）：被弾ユニットを接触フレームに短くTween後退→戻す。アニメクリップ不要＝全モデルで効く。重さの最短解。**まずここから**
+- [ ] ② インパクト同期＋ヒットストップのダメージ連動：SE/フラッシュ/揺れ/ストップを接触フレームに揃え、ストップ長をダメージ量にスケール
+- [ ] ③ クリティカル格上げ：クリ時だけ `Engine.time_scale` を一瞬落とす軽スロー＋揺れ増＋ズーム。"たまに来る迫力"スパイクを作る
+- [ ] ④ 近接接近をジャンプ弧に：現状の直線平行移動（`melee_approach`）に放物線のY弧を足す（`tween_method`で `position = 始点.lerp(終点,t) + UP*弧高*sin(PI*t)`）。**着地＝接触に①②を重ねると"跳んで斬る"が一撃で決まる**（相乗）。`melee_approach_time`の尺は据え置き・軌道だけ変える＝emit連鎖への影響最小
+- [ ] ⑤ ローテ移動の自然化：現状の平行スライド（`rotate_slide_duration`）に軽い弧/ホップ＋ユニットごと微小スタッガー（同時一斉＝ロボット的を崩す）＋止まりの落ち着き（`ease-out-back`）
+
+**Tier2（KayKit全職統合後）**：
+- [ ] 被弾を位置ノックバック→実クリップ（KayKit Hit_A/RecieveHit）へ格上げ。※敵はQuaternius/Kenneyでhitクリップ有無が別なので当面①で統一
+- [ ] ジャンプ接近をKayKitのjumpクリップ同期へ格上げ（該当クリップの有無を要確認）
+- [ ] 武器の斬撃トレイル（斬る感の視覚・meshトレイル）
+
 ## リリース（プロト1・itch.io）
 
 2026-07-05 着手。Windowsビルドの書き出し土台は完成（`export_presets.cfg` Windowsプリセット＋テンプレ4.6.3導入済み。`exclude_filter="tests/*, addons/gut/*"`。`build/Perrant.exe` 208MB・単一ファイル・起動確認済み）。手順の全文は devlog/2026-07-05 参照。
@@ -13,7 +86,7 @@
 - [x] ~~**itch.ioへアップロード**~~ **完了（2026-07-05）**。butler v15.27.0 を `C:/Users/djbsh/butler/windows-amd64/` に配置（broth CDNが本環境でDNS不通のためGitHubリリースから取得）、`butler login`（ブラウザ認証・creds を `~/.config/itch/butler_creds` に保存）→ `butler push build/ tamagoyaki42dev/tamagoyakigames:windows` で windows チャンネル更新（ビルド#1773357・77MiBパッチ）。※butlerバイナリ・credsはこのマシンのローカル（リポジトリ外）
   - [ ] **公開状態・ページ整備の確認（ユーザー作業）**：https://tamagoyaki42dev.itch.io/tamagoyakigames を開き、①新ビルドがDLでき起動するか ②ページがDraft/Publicどちらか ③価格・説明文・スクショが最新か を確認
 - [x] ~~**Web(HTML5)書き出しの検証**~~ **完了（2026-07-05）**。日本語文字化けバグを発見・修正しWeb正式採用決定。詳細devlog/2026-07-05参照
-  - [ ] **Web版をitchのhtml5チャンネルへbutler push**：`butler push build_web/ tamagoyaki42dev/tamagoyakigames:html5`。既存の古いv17を最新版で置き換える
+  - [x] ~~**Web版をitchのhtml5チャンネルへbutler push**~~ **完了（2026-07-05）**。`butler push build_web/ tamagoyaki42dev/tamagoyakigames:html5`（ビルド#1773800）。手動zipアップロードは「invalid upload」エラー（zip直下にindex.htmlが無いネスト構造が原因と推定）で失敗したため、butler pushに切り替え成功
   - [ ] **itchページで「ブラウザで遊ぶ」表示を有効化**（Web版をページ埋め込みで再生できるよう設定）
 
 ## 演出化粧（演出土台完成後）

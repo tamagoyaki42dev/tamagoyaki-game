@@ -52,9 +52,17 @@ func _bake_one(model_path: String) -> void:
 	var model: Node3D = packed.instantiate() as Node3D
 	model.rotation_degrees.y = model_y_rotation
 	vp.add_child(model)
-	var anim: AnimationPlayer = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if anim and anim.has_animation("idle"):
-		anim.play("idle")
+	# KayKit採用職はモデル本体にアニメを内蔵していないため、戦闘シーンと同じ
+	# レシピ（BattleScene._build_kaykit_anim_player）でライブラリを合流させてから再生する
+	var anim: AnimationPlayer
+	var idle_clip := "idle"
+	if model_path.begins_with(BattleScene._KAYKIT_CHAR_DIR):
+		anim = BattleScene._build_kaykit_anim_player(model)
+		idle_clip = "general/Idle_A"  # _KAYKIT_CLIPS の idle と同一（採用職全員で共通）
+	else:
+		anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if anim and anim.has_animation(idle_clip):
+		anim.play(idle_clip)
 		anim.seek(0.0, true)  # idle の先頭フレームで固定
 
 	# スキン付きメッシュの AABB は追加直後だと未確定なので、計測前に数フレーム待つ

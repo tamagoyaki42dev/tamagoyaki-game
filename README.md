@@ -50,6 +50,7 @@
 
 - **BGM:** Eric Matyas (Soundimage.org)
 - **3Dキャラクター:** Kenney (kenney.nl) — CC0
+- **3Dキャラクター(一部・KayKit移行中):** KayKit Adventurers / Character Animations by Kay Lousberg (kaylousberg.com) — CC0
 - **モンスター:** Quaternius (quaternius.com) — CC0
 - **武器:** Quaternius RPG Items — CC0
 
