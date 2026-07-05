@@ -1,0 +1,83 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+  /* ============================================================
+     note 見出し画像テンプレ（1280×670）
+     使い回し：.hero（大見出し）/ .kicker（上の一言）/ .badge / .foot-tag の連番だけ差し替える。
+     背景の初代バトル画面はブランド固定（回ごとに変えない）。
+
+     PNG書き出し（Chromeヘッドレス・実寸）：
+       "/c/Program Files/Google/Chrome/Application/chrome.exe" \
+         --headless=new --disable-gpu --hide-scrollbars \
+         --force-device-scale-factor=1 --window-size=1280,670 \
+         --screenshot="D:/dev/tamagoyaki-game/assets/branding/note_thumb_XXX.png" \
+         "D:/dev/tamagoyaki-game/assets/branding/note_thumb_template.html"
+     ※出力先はプロジェクト内の絶対パスにすること（Tempフォルダはアクセス拒否される）
+     ============================================================ */
+  html,body{margin:0;padding:0}
+  *{box-sizing:border-box}
+  :root{--amber:#ffcc44;
+    --gothic:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo","Noto Sans JP",system-ui,sans-serif;}
+  .thumb{position:relative;width:1280px;height:670px;background:#12141f;overflow:hidden}
+  .screen{position:absolute;top:50%;left:0;width:1920px;height:1080px;
+    transform:translateY(-50%) scale(.6667);transform-origin:left center;
+    filter:blur(2px) saturate(.9);background:#12141f}
+  .screen .r{position:absolute}
+  .screen .l{position:absolute;line-height:1;white-space:nowrap;color:#fff;font-family:var(--gothic)}
+  .scrim{position:absolute;inset:0;background:
+      linear-gradient(180deg,rgba(8,9,13,.55) 0%,rgba(8,9,13,.35) 40%,rgba(8,9,13,.78) 100%),
+      radial-gradient(120% 90% at 50% 45%,rgba(8,9,13,0) 30%,rgba(8,9,13,.55) 100%)}
+  .content{position:absolute;inset:0;display:flex;flex-direction:column;
+    justify-content:center;align-items:center;padding:44px 32px;text-align:center}
+  .kicker{font-family:var(--gothic);font-weight:700;color:#fff;opacity:.92;
+    font-size:34px;letter-spacing:.02em;margin-bottom:6px;text-shadow:0 2px 14px rgba(0,0,0,.75)}
+  .kicker .amp{color:var(--amber)}
+  .hero{font-family:var(--gothic);font-weight:900;color:#fff;white-space:nowrap;
+    font-size:190px;line-height:.92;letter-spacing:-6px;
+    text-shadow:0 6px 3px rgba(0,0,0,.35),0 10px 40px rgba(0,0,0,.8);
+    -webkit-text-stroke:2px rgba(0,0,0,.28)}
+  .foot-tag{position:absolute;left:56px;bottom:34px;font-family:var(--gothic);
+    font-weight:700;font-size:26px;color:#fff;opacity:.9;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+  .foot-tag .dim{opacity:.62;font-weight:600}
+  .badge{position:absolute;right:52px;bottom:34px;font-family:"Consolas",monospace;font-size:19px;
+    color:#0c0d12;background:var(--amber);font-weight:700;padding:6px 14px;border-radius:999px;
+    box-shadow:0 4px 18px rgba(0,0,0,.5)}
+</style></head><body>
+<div class="thumb">
+  <div class="screen">
+    <div class="r" style="left:1336px;top:0;width:2px;height:1080px;background:rgb(64,64,89)"></div>
+    <div class="r" style="left:0;top:540px;width:1334px;height:2px;background:rgba(77,77,102,.4)"></div>
+    <div class="l" style="left:40px;top:75px;font-size:20px;color:rgb(255,115,115)">[ 敵 ]</div>
+    <div class="l" style="left:40px;top:564px;font-size:20px;color:rgb(115,191,255)">[ 味方 ]</div>
+    <div class="l" style="left:340px;top:101px;font-size:15px;color:#8c8c8c">後</div>
+    <div class="l" style="left:340px;top:199px;font-size:15px;color:#8c8c8c">中</div>
+    <div class="l" style="left:340px;top:297px;font-size:15px;color:#8c8c8c">前</div>
+    <div class="l" style="left:612px;top:494px;font-size:22px;color:#fff">Turn 1</div>
+    <div class="l" style="left:1344px;top:20px;font-size:15px;color:#888">=== バトル開始 ===</div>
+    <div class="l" style="left:1344px;top:64px;font-size:15px;color:#ccc">[Turn 1]  リム → アーサー → 敵C …</div>
+    <div class="r" style="left:422px;top:271px;width:160px;height:82px;background:rgb(46,26,26)"></div>
+    <div class="l" style="left:428px;top:276px;font-size:15px">敵A</div>
+    <div class="r" style="left:428px;top:305px;width:148px;height:11px;background:rgb(51,191,77)"></div>
+    <div class="r" style="left:594px;top:271px;width:160px;height:82px;background:rgb(46,26,26)"></div>
+    <div class="l" style="left:600px;top:276px;font-size:15px">敵B</div>
+    <div class="r" style="left:600px;top:305px;width:148px;height:11px;background:rgb(51,191,77)"></div>
+    <div class="r" style="left:766px;top:271px;width:160px;height:82px;background:rgb(46,26,26)"></div>
+    <div class="l" style="left:772px;top:276px;font-size:15px">敵C</div>
+    <div class="r" style="left:772px;top:305px;width:74px;height:11px;background:rgb(51,191,77)"></div>
+    <div class="r" style="left:422px;top:594px;width:160px;height:82px;background:rgb(23,31,56)"></div>
+    <div class="l" style="left:428px;top:599px;font-size:15px">アーサー</div>
+    <div class="r" style="left:428px;top:628px;width:148px;height:11px;background:rgb(51,191,77)"></div>
+    <div class="r" style="left:594px;top:594px;width:160px;height:82px;background:rgb(23,31,56)"></div>
+    <div class="l" style="left:600px;top:599px;font-size:15px">エレナ</div>
+    <div class="r" style="left:600px;top:628px;width:148px;height:11px;background:rgb(51,191,77)"></div>
+    <div class="r" style="left:766px;top:594px;width:160px;height:82px;background:rgb(23,31,56)"></div>
+    <div class="l" style="left:772px;top:599px;font-size:15px">リム</div>
+    <div class="r" style="left:772px;top:628px;width:148px;height:11px;background:rgb(51,191,77)"></div>
+  </div>
+  <div class="scrim"></div>
+  <div class="content">
+    <div class="kicker">素人 <span class="amp">×</span> Claude Code でゲーム開発</div>
+    <div class="hero">仕様書を読め</div>
+  </div>
+  <div class="foot-tag">Perrant <span class="dim">開発ログ #1</span></div>
+  <div class="badge">たまごやきゲームズ</div>
+</div>
+</body></html>

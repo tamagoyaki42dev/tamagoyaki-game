@@ -1,0 +1,84 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+  /* ============================================================
+     note ヘッダー画像テンプレ（1920×1006）
+     ブランド：レトロピクセル × 金(#f2b63e) × 紺。ロゴバッジ(perrant_icon_source_400x400.jpg)を主役に。
+     ※noteはヘッダー左下にアバターと名前が重なる → 左下200pxは空けてある。
+     PNG書き出し：Chromeヘッドレス --window-size=1920,1006 でこのHTMLを --screenshot
+     ============================================================ */
+  html,body{margin:0;padding:0}
+  *{box-sizing:border-box}
+  :root{
+    --navy0:#0d121c; --navy1:#161d2b; --navy2:#1e2740;
+    --gold:#f2b63e; --gold-hi:#ffd873; --cream:#fbe7c8; --dim:rgba(251,231,200,.62);
+    --gothic:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo","Noto Sans JP",system-ui,sans-serif;
+    --mono:"Consolas","Courier New",monospace;
+  }
+  .header{position:relative;width:1920px;height:1006px;overflow:hidden;
+    background:
+      radial-gradient(80% 120% at 78% 42%,rgba(242,182,62,.10),transparent 55%),
+      radial-gradient(120% 140% at 20% 20%,#1a2236 0%,#0d121c 70%),
+      var(--navy0)}
+  /* faint pixel grid */
+  .grid{position:absolute;inset:0;opacity:.05;
+    background-image:linear-gradient(rgba(242,182,62,.6) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(242,182,62,.6) 1px,transparent 1px);
+    background-size:48px 48px}
+  .vig{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(5,8,13,.65) 100%)}
+
+  /* pixel sparkles (echo the logo) */
+  .px{position:absolute;image-rendering:pixelated}
+
+  /* ---- badge (the studio logo), hero on the right ---- */
+  .badge-glow{position:absolute;right:150px;top:50%;width:640px;height:640px;
+    transform:translateY(-50%);border-radius:50%;
+    background:radial-gradient(circle,rgba(242,182,62,.28),transparent 62%);filter:blur(6px)}
+  .badge{position:absolute;right:230px;top:50%;width:480px;height:480px;transform:translateY(-50%);
+    border-radius:50%;image-rendering:pixelated;
+    box-shadow:0 0 0 3px rgba(242,182,62,.55),0 20px 60px -18px rgba(0,0,0,.8),
+      inset 0 0 40px rgba(0,0,0,.35)}
+
+  /* ---- copy block, left ---- */
+  .copy{position:absolute;left:132px;top:50%;transform:translateY(-50%);width:1000px}
+  .kicker{font-family:var(--mono);font-size:30px;letter-spacing:.30em;color:var(--gold);
+    text-transform:uppercase;margin:0 0 26px;display:flex;align-items:center;gap:16px}
+  .kicker .sq{width:14px;height:14px;background:var(--gold);image-rendering:pixelated}
+  .headline{font-family:var(--gothic);font-weight:900;color:var(--cream);
+    font-size:132px;line-height:1.04;letter-spacing:.01em;margin:0;
+    text-shadow:0 4px 0 rgba(0,0,0,.25),0 14px 40px rgba(0,0,0,.6)}
+  .headline .g{color:var(--gold)}
+  .sub{font-family:var(--gothic);font-weight:600;color:var(--dim);font-size:33px;
+    letter-spacing:.02em;margin:34px 0 0}
+  .sub b{color:var(--cream);font-weight:700}
+  .rule{width:96px;height:5px;background:var(--gold);margin:30px 0 0;image-rendering:pixelated}
+</style></head><body>
+<div class="header">
+  <div class="grid"></div>
+
+  <!-- sparkles -->
+  <div class="px" style="left:1180px;top:150px;width:16px;height:16px;background:#ffd873;opacity:.95"></div>
+  <div class="px" style="left:1640px;top:210px;width:10px;height:10px;background:#f2b63e;opacity:.8"></div>
+  <div class="px" style="left:1760px;top:520px;width:14px;height:14px;background:#ffd873;opacity:.9"></div>
+  <div class="px" style="left:1520px;top:760px;width:10px;height:10px;background:#f2b63e;opacity:.7"></div>
+  <div class="px" style="left:1230px;top:840px;width:8px;height:8px;background:#ffd873;opacity:.6"></div>
+  <div class="px" style="left:1700px;top:120px;width:6px;height:6px;background:#fff;opacity:.5"></div>
+  <div class="px" style="left:1120px;top:470px;width:8px;height:8px;background:#f2b63e;opacity:.55"></div>
+  <div class="px" style="left:1590px;top:640px;width:16px;height:16px;background:#f2b63e;opacity:.5"></div>
+  <div class="px" style="left:1830px;top:400px;width:10px;height:10px;background:#ffd873;opacity:.7"></div>
+  <div class="px" style="left:1400px;top:100px;width:8px;height:8px;background:#ffd873;opacity:.6"></div>
+  <div class="px" style="left:150px;top:120px;width:10px;height:10px;background:#f2b63e;opacity:.4"></div>
+  <div class="px" style="left:70px;top:520px;width:8px;height:8px;background:#f2b63e;opacity:.35"></div>
+  <div class="px" style="left:980px;top:220px;width:6px;height:6px;background:#ffd873;opacity:.4"></div>
+
+  <div class="badge-glow"></div>
+  <img class="badge" src="perrant_icon_source_400x400.jpg" alt="たまごやきゲームズ">
+
+  <div class="copy">
+    <p class="kicker"><span class="sq"></span>Open Development Studio</p>
+    <h1 class="headline">つくる過程を、<br><span class="g">全部見せる。</span></h1>
+    <div class="rule"></div>
+    <p class="sub">ローテーションバトル × 世代継承 × ローグライク<br><b>Claude Code と個人開発中 ―『Perrant』</b></p>
+  </div>
+
+  <div class="vig"></div>
+</div>
+</body></html>
