@@ -2,6 +2,9 @@
 .godot/
 /android/
 
+# ビルド出力（書き出したexe。配布はitch/Steamへ、リポジトリには載せない）
+/build/
+
 # Secrets - NEVER commit these
 .env
 *.env

@@ -4,7 +4,6 @@ extends Node
 const GAME_TITLE := "Perrant"
 const GAME_TITLE_RUBY := "ペラント"
 const _ENEMY_INFO_SCENE := "res://scenes/enemy_info.tscn"
-const _DEBUG_LAUNCHER_SCENE := "res://scenes/debug_launcher.tscn"
 
 var _settings_panel: Control
 
@@ -59,16 +58,6 @@ func _ready() -> void:
 		get_tree().quit())
 
 	_settings_panel = _build_settings_panel(root, sw, sh)
-
-	var debug_btn := Button.new()
-	debug_btn.text = "DEBUG"
-	debug_btn.position = Vector2(12.0, sh - 36.0)
-	debug_btn.size = Vector2(70.0, 24.0)
-	debug_btn.add_theme_font_size_override("font_size", 11)
-	debug_btn.modulate = Color(1.0, 1.0, 1.0, 0.35)
-	debug_btn.pressed.connect(func() -> void:
-		get_tree().change_scene_to_file(_DEBUG_LAUNCHER_SCENE))
-	root.add_child(debug_btn)
 
 func _btn(parent: Node, text: String, pos: Vector2, callback: Callable) -> void:
 	var b := Button.new()
