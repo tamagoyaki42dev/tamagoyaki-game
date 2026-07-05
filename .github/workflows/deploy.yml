@@ -1,9 +1,7 @@
 name: Deploy to itch.io
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 env:
   GODOT_VERSION: "4.6"
@@ -36,7 +34,7 @@ jobs:
       - name: Export Windows
         run: |
           mkdir -p build/windows
-          godot --headless --export-release "Windows Desktop" "$PWD/build/windows/tamagoyakigames.exe"
+          godot --headless --export-release "Windows Desktop" "$PWD/build/windows/Perrant.exe"
 
       - name: Zip Windows build
         run: cd build && zip -r windows.zip windows/
