@@ -25,3 +25,20 @@ func test_battle_scene_has_lunge_exports() -> void:
 	assert_true(scene.enemy_lunge_dist > 0.0, "enemy_lunge_dist が正の値")
 	assert_true(scene.enemy_lunge_in_time > 0.0, "enemy_lunge_in_time が正の値")
 	assert_true(scene.enemy_lunge_out_time > 0.0, "enemy_lunge_out_time が正の値")
+
+func test_battle_scene_has_hit_knockback_exports() -> void:
+	var scene := BattleScene.new()
+	assert_almost_eq(scene.hit_knockback_dist, 0.25, 0.001,
+		"被弾ノックバック距離。ジュース強化で0.12→0.25に増量（2026-07-08）")
+	assert_true(scene.hit_knockback_out_time > 0.0, "hit_knockback_out_time が正の値")
+	assert_true(scene.hit_knockback_return_time > 0.0, "hit_knockback_return_time が正の値")
+	scene.free()
+
+func test_battle_scene_hitstop_scales_with_damage() -> void:
+	var scene := BattleScene.new()
+	assert_true(scene.hitstop_dmg_ref > 0.0, "hitstop_dmg_ref が正の値")
+	assert_true(scene.hitstop_dmg_min_mult < 1.0, "小ダメージ側はhitstop_durationより短くなる")
+	assert_true(scene.hitstop_dmg_max_mult > 1.0, "大ダメージ側はhitstop_durationより長くなる")
+	assert_true(scene.hitstop_dmg_min_mult < scene.hitstop_dmg_max_mult,
+		"min_mult < max_mult（範囲が逆転していない）")
+	scene.free()

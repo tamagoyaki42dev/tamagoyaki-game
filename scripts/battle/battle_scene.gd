@@ -193,7 +193,9 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var hit_flash_magic_color: Color  = Color(0.7, 0.15, 1.0)
 @export var hit_flash_ranged_color: Color = Color(1.0, 0.85, 0.10)
 @export var hit_shake_amount: float    = 0.05   # m 揺れ幅
-@export var hit_knockback_dist: float  = 0.12   # m ノックバック
+@export var hit_knockback_dist: float  = 0.25   # m ノックバック（2026-07-08：0.12→0.25 体感強化）
+@export var hit_knockback_out_time: float    = 0.08  # s 後退時間
+@export var hit_knockback_return_time: float = 0.12  # s 戻り時間
 
 # 被弾パーティクル（火花）
 @export var spark_color: Color            = Color(1.0, 0.65, 0.0)  # 通常ヒット（純オレンジ）
@@ -208,9 +210,12 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var spark_amount: int             = 28
 @export var spark_crit_amount: int        = 48
 
-# ヒットストップ
+# ヒットストップ（stop長はダメージ量に比例。hitstop_dmg_refのダメージでhitstop_duration通りになる）
 @export_range(0.01, 1.0, 0.01) var hitstop_time_scale: float = 0.05
 @export_range(0.02, 0.3,  0.01) var hitstop_duration: float  = 0.08
+@export var hitstop_dmg_ref: float             = 20.0
+@export_range(0.3, 1.0, 0.05) var hitstop_dmg_min_mult: float = 0.5
+@export_range(1.0, 2.5, 0.05) var hitstop_dmg_max_mult: float = 1.8
 
 # カメラシェイク
 @export_range(0.0, 0.5, 0.005) var shake_intensity: float      = 0.05
@@ -242,6 +247,8 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 
 # ユニット行動
 @export var attack_impact_delay: float       = 0.2  # s アニメ開始→被弾エフェクト発火までの遅延
+# KayKit採用職用の遅延。handslot.r実測でMelee_1H_Attack_Chopの振り下ろし最下点≈0.64s
+@export var kaykit_attack_impact_delay: float = 0.6
 @export var unit_action_show_duration: float = 0.9  # s アニメ完了後の見せ時間
 # 敵攻撃突進フォールバック（EnemyData.attack_anim が空のとき使用）
 @export var enemy_lunge_dist: float          = 0.6  # m 突進距離
@@ -265,11 +272,16 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var weapon_scale: float    = 0.3
 # arm-right ボーンのローカル空間における手先位置（kenney-mini スケルトンのスキニングから実測）
 @export var weapon_offset: Vector3 = Vector3(-0.18, 0.18, 0.08)
-# KayKit採用職（剣闘士/騎士/魔女）用：handslot.rボーンでの武器スケール/位置（要目視調整）
-@export var kaykit_weapon_scale: float    = 0.3
-@export var kaykit_weapon_offset: Vector3 = Vector3(-0.18, 0.18, 0.08)
-# KayKit採用職の全体スケール補正（Kenneyとの身長差吸収・要目視調整）
-@export var kaykit_char_scale_mult: float = 0.6
+# KayKit採用職（剣闘士/騎士/魔女）用：handslot.rはweapon_offset不要な専用ソケットボーン
+# （実測：rest回転が武器の向きに合わせた90°、hand.rからの相対位置も武器を持つ位置に合致）。
+# scaleはKayKitスケルトンのボーン空間がKenneyの約3.8倍（後述の身長比実測）大きいため
+# weapon_scale(0.3)をその倍率で拡大。要目視調整
+@export var kaykit_weapon_scale: float    = 1.15
+@export var kaykit_weapon_offset: Vector3 = Vector3.ZERO
+# KayKit採用職の全体スケール補正。実測（各キャラ非スケールAABB高さ）：
+# Kenney基準 character-male-b≈0.66 / KayKit Barbarian≈2.40・Knight≈2.54・Mage≈2.65
+# → 平均2.53に対し身長を揃える比率0.66/2.53≈0.26。ユーザー目視確認により0.52へ倍増
+@export var kaykit_char_scale_mult: float = 0.52
 
 # 番号バッジ（足元）
 @export var number_badge_font_size: int    = 64
@@ -278,8 +290,8 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var number_badge_outline: int      = 3
 
 # アクセントリング（足元）
-@export var accent_ring_inner: float = 0.35
-@export var accent_ring_outer: float = 0.45
+@export var accent_ring_inner: float = 0.5
+@export var accent_ring_outer: float = 0.68
 @export var accent_ring_y: float     = 0.02
 # Phase 3：パネル行ホバー時のリング強調量
 @export_range(0.0, 1.0, 0.05) var ring_hover_brighten: float       = 0.5  # 白側への lerp 量
@@ -288,7 +300,7 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 # Phase 4：3D ホバー判定用 Area3D カプセル
 # イソメトリック視差ズレ対策：y を高くすると前列判定が後列のスクリーン座標と重なるため
 # リング（y≈0.02）と同じ地面すれすれに置いて各キャラのリング上にヒットボックスを一致させる
-@export var hover_collider_radius: float = 0.45  # カプセル半径 (m)
+@export var hover_collider_radius: float = 0.68  # カプセル半径 (m)。accent_ring_outerと一致させる
 @export var hover_collider_height: float = 0.95  # カプセル高さ (m)。radius*2 に近い扁平形
 @export var hover_collider_y: float      = 0.15  # カプセル中心 y（地面すれすれ・リングと同高さ）
 
@@ -434,6 +446,7 @@ var _clay_shader: Shader
 var _manager: BattleManager
 var _unit_nodes: Dictionary = {}    # BattleUnit → Node3D
 var _unit_anims: Dictionary = {}    # BattleUnit → AnimationPlayer
+var _unit_base_scale: Dictionary = {}  # BattleUnit → Vector3（spawn時の実スケール。KayKit職はkaykit_char_scale_mult込み）
 var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
 var _unit_rings: Dictionary = {}    # BattleUnit → StandardMaterial3D（アクセントリング。Phase3ホバー用）
 var _ring_base_colors: Dictionary = {}  # BattleUnit → Color（リング基準色。ホバー解除時の復帰用）
@@ -606,9 +619,12 @@ func _do_flash(ch: Node3D, color: Color = Color(1.0, 0.15, 0.15), duration: floa
 			func(v: float) -> void: mat.set_shader_parameter("flash_amount", v),
 			1.0, 0.0, dur)
 
-func _do_hitstop() -> void:
+func _do_hitstop(dmg: int = 0) -> void:
+	var dmg_mult := 1.0
+	if dmg > 0 and hitstop_dmg_ref > 0.0:
+		dmg_mult = clampf(float(dmg) / hitstop_dmg_ref, hitstop_dmg_min_mult, hitstop_dmg_max_mult)
 	Engine.time_scale = hitstop_time_scale
-	await get_tree().create_timer(hitstop_duration, true, false, true).timeout
+	await get_tree().create_timer(hitstop_duration * dmg_mult, true, false, true).timeout
 	Engine.time_scale = 1.0
 
 func _do_camera_shake(intensity: float) -> void:
@@ -632,8 +648,8 @@ func _do_camera_shake(intensity: float) -> void:
 	_camera.v_offset = 0.0
 	_shake_active = false
 
-func _do_hit_effects(is_crit: bool) -> void:
-	await _do_hitstop()
+func _do_hit_effects(is_crit: bool, dmg: int = 0) -> void:
+	await _do_hitstop(dmg)
 	_do_camera_shake(shake_crit_intensity if is_crit else shake_intensity)
 
 # 近接接近攻撃の対象外（その場で詠唱/射撃する職）。SE・被弾フラッシュ色と同じ分類
@@ -792,9 +808,17 @@ func _make_bg_bar() -> MeshInstance3D:
 	mi.material_override = mat
 	return mi
 
+# ch.scale（KayKit職はkaykit_char_scale_mult込み）を打ち消し、足元装飾（HPバー・
+# 番号バッジ・アクセントリング・ホバー判定）の絶対サイズ・位置をキャラモデルの
+# スケールに関わらず一定に保つ補正値
+static func _decoration_inv_scale(ch: Node3D) -> Vector3:
+	return Vector3.ONE / ch.scale
+
 func _spawn_hp_bar(ch: Node3D, unit: BattleUnit) -> void:
+	var inv := _decoration_inv_scale(ch)
 	var bg := _make_bg_bar()
-	bg.position.y = hp_bar_y_offset
+	bg.position = Vector3(0.0, hp_bar_y_offset, 0.0) * inv
+	bg.scale = inv
 	ch.add_child(bg)
 
 	var fg := MeshInstance3D.new()
@@ -807,7 +831,8 @@ func _spawn_hp_bar(ch: Node3D, unit: BattleUnit) -> void:
 	mat.set_shader_parameter("bar_color", Color(0.15, 0.85, 0.3, 1.0))
 	mat.render_priority = 2
 	fg.material_override = mat
-	fg.position.y = hp_bar_y_offset
+	fg.position = Vector3(0.0, hp_bar_y_offset, 0.0) * inv
+	fg.scale = inv
 	ch.add_child(fg)
 
 	_hp_bars[unit] = mat  # ShaderMaterial を保持してパラメータを更新する
@@ -963,15 +988,18 @@ func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 func _spawn_number_badge(ch: Node3D, number: int) -> void:
+	var inv := _decoration_inv_scale(ch)
 	var lbl := _make_label3d(str(number), number_badge_font_size, number_badge_pixel_size, Color.WHITE)
 	lbl.outline_size = number_badge_outline
 	lbl.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
-	lbl.position = Vector3(0.0, number_badge_y, 0.0)
+	lbl.position = Vector3(0.0, number_badge_y, 0.0) * inv
+	lbl.scale = inv
 	if _label_font:
 		lbl.font = _label_font
 	ch.add_child(lbl)
 
 func _spawn_accent_ring(ch: Node3D, unit: BattleUnit, accent: Color) -> void:
+	var inv := _decoration_inv_scale(ch)
 	var mi := MeshInstance3D.new()
 	var torus := TorusMesh.new()
 	torus.inner_radius = accent_ring_inner
@@ -981,15 +1009,18 @@ func _spawn_accent_ring(ch: Node3D, unit: BattleUnit, accent: Color) -> void:
 	mat.albedo_color = accent
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mi.material_override = mat
-	mi.position = Vector3(0.0, accent_ring_y, 0.0)
+	mi.position = Vector3(0.0, accent_ring_y, 0.0) * inv
+	mi.scale = inv
 	ch.add_child(mi)
 	_unit_rings[unit] = mat
 	_ring_base_colors[unit] = accent
 
 # Phase 4：プレイヤーキャラに Area3D を付けてマウスホバーを検出する
 func _spawn_hover_area(ch: Node3D, unit: BattleUnit) -> void:
+	var inv := _decoration_inv_scale(ch)
 	var area := Area3D.new()
-	area.position = Vector3(0.0, hover_collider_y, 0.0)
+	area.position = Vector3(0.0, hover_collider_y, 0.0) * inv
+	area.scale = inv
 	var col := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = hover_collider_radius
@@ -1107,6 +1138,7 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 				continue
 			_unit_nodes[unit] = ch
 			_unit_anims[unit] = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			_unit_base_scale[unit] = char_scale
 			_spawn_hp_bar(ch, unit)
 			_attach_weapon(ch, unit)
 			var cd := unit.source_data as CharacterData
@@ -1191,8 +1223,11 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 				origin, enemy_lunge_out_time).set_ease(Tween.EASE_IN)
 
 	# 振り下ろしタイミングまで待機してから被弾エフェクトを発火
-	if attack_impact_delay > 0.0:
-		await get_tree().create_timer(attack_impact_delay).timeout
+	var is_kaykit_attacker := attacker.side == BattleUnit.Side.PLAYER and cd_a != null \
+		and (_JOB_CHAR_PATHS.get(cd_a.job, "") as String).begins_with(_KAYKIT_CHAR_DIR)
+	var impact_delay := kaykit_attack_impact_delay if is_kaykit_attacker else attack_impact_delay
+	if impact_delay > 0.0:
+		await get_tree().create_timer(impact_delay).timeout
 
 	var hit_tween: Tween = null
 	# 被弾：ダメージ数字 + flash + 揺れ + ノックバック
@@ -1205,7 +1240,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		_update_hp_bar(target)
 		_do_flash(ch_t, _resolve_hit_flash_color(attacker,
 			hit_flash_melee_color, hit_flash_magic_color, hit_flash_ranged_color))
-		_do_hit_effects(is_crit)
+		_do_hit_effects(is_crit, dmg)
 		_spawn_hit_sparks(ch_t.global_position, is_crit)
 		var _se := AudioManager.SE_CRITICAL if is_crit else _resolve_attack_se(attacker)
 		AudioManager.play_se(_se, 10.0 if _se == AudioManager.SE_ARROW else 0.0)
@@ -1216,8 +1251,8 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		var tw_t := create_tween()
 		tw_t.tween_property(ch_t, "position",
 			t_origin + kb_dir * hit_knockback_dist + shake,
-			hit_flash_duration).set_ease(Tween.EASE_OUT)
-		tw_t.tween_property(ch_t, "position", t_origin, 0.12).set_ease(Tween.EASE_IN)
+			hit_knockback_out_time).set_ease(Tween.EASE_OUT)
+		tw_t.tween_property(ch_t, "position", t_origin, hit_knockback_return_time).set_ease(Tween.EASE_IN)
 		hit_tween = tw_t
 
 	# 多段ヒット時は最初のコルーチンだけが emit を担当する
@@ -1298,7 +1333,8 @@ func _on_rotated() -> void:
 		var m: Marker3D = _get_player_marker(unit.row, unit.col)
 		if ch and m:
 			moves.append({"ch": ch,
-				"to": m.global_position + Vector3(0.0, char_y_offset, 0.0)})
+				"to": m.global_position + Vector3(0.0, char_y_offset, 0.0),
+				"base_scale": _unit_base_scale.get(unit, player_char_scale)})
 	if moves.is_empty():
 		_manager.rotate_anim_done.emit()
 		return
@@ -1311,16 +1347,19 @@ func _on_rotated() -> void:
 	# 到着フラッシュ（スカッシュと同時に発火）
 	for entry: Dictionary in moves:
 		_do_flash(entry["ch"], arrive_flash_color, arrive_flash_duration)
-	# 着地スカッシュ
+	# 着地スカッシュ（スカッシュ量はユニット自身のベーススケールに対する相対値。
+	# player_char_scale固定だとKayKit職（ベース0.26）がローテ着地の瞬間だけ
+	# player_char_scale(1.0)に戻ってしまい体感で「前列に来た瞬間デカくなる」バグになる）
 	var sq_in := create_tween().set_parallel(true)
 	for entry: Dictionary in moves:
+		var base_scale: Vector3 = entry["base_scale"]
 		sq_in.tween_property(entry["ch"], "scale",
-			Vector3(landing_squash_xz, landing_squash_y, landing_squash_xz),
+			base_scale * Vector3(landing_squash_xz, landing_squash_y, landing_squash_xz),
 			landing_squash_in_time).set_ease(Tween.EASE_OUT)
 	await sq_in.finished
 	var sq_out := create_tween().set_parallel(true)
 	for entry: Dictionary in moves:
-		sq_out.tween_property(entry["ch"], "scale", player_char_scale,
+		sq_out.tween_property(entry["ch"], "scale", entry["base_scale"],
 			landing_squash_out_time).set_ease(Tween.EASE_OUT)
 	await sq_out.finished
 	# 完了時列フラッシュ（前列のみ・到着フラッシュより一拍遅れ）

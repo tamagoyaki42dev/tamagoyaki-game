@@ -229,7 +229,17 @@
       "WebFetch(domain:renote.jp)",
       "WebFetch(domain:renote.net)",
       "Bash(\"C:/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless -s addons/gut/gut_cmdln.gd -gconfig=.gutconfig.json -gexit)",
-      "Bash(\"C:/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless -s res://addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json)"
+      "Bash(\"C:/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless -s res://addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json)",
+      "Bash(py -3.12 -c ' *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('OK: JSON valid'\\); print\\([l for l in d['hookSpecificOutput']['additionalContext'].splitlines\\(\\) if 'SNS当番' in l or '毎日:' in l or '曜:' in l]\\)\")",
+      "Bash(GODOT=\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\"; ls \"$GODOT\" 2>&1 | head -5)",
+      "Bash(/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe --headless --path . --script C:/Users/djbsh/AppData/Local/Temp/claude/d--dev-tamagoyaki-game/7e1fee49-e11f-445d-a235-636dbc2eee88/scratchpad/inspect_kaykit_anims.gd)",
+      "Bash(/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe --headless --path . --script C:/Users/djbsh/AppData/Local/Temp/claude/d--dev-tamagoyaki-game/7e1fee49-e11f-445d-a235-636dbc2eee88/scratchpad/inspect_attack_timing.gd)",
+      "Bash(/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe --headless --check-only --script res://scripts/battle/battle_scene.gd --path .)",
+      "Bash(/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe --headless --check-only --script scripts/battle/battle_scene.gd)",
+      "Bash(/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe --headless --path . --script C:/Users/djbsh/AppData/Local/Temp/claude/d--dev-tamagoyaki-game/7e1fee49-e11f-445d-a235-636dbc2eee88/scratchpad/inspect_scale.gd)",
+      "Bash(/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe --headless --path . --script C:/Users/djbsh/AppData/Local/Temp/claude/d--dev-tamagoyaki-game/7e1fee49-e11f-445d-a235-636dbc2eee88/scratchpad/inspect_handslot.gd)",
+      "Bash(/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe --headless --script /tmp/vec_test.gd)"
     ],
     "additionalDirectories": [
       "C:\\Users\\djbsh\\Downloads\\extracted\\kenney_interface-sounds\\Audio",

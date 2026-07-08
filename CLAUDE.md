@@ -93,7 +93,7 @@
 
 ## セッション開始時に必ずやること
 
-最新 devlog と `docs/backlog.md` は SessionStart フック（`tools/session_start_hook.py`）が自動注入する。注入内容を読んだ上で、ユーザーへの確認なしに即座に作業を開始できる状態にする。注入が見当たらない場合（フック失敗）は両ファイルを手動で読む。
+最新 devlog・`docs/backlog.md`・今日のSNS当番（週次スケジュール）は SessionStart フック（`tools/session_start_hook.py`）が自動注入する。注入内容を読んだ上で、ユーザーへの確認なしに即座に作業を開始できる状態にする。**注入された「今日のSNS当番」は、その日の曜日に該当するSNS作業をユーザーに思い出させるためのもの**（週次スケジュールの詳細・投稿の声は `docs/sns_workflow.md`）。注入が見当たらない場合（フック失敗）は backlog と最新 devlog を手動で読む。
 
 ## タスク管理
 
@@ -118,6 +118,7 @@
 | `docs/proto2_design.md` | プロト2以降の設計・方針（個体値・手続き生成・敵行動乱数・必殺ボタン・KayKit移行）に触れるとき |
 | `docs/godot_feature_map.md` | 使うべきGodot機能を確認するとき |
 | `docs/design_decisions.md` | 既存メカの意味・トリガー・発動条件に触れるとき（＝「触ると死ぬ配線」＝設計判断の照合。balance-verify スキルが作業前に自動照合） |
+| `docs/sns_workflow.md` | SNS投稿・週次当番（曜日固定スケジュール）・投稿文作成・X人格（Claude見下し実況）・アカウント/リンク運用に触れるとき |
 
 ## プロジェクトスキル（.claude/skills/）
 

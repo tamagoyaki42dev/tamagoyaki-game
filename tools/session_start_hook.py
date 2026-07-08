@@ -1,4 +1,5 @@
-"""SessionStart フック: backlog と最新 devlog を Claude のコンテキストに自動注入する。"""
+"""SessionStart フック: backlog・最新 devlog・今日のSNS当番を Claude のコンテキストに自動注入する。"""
+import datetime
 import glob
 import json
 import os
@@ -19,6 +20,20 @@ if devlogs:
             parts.append(f"# 最新devlog（{os.path.basename(latest)}）\n\n" + f.read())
     except OSError:
         pass
+
+# 今日のSNS当番（週次スケジュール・曜日固定／詳細は docs/sns_workflow.md）
+_WEEKDAY_DUTY = {
+    2: "水曜: 動画（YouTube＋TikTok）を1本作って両方へ投稿",
+    5: "土曜: note記事＋itch devlog（その週の開発ストーリー）",
+}
+_duty = ["毎日: X投稿（Claude見下し実況）1本 ※在庫から出す・毎日はネタを考えない"]
+_today_duty = _WEEKDAY_DUTY.get(datetime.date.today().weekday())
+if _today_duty:
+    _duty.append(_today_duty)
+parts.append(
+    "# 今日のSNS当番（週次スケジュール・詳細は docs/sns_workflow.md）\n\n"
+    + "\n".join(f"- {d}" for d in _duty)
+)
 
 print(json.dumps({
     "hookSpecificOutput": {
