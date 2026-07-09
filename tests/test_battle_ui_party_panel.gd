@@ -65,8 +65,8 @@ func test_panel_portrait_texture_matches_job() -> void:
 
 func test_panel_portrait_tint_for_shared_model_job() -> void:
 	var ui := _make_ui()
-	# ARCHER は male-d 共有のため _JOB_TINTS 対象
-	var cd_tint := CharacterData.from_job(CharacterJob.Type.ARCHER)
+	# MONK は male-b 共有のため _JOB_TINTS 対象
+	var cd_tint := CharacterData.from_job(CharacterJob.Type.MONK)
 	cd_tint.char_name = "リン"
 	var u_tint := BattleUnit.from_character(cd_tint, 0)
 	# WARRIOR は tint 対象外 → 白
@@ -76,7 +76,7 @@ func test_panel_portrait_tint_for_shared_model_job() -> void:
 	ui._build_party_panel([u_tint, u_white])
 
 	var p_tint := ui._party_portraits[u_tint] as TextureRect
-	assert_eq(p_tint.modulate, BattleScene.job_tint_or_white(CharacterJob.Type.ARCHER),
+	assert_eq(p_tint.modulate, BattleScene.job_tint_or_white(CharacterJob.Type.MONK),
 		"tint 対象職のポートレート modulate が _JOB_TINTS 値と一致")
 
 	var p_white := ui._party_portraits[u_white] as TextureRect

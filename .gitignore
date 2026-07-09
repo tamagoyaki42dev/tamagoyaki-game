@@ -35,6 +35,10 @@ Thumbs.db
 assets/quaternius-rpg-items/
 assets/quaternius-ultimate-characters/
 
+# KayKit 追加無料パック（探索用ストック・大容量のため除外・各自ダウンロード）
+# ※統合済みの characters/ animations/ は追跡対象。ここは packs/ の未整理ストックのみ除外
+assets/kaykit/packs/
+
 # Kenney アセットパック（大容量のため除外・各自ダウンロード）
 assets/kenney-dungeon-kit/
 assets/kenney-hexagon-kit/

@@ -29,6 +29,11 @@ const _KAYKIT_CLIPS: Dictionary = {
 	CharacterJob.Type.GLADIATOR: {"idle": "general/Idle_A", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
 	CharacterJob.Type.KNIGHT:    {"idle": "general/Idle_A", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
 	CharacterJob.Type.MAGE:      {"idle": "general/Idle_A", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
+	# 弓職：その場で弓を引く（_is_ranged_or_magic_job 済み＝接近しない）。attackクリップは要目視調整
+	CharacterJob.Type.ARCHER:    {"idle": "general/Idle_A", "attack": "ranged/Ranged_Bow_Draw", "death": "general/Death_A"},
+	CharacterJob.Type.VALKYRIE:  {"idle": "general/Idle_A", "attack": "ranged/Ranged_Bow_Draw", "death": "general/Death_A"},
+	# 巫女：御幣を掲げてその場詠唱（後で光の玉projectileを重ねる土台）
+	CharacterJob.Type.SHRINE_MAIDEN: {"idle": "general/Idle_A", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
 }
 
 # 職業別キャラモデル（female 6職は1:1ユニーク、male 11職は5種を共有）
@@ -40,25 +45,25 @@ const _JOB_CHAR_PATHS: Dictionary = {
 	CharacterJob.Type.MAGE:          _KAYKIT_CHAR_DIR + "Mage.glb",
 	CharacterJob.Type.MONK:          _CHAR_DIR + "character-male-b.glb",
 	CharacterJob.Type.DARK_KNIGHT:   _CHAR_DIR + "character-male-c.glb",
-	CharacterJob.Type.ARCHER:        _CHAR_DIR + "character-male-d.glb",
+	CharacterJob.Type.ARCHER:        _KAYKIT_CHAR_DIR + "Ranger.glb",
 	CharacterJob.Type.ILLUSIONIST:   _CHAR_DIR + "character-male-e.glb",
 	CharacterJob.Type.SAMURAI:       _CHAR_DIR + "character-male-f.glb",
 	CharacterJob.Type.SHAMAN:        _CHAR_DIR + "character-male-e.glb",
 	CharacterJob.Type.CLERIC:        _CHAR_DIR + "character-female-a.glb",
 	CharacterJob.Type.WITCH:         _CHAR_DIR + "character-female-b.glb",
-	CharacterJob.Type.VALKYRIE:      _CHAR_DIR + "character-female-c.glb",
-	CharacterJob.Type.SHRINE_MAIDEN: _CHAR_DIR + "character-female-d.glb",
+	CharacterJob.Type.VALKYRIE:      _KAYKIT_CHAR_DIR + "Rogue.glb",
+	CharacterJob.Type.SHRINE_MAIDEN: _KAYKIT_CHAR_DIR + "Rogue_Hooded.glb",
 	CharacterJob.Type.NINJA:         _CHAR_DIR + "character-female-e.glb",
 	CharacterJob.Type.HOLY_KNIGHT:   _CHAR_DIR + "character-female-f.glb",
 }
-# 同一モデルを共有するジョブのみ albedo_color チント
+# albedo_color チント。①同一モデル共有職の色分け ②KayKit固有モデルの意匠替え（巫女＝赤紫）
 const _JOB_TINTS: Dictionary = {
 	CharacterJob.Type.MONK:        Color(0.78, 0.88, 1.0),   # male-b 共有 → 水色
 	CharacterJob.Type.DARK_KNIGHT: Color(0.6,  0.6,  0.75),  # male-c 共有 → 紫
-	CharacterJob.Type.ARCHER:      Color(0.75, 1.0,  0.75),  # male-d 共有 → 緑
 	CharacterJob.Type.ILLUSIONIST: Color(0.9,  0.75, 1.0),   # male-e 共有 → 薄紫
 	CharacterJob.Type.SHAMAN:      Color(0.75, 1.0,  0.85),  # male-e 共有 → 緑青
 	CharacterJob.Type.SAMURAI:     Color(1.0,  0.9,  0.65),  # male-f 共有 → ゴールド
+	CharacterJob.Type.SHRINE_MAIDEN: Color(0.85, 0.45, 0.7), # KayKit Rogue_Hooded → 巫女の赤紫（要目視調整）
 }
 
 const HP_YELLOW_THRESHOLD := 0.5
@@ -87,15 +92,32 @@ const _WEAPON_PATHS: Dictionary = {
 	CharacterJob.Type.CLERIC:        _WEAPON_DIR + "Hammer_Double.fbx",
 	CharacterJob.Type.MAGE:          _WEAPON_DIR + "Crystal1.fbx",
 	CharacterJob.Type.WITCH:         _WEAPON_DIR + "Crystal1.fbx",
-	CharacterJob.Type.ARCHER:        _WEAPON_DIR + "Bow_Wooden.fbx",
-	CharacterJob.Type.VALKYRIE:      _WEAPON_DIR + "Bow_Wooden.fbx",
+	CharacterJob.Type.ARCHER:        "res://assets/kaykit/weapons/bow_A_withString.gltf",
+	CharacterJob.Type.VALKYRIE:      "res://assets/kaykit/weapons/bow_B_withString.gltf",
 	CharacterJob.Type.SHAMAN:        _WEAPON_DIR + "Hammer_Double.fbx",
-	CharacterJob.Type.SHRINE_MAIDEN: _WEAPON_DIR + "Crystal1.fbx",
+	CharacterJob.Type.SHRINE_MAIDEN: "res://assets/kaykit/weapons/torch.gltf",
 	CharacterJob.Type.SAMURAI:       _WEAPON_DIR + "Sword.fbx",
 	CharacterJob.Type.NINJA:         _WEAPON_DIR + "Sword.fbx",
 	CharacterJob.Type.DARK_KNIGHT:   _WEAPON_DIR + "Sword.fbx",
 	CharacterJob.Type.HOLY_KNIGHT:   _WEAPON_DIR + "Hammer_Double.fbx",
 }
+# KayKit採用職のうち剣以外の武器（弓・松明）は handslot.r 基準の姿勢が剣と別。
+# 剣系（剣闘士/騎士/魔女クリスタル）は従来の kaykit_weapon_offset/scale のまま。
+# ここに登録した職だけ個別トランスフォームで上書きする。値はすべて実機目視で要調整（初期値=剣と同スケール・無回転）。
+const _KAYKIT_WEAPON_XFORM: Dictionary = {
+	CharacterJob.Type.ARCHER:        {"pos": Vector3.ZERO, "rot_deg": Vector3.ZERO, "scale": 1.15},
+	CharacterJob.Type.VALKYRIE:      {"pos": Vector3.ZERO, "rot_deg": Vector3.ZERO, "scale": 1.15},
+	CharacterJob.Type.SHRINE_MAIDEN: {"pos": Vector3.ZERO, "rot_deg": Vector3.ZERO, "scale": 1.15},
+}
+
+# その場攻撃職のうち、実体が相手へ飛ぶ演出を持つ職。"arrow"=矢メッシュを飛ばす／"orb"=発光球を生成して飛ばす。
+# 未登録の職（魔術師/魔女等）は従来どおり着弾即時（インパクト遅延後にその場で被弾処理）のまま
+const _PROJECTILE_KIND: Dictionary = {
+	CharacterJob.Type.ARCHER:        "arrow",
+	CharacterJob.Type.VALKYRIE:      "arrow",
+	CharacterJob.Type.SHRINE_MAIDEN: "orb",
+}
+const _PROJECTILE_ARROW_PATH := "res://assets/kaykit/weapons/arrow_A.gltf"
 
 const ACCENT_PALETTE: Array = [
 	Color(0.902, 0.333, 0.227),  # 0: #E6553A
@@ -222,6 +244,13 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export_range(0.0, 0.5, 0.005) var shake_crit_intensity: float = 0.12
 @export_range(0.05, 1.0, 0.05) var shake_duration: float       = 0.25
 
+# クリティカル格上げ（ヒットストップ後、クリ限定で追加スロー＋カメラズームパンチ）
+@export_range(0.05, 1.0, 0.01) var crit_slowmo_time_scale: float = 0.3
+@export_range(0.05, 0.6, 0.01) var crit_slowmo_duration: float   = 0.18
+@export_range(0.0, 5.0, 0.1)   var crit_zoom_amount: float       = 2.0
+@export_range(0.01, 0.3, 0.01) var crit_zoom_in_time: float      = 0.06
+@export_range(0.05, 0.5, 0.01) var crit_zoom_out_time: float     = 0.2
+
 # 撃破
 @export var death_duration: float      = 0.4    # s
 @export var death_tilt_deg: float      = 45.0   # °
@@ -229,6 +258,8 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 # ローテーション
 @export var rotate_duration: float      = 0.55   # s
 @export var rotate_show_duration: float = 0.6   # s アニメ完了後の見せ時間
+@export var rotate_arc_height: float       = 0.3   # m 移動中のホップ弧の高さ
+@export var rotate_stagger_delay: float    = 0.05  # s ユニットごとの開始ずらし（一斉移動のロボット感を崩す）
 
 # 着地スカッシュ
 @export var landing_squash_y: float        = 0.65  # 潰れ時のY軸スケール
@@ -258,6 +289,25 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var melee_approach_gap: float        = 2.2  # m 接近時に対象の手前で止まる距離（対象までの直線距離ベース）
 @export var melee_approach_time: float       = 0.25 # s 接近Tween時間
 @export var melee_return_time: float         = 0.3  # s 帰還Tween時間
+@export var melee_approach_arc_height: float = 0.6  # m 接近時のジャンプ弧の高さ（sin弧）
+
+# 飛翔体（矢/光の玉）：その場攻撃職のうち _PROJECTILE_KIND 登録職のみ。着弾＝被弾処理発火のトリガー
+@export var projectile_travel_time: float        = 0.35 # s 発射→着弾までの飛翔時間（要目視調整）
+# 既存の被弾エフェクト(火花/フラッシュ)が発火する高さ(_SPARK_SPAWN_Y)と必ず一致させる。
+# 旧値1.0は当てずっぽうで、着弾点がエフェクト発生位置より0.3m高くズレ「敵の中心を向いていない」
+# ように見えるバグの原因だった（ユーザー実機報告・2026-07-09）
+@export var projectile_spawn_height: float        = _SPARK_SPAWN_Y  # m 発射/着弾点の高さ
+@export var projectile_arc_height: float          = 0.3  # m 飛翔中の弧の高さ（sin弧）
+# arrow_A.gltf の全頂点AABB実測：長軸=ローカルZ（全長1.21m）。Z最小側は断面分散0.0056（羽根＝広い）・
+# Z最大側は断面分散0.0013（鏃＝先端に収束）→ 矢の前方はローカル+Z。Godotのlook_at()はローカル-Zを
+# 目標方向へ向ける規約のため、ちょうど180°反転が必要（当てずっぽうでなく実測で確定した値）
+@export var projectile_arrow_rot_offset_deg: float = 180.0
+@export var projectile_orb_radius: float          = 0.18 # m 巫女の光弾サイズ（芯の硬い球）
+# ユーザー指定（2026-07-09）：赤紫系・「もやや〜ん」とした柔らかい縁のにじみ
+@export var projectile_orb_color: Color           = Color(0.85, 0.15, 0.45) # 巫女の光弾色（赤紫）
+@export var projectile_orb_emission_energy: float = 2.0 # 芯球の発光。強すぎるとグローのにじみが目立たなくなるため抑えめ
+@export var projectile_orb_glow_scale: float      = 4.5  # 芯半径に対するグロー(にじみ)ビルボードの倍率
+@export var projectile_orb_glow_alpha: float      = 0.75 # グローの最大不透明度（中心のみ・外側は0へフェード）
 
 # 自己回復
 @export var self_heal_show_duration: float = 1.0  # s フラッシュ・数字の見せ時間
@@ -378,6 +428,20 @@ render_mode unshaded, blend_add, cull_disabled;
 void fragment() { ALBEDO = COLOR.rgb; ALPHA = COLOR.a; }
 """
 
+# 巫女の光の玉：常にカメラを向くビルボードに、中心→外へ滑らかにフェードする
+# 放射 グラデーションを描く。「くっきりした球」でなく「もやや〜んとした」柔らかい発光の縁を作る
+const _ORB_GLOW_CODE := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_disabled, billboard, depth_draw_never;
+uniform vec4 glow_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	float a = smoothstep(1.0, 0.0, d);
+	ALBEDO = glow_color.rgb;
+	ALPHA  = a * glow_color.a;
+}
+"""
+
 const _CLAY_CODE := """
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
@@ -432,6 +496,7 @@ var _hp_bar_bg_shader: Shader
 var _spark_shader_mat: ShaderMaterial
 var _spark_mesh: QuadMesh
 var _clay_shader: Shader
+var _orb_glow_shader: Shader
 
 @onready var _camera: Camera3D           = $World/Camera3D
 @onready var _env_node: WorldEnvironment = $World/WorldEnvironment
@@ -457,6 +522,7 @@ var _row_heal_units: Dictionary = {}     # BattleUnit → bool（列回復アニ
 var _row_heal_queue: Array = []          # 待機中の列回復バッチ
 var _row_heal_animating: bool = false    # _process_row_heal_queue が動いているか
 var _shake_active: bool = false          # カメラシェイク二重起動防止
+var _crit_zoom_active: bool = false      # クリットズーム二重起動防止
 var _unit_action_anim_pending: bool = false  # 多段ヒット時の二重 emit 防止
 var _unit_melee_hit_progress: Dictionary = {}  # BattleUnit → 現在のヒット数（近接接近攻撃の往復1回化に使用）
 
@@ -474,6 +540,8 @@ func _ready() -> void:
 	_spark_mesh = QuadMesh.new()
 	_spark_mesh.size = Vector2(0.1, 0.1)
 	_spark_mesh.material = _spark_shader_mat
+	_orb_glow_shader = Shader.new()
+	_orb_glow_shader.code = _ORB_GLOW_CODE
 	if clay_enabled:
 		_clay_shader = Shader.new()
 		_clay_shader.code = _CLAY_CODE
@@ -648,8 +716,31 @@ func _do_camera_shake(intensity: float) -> void:
 	_camera.v_offset = 0.0
 	_shake_active = false
 
+func _do_crit_slowmo() -> void:
+	# ヒットストップ（瞬間停止）とは別に、クリ限定で少し長めのスローモーションを重ねる。
+	# time_scale を tween で滑らかに戻すと減速自体が自己ループしてしまうため、
+	# ヒットストップと同じ「実時間タイマーで区切って瞬時に戻す」方式にする。
+	Engine.time_scale = crit_slowmo_time_scale
+	await get_tree().create_timer(crit_slowmo_duration, true, false, true).timeout
+	Engine.time_scale = 1.0
+
+func _do_crit_zoom() -> void:
+	if _crit_zoom_active or not is_instance_valid(_camera):
+		return
+	_crit_zoom_active = true
+	var base_size := camera_ortho_size
+	var tw := create_tween()
+	tw.tween_property(_camera, "size", base_size - crit_zoom_amount, crit_zoom_in_time) \
+		.set_ease(Tween.EASE_OUT)
+	tw.tween_property(_camera, "size", base_size, crit_zoom_out_time).set_ease(Tween.EASE_IN)
+	await tw.finished
+	_crit_zoom_active = false
+
 func _do_hit_effects(is_crit: bool, dmg: int = 0) -> void:
 	await _do_hitstop(dmg)
+	if is_crit:
+		_do_crit_slowmo()
+		_do_crit_zoom()
 	_do_camera_shake(shake_crit_intensity if is_crit else shake_intensity)
 
 # 近接接近攻撃の対象外（その場で詠唱/射撃する職）。SE・被弾フラッシュ色と同じ分類
@@ -976,8 +1067,14 @@ func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 	if not weapon_scene:
 		return
 	var weapon: Node3D = weapon_scene.instantiate() as Node3D
-	weapon.scale = Vector3.ONE * (kaykit_weapon_scale if is_kaykit else weapon_scale)
-	weapon.position = kaykit_weapon_offset if is_kaykit else weapon_offset
+	if is_kaykit and _KAYKIT_WEAPON_XFORM.has(cd.job):
+		var xf: Dictionary = _KAYKIT_WEAPON_XFORM[cd.job]
+		weapon.scale = Vector3.ONE * (xf["scale"] as float)
+		weapon.position = xf["pos"] as Vector3
+		weapon.rotation_degrees = xf["rot_deg"] as Vector3
+	else:
+		weapon.scale = Vector3.ONE * (kaykit_weapon_scale if is_kaykit else weapon_scale)
+		weapon.position = kaykit_weapon_offset if is_kaykit else weapon_offset
 	attachment.add_child(weapon)
 	if cd.job == CharacterJob.Type.MAGE:
 		var start_y := weapon.position.y
@@ -1052,6 +1149,65 @@ func _on_row_hovered(unit: BattleUnit, hovered: bool) -> void:
 	else:
 		mat.albedo_color = base
 		mat.emission_enabled = false
+
+# 矢/光の玉：from→toへ弧を描いて飛翔し、着弾で消える。呼び出し側はawaitして
+# 着弾後に既存の被弾処理（flash/damage/knockback）を発火させる想定
+func _spawn_projectile(from: Vector3, to: Vector3, kind: String) -> void:
+	var proj: Node3D
+	if kind == "arrow":
+		var scene: PackedScene = load(_PROJECTILE_ARROW_PATH)
+		if not scene:
+			return
+		proj = scene.instantiate() as Node3D
+		var dir_flat := Vector3(to.x - from.x, 0.0, to.z - from.z)
+		if dir_flat.length() > 0.001:
+			# look_at()はツリー参入済みノード前提（is_inside_tree()を要求）。
+			# この時点ではまだadd_child前なので、ツリー非依存のlook_at_from_positionを使う
+			proj.look_at_from_position(from, from + dir_flat, Vector3.UP)
+			proj.rotate_object_local(Vector3.UP, deg_to_rad(projectile_arrow_rot_offset_deg))
+	else:
+		var mesh_inst := MeshInstance3D.new()
+		var sphere := SphereMesh.new()
+		sphere.radius = projectile_orb_radius
+		sphere.height = projectile_orb_radius * 2.0
+		mesh_inst.mesh = sphere
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = projectile_orb_color
+		mat.emission_enabled = true
+		mat.emission = projectile_orb_color
+		mat.emission_energy_multiplier = projectile_orb_emission_energy
+		mesh_inst.material_override = mat
+		# にじみ（グロー）：芯球を覆う大きめのビルボードに放射グラデーションを描き、
+		# 縁がくっきりした球でなく「もやや〜ん」と滲む見た目にする
+		var glow := MeshInstance3D.new()
+		var glow_quad := QuadMesh.new()
+		var glow_size := projectile_orb_radius * 2.0 * projectile_orb_glow_scale
+		glow_quad.size = Vector2(glow_size, glow_size)
+		glow.mesh = glow_quad
+		var glow_mat := ShaderMaterial.new()
+		glow_mat.shader = _orb_glow_shader
+		glow_mat.set_shader_parameter("glow_color",
+			Color(projectile_orb_color.r, projectile_orb_color.g, projectile_orb_color.b,
+				projectile_orb_glow_alpha))
+		glow.material_override = glow_mat
+		mesh_inst.add_child(glow)
+		var light := OmniLight3D.new()
+		light.light_color = projectile_orb_color
+		light.omni_range = 2.0
+		light.light_energy = 1.5
+		mesh_inst.add_child(light)
+		proj = mesh_inst
+	proj.position = from
+	_characters.add_child(proj)
+	var tw := create_tween()
+	tw.tween_method(
+		func(t: float) -> void:
+			if is_instance_valid(proj):
+				proj.position = from.lerp(to, t) + Vector3.UP * projectile_arc_height * sin(PI * t),
+		0.0, 1.0, projectile_travel_time).set_ease(Tween.EASE_IN)
+	await tw.finished
+	if is_instance_valid(proj):
+		proj.queue_free()
 
 func _spawn_hit_sparks(pos: Vector3, is_crit: bool) -> void:
 	var particles := GPUParticles3D.new()
@@ -1198,9 +1354,13 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 			var travel_dist: float = to_target.length()
 			var approach_dir: Vector3 = to_target / travel_dist if travel_dist > 0.001 else dir
 			var approach_point: Vector3 = origin + approach_dir * max(travel_dist - melee_approach_gap, 0.0)
+			var approach_start := origin
 			var approach_tween := create_tween()
-			approach_tween.tween_property(ch_a, "position", approach_point, melee_approach_time) \
-				.set_ease(Tween.EASE_OUT)
+			approach_tween.tween_method(
+				func(t: float) -> void:
+					ch_a.position = approach_start.lerp(approach_point, t) \
+						+ Vector3.UP * melee_approach_arc_height * sin(PI * t),
+				0.0, 1.0, melee_approach_time).set_ease(Tween.EASE_OUT)
 			await approach_tween.finished
 		idle_anim = _resolve_player_anim_clip(attacker, "idle")
 		var atk_anim := _resolve_player_anim_clip(attacker, "attack")
@@ -1228,6 +1388,14 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 	var impact_delay := kaykit_attack_impact_delay if is_kaykit_attacker else attack_impact_delay
 	if impact_delay > 0.0:
 		await get_tree().create_timer(impact_delay).timeout
+
+	# 矢/光の玉：実体が着弾するまで被弾処理を遅らせる（アーチャー/ヴァルキリー/巫女のみ。
+	# 未登録の職＝魔術師/魔女等は従来どおりインパクト遅延後に即被弾のまま）
+	if attacker.side == BattleUnit.Side.PLAYER and cd_a != null and ch_a and ch_t \
+			and _PROJECTILE_KIND.has(cd_a.job):
+		var spawn_from := ch_a.position + Vector3.UP * projectile_spawn_height
+		var spawn_to := ch_t.position + Vector3.UP * projectile_spawn_height
+		await _spawn_projectile(spawn_from, spawn_to, _PROJECTILE_KIND[cd_a.job])
 
 	var hit_tween: Tween = null
 	# 被弾：ダメージ数字 + flash + 揺れ + ノックバック
@@ -1338,10 +1506,22 @@ func _on_rotated() -> void:
 	if moves.is_empty():
 		_manager.rotate_anim_done.emit()
 		return
+	# 移動：軽いホップ弧＋ユニットごとの開始ずらし（一斉移動のロボット感を崩す）＋
+	# 着地の「ease-out-back」（TRANS_BACK/EASE_OUT＝わずかにオーバーシュートしてから
+	# 落ち着く）で止まりの自然さを出す
 	var tw := create_tween().set_parallel(true)
-	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	for entry: Dictionary in moves:
-		tw.tween_property(entry["ch"], "position", entry["to"], rotate_duration)
+	for i in moves.size():
+		var entry: Dictionary = moves[i]
+		var ch_ref: Node3D = entry["ch"]
+		var start: Vector3 = ch_ref.position
+		var to: Vector3 = entry["to"]
+		tw.tween_method(
+			func(t: float) -> void:
+				ch_ref.position = start.lerp(to, t) \
+					+ Vector3.UP * rotate_arc_height * sin(PI * clampf(t, 0.0, 1.0)),
+			0.0, 1.0, rotate_duration) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT) \
+			.set_delay(i * rotate_stagger_delay)
 	await tw.finished
 	AudioManager.play_se(AudioManager.SE_ROTATE_STEP)
 	# 到着フラッシュ（スカッシュと同時に発火）
