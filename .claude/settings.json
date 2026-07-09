@@ -262,7 +262,8 @@
       "Bash(exit 1)",
       "Bash(xargs echo \"cache entries \\(approx\\):\")",
       "Bash(cat)",
-      "Bash(echo \"written\")"
+      "Bash(echo \"written\")",
+      "Bash(python3 -)"
     ],
     "additionalDirectories": [
       "C:\\Users\\djbsh\\Downloads\\extracted\\kenney_interface-sounds\\Audio",
