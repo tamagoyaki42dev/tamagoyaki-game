@@ -316,6 +316,23 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var melee_return_time: float         = 0.3  # s 帰還Tween時間
 @export var melee_approach_arc_height: float = 0.6  # m 接近時のジャンプ弧の高さ（sin弧）
 
+# 着地の土煙（③：近接接近のジャンプ着地に合わせ、足元に土煙を巻き上げる。「跳んで斬る」感の強調）
+# 2026-07-11：初版（土色0.6アルファ・scale0.6〜1.4）はユーザー実機で「見えない」との報告。
+# ②斬撃トレイルと同じ切り分け方針（原因特定より先に視認性を派手側へ強化）を踏襲し、
+# 不透明度全開・スケール2倍前後・粒子数増・寿命延長へ変更。
+# その後ユーザー確認「見た目はいい、もう少し早く・表示時間ちょい短く」を受け、
+# 速度アップ・寿命短縮で再調整（0.8→0.6s／velocity 2.0-4.5→3.0-6.0）
+@export var landing_dust_color: Color        = Color(0.72, 0.58, 0.38, 1.0)  # 土色・全開不透明（0.6→1.0アルファ）
+@export var landing_dust_scale_min: float    = 1.3   # 0.6→1.3に拡大
+@export var landing_dust_scale_max: float    = 2.6   # 1.4→2.6に拡大
+@export var landing_dust_velocity_min: float = 3.0   # 2.0→3.0でより速く
+@export var landing_dust_velocity_max: float = 6.0   # 4.5→6.0でより速く
+@export var landing_dust_lifetime: float     = 0.6   # 0.8→0.6で表示時間を短く
+@export var landing_dust_amount: int         = 26    # 14→26で密度アップ
+@export var landing_dust_y_offset: float     = 0.05
+# ローテーション時（全員一斉移動の着地）用。同時発火する人数が多いため小さめに抑える
+@export_range(0.1, 1.0, 0.05) var landing_dust_rotate_scale_mult: float = 0.5
+
 # 飛翔体（矢/光の玉）：その場攻撃職のうち _PROJECTILE_KIND 登録職のみ。着弾＝被弾処理発火のトリガー
 @export var projectile_travel_time: float        = 0.35 # s 発射→着弾までの飛翔時間（要目視調整）
 # 既存の被弾エフェクト(火花/フラッシュ)が発火する高さ(_SPARK_SPAWN_Y)と必ず一致させる。
@@ -357,6 +374,21 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 # Kenney基準 character-male-b≈0.66 / KayKit Barbarian≈2.40・Knight≈2.54・Mage≈2.65
 # → 平均2.53に対し身長を揃える比率0.66/2.53≈0.26。ユーザー目視確認により0.52へ倍増
 @export var kaykit_char_scale_mult: float = 0.52
+
+# 武器の斬撃トレイル（②：近接攻撃のスイングに合わせ、武器の軌跡へ光る帯を残す。
+# ①衝撃波リングの次に着手。武器ローカルY軸を疑似ブレード方向として実測なしで仮置き＝要目視調整。
+# 2026-07-11：ヘッドレスの実機再現テストでメッシュ自体は正しい位置・サイズ(AABB約0.4×0.66×1.0m)
+# で生成されることを確認済みだが、ユーザー実機では「変化があるかも分からない」との報告。
+# 原因切り分け未確定（editorのホットリロード漏れ／単に地味、のどちらかが濃厚）のため、
+# ユーザー了承のもと迷わず判別できるレベルまで派手側に振った値へ変更）
+@export var weapon_trail_color: Color        = Color(1.0, 1.0, 0.9, 1.0)   # 通常ヒット（白〜金・全開不透明）
+@export var weapon_trail_crit_color: Color   = Color(1.0, 0.4, 0.05, 1.0)  # クリットヒット（濃いオレンジ・全開不透明）
+@export var weapon_trail_blade_length: float = 1.2   # m 疑似ブレード長（武器ローカルY軸方向。0.5→1.2に拡大）
+# 2026-07-11：ユーザー実機確認「柄〜刃の半分あたりに出ている、切っ先が扇の先端になるようにずらしたい」を受けて追加。
+# Sword.fbx実測ローカルAABB（root=weaponの原点基準）：Y範囲[-0.383, 1.919]。武器原点(Y=0)は柄付近にある前提のため、
+# 開始点をY=0.7まで持ち上げると終点(0.7+1.2=1.9)が実測の刃先とほぼ一致する
+@export var weapon_trail_base_offset: float  = 0.7   # m 帯の開始点（武器ローカルY軸・原点=柄からのオフセット）
+@export var weapon_trail_fade_time: float    = 0.35  # s スイング完了後のフェードアウト時間（0.15→0.35で長く残す）
 
 # 番号バッジ（足元）
 @export var number_badge_font_size: int    = 64
@@ -453,6 +485,26 @@ render_mode unshaded, blend_add, cull_disabled;
 void fragment() { ALBEDO = COLOR.rgb; ALPHA = COLOR.a; }
 """
 
+# 着地の土煙：火花(_SPARK_CODE)と違い加算合成ではなく通常アルファブレンド（光らせず不透明寄りに見せる）。
+# ビルボードは_ORB_GLOW_CODEと同じ手動billboard頂点シェーダーを流用し、中心から柔らかくフェードする円を描く
+const _DUST_CODE := """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never;
+void vertex() {
+	mat4 mv = VIEW_MATRIX * MODEL_MATRIX;
+	mv[0] = vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0);
+	mv[1] = vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0);
+	mv[2] = vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0);
+	POSITION = PROJECTION_MATRIX * mv * vec4(VERTEX, 1.0);
+}
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	float a = smoothstep(1.0, 0.0, d);
+	ALBEDO = COLOR.rgb;
+	ALPHA  = COLOR.a * a;
+}
+"""
+
 # 巫女の光の玉：常にカメラを向くビルボードに、中心→外へ滑らかにフェードする
 # 放射 グラデーションを描く。「くっきりした球」でなく「もやや〜んとした」柔らかい発光の縁を作る
 const _ORB_GLOW_CODE := """
@@ -496,6 +548,18 @@ void fragment() {
 	float band  = outer * inner;
 	ALBEDO = ring_color.rgb;
 	ALPHA  = band * ring_color.a * ring_alpha;
+}
+"""
+
+# 武器の斬撃トレイル：ImmediateMeshで組んだ三角形ストリップに頂点カラー(age別アルファ)を
+# 焼き込み、fade_multでスイング完了後の全体フェードだけ外側から掛ける
+const _WEAPON_TRAIL_CODE := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_disabled, depth_test_disabled;
+uniform float fade_mult : hint_range(0.0, 1.0) = 1.0;
+void fragment() {
+	ALBEDO = COLOR.rgb;
+	ALPHA  = COLOR.a * fade_mult;
 }
 """
 
@@ -552,9 +616,12 @@ var _hp_bar_shader: Shader
 var _hp_bar_bg_shader: Shader
 var _spark_shader_mat: ShaderMaterial
 var _spark_mesh: QuadMesh
+var _dust_shader_mat: ShaderMaterial
+var _dust_mesh: QuadMesh
 var _clay_shader: Shader
 var _orb_glow_shader: Shader
 var _shockwave_shader: Shader
+var _weapon_trail_shader: Shader
 
 @onready var _camera: Camera3D           = $World/Camera3D
 @onready var _env_node: WorldEnvironment = $World/WorldEnvironment
@@ -569,6 +636,7 @@ var _shockwave_shader: Shader
 var _manager: BattleManager
 var _unit_nodes: Dictionary = {}    # BattleUnit → Node3D
 var _unit_anims: Dictionary = {}    # BattleUnit → AnimationPlayer
+var _unit_weapons: Dictionary = {}  # BattleUnit → Node3D（_attach_weapon済みの武器。斬撃トレイルのサンプリング元）
 var _unit_base_scale: Dictionary = {}  # BattleUnit → Vector3（spawn時の実スケール。KayKit職はkaykit_char_scale_mult込み）
 var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
 var _unit_rings: Dictionary = {}    # BattleUnit → StandardMaterial3D（アクセントリング。Phase3ホバー用）
@@ -598,10 +666,19 @@ func _ready() -> void:
 	_spark_mesh = QuadMesh.new()
 	_spark_mesh.size = Vector2(0.1, 0.1)
 	_spark_mesh.material = _spark_shader_mat
+	var dust_shader := Shader.new()
+	dust_shader.code = _DUST_CODE
+	_dust_shader_mat = ShaderMaterial.new()
+	_dust_shader_mat.shader = dust_shader
+	_dust_mesh = QuadMesh.new()
+	_dust_mesh.size = Vector2(0.4, 0.4)
+	_dust_mesh.material = _dust_shader_mat
 	_orb_glow_shader = Shader.new()
 	_orb_glow_shader.code = _ORB_GLOW_CODE
 	_shockwave_shader = Shader.new()
 	_shockwave_shader.code = _SHOCKWAVE_CODE
+	_weapon_trail_shader = Shader.new()
+	_weapon_trail_shader.code = _WEAPON_TRAIL_CODE
 	if clay_enabled:
 		_clay_shader = Shader.new()
 		_clay_shader.code = _CLAY_CODE
@@ -1139,6 +1216,7 @@ func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 		weapon.scale = Vector3.ONE * (kaykit_weapon_scale if is_kaykit else weapon_scale)
 		weapon.position = kaykit_weapon_offset if is_kaykit else weapon_offset
 	attachment.add_child(weapon)
+	_unit_weapons[unit] = weapon
 	if cd.job == CharacterJob.Type.MAGE:
 		var start_y := weapon.position.y
 		var tw := create_tween().set_loops()
@@ -1306,6 +1384,43 @@ func _spawn_hit_sparks(pos: Vector3, is_crit: bool, height: float = _SPARK_SPAWN
 	if is_instance_valid(particles):
 		particles.queue_free()
 
+# 着地の土煙：ジャンプ着地の瞬間、足元に半透明の土煙を巻き上げる（③）。近接接近攻撃と
+# ローテーション一斉移動の着地の両方から呼ばれる（後者はscale_multで小さめに抑える）。
+# _spawn_hit_sparksと同じGPUParticles3D構成だが、加算合成でなく通常アルファブレンドの土色にして
+# 光る火花ではなく不透明な砂埃に見せる。呼び出し側はawaitせず並行実行する想定
+func _spawn_landing_dust(pos: Vector3, scale_mult: float = 1.0) -> void:
+	var particles := GPUParticles3D.new()
+	particles.position = pos + Vector3(0.0, landing_dust_y_offset, 0.0)
+	particles.one_shot = true
+	particles.explosiveness = 0.9
+	particles.lifetime = landing_dust_lifetime
+	particles.amount = landing_dust_amount
+
+	var mat := ParticleProcessMaterial.new()
+	mat.direction = Vector3(0.0, 1.0, 0.0)
+	mat.spread = 90.0
+	mat.initial_velocity_min = landing_dust_velocity_min
+	mat.initial_velocity_max = landing_dust_velocity_max
+	mat.gravity = Vector3(0.0, -3.0, 0.0)
+	mat.scale_min = landing_dust_scale_min * scale_mult
+	mat.scale_max = landing_dust_scale_max * scale_mult
+
+	var gradient := Gradient.new()
+	gradient.set_color(0, landing_dust_color)
+	gradient.set_color(1, Color(landing_dust_color.r, landing_dust_color.g, landing_dust_color.b, 0.0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = gradient
+	mat.color_ramp = ramp
+
+	particles.draw_pass_1 = _dust_mesh
+	particles.process_material = mat
+
+	_characters.add_child(particles)
+	particles.emitting = true
+	await get_tree().create_timer(landing_dust_lifetime + 0.3).timeout
+	if is_instance_valid(particles):
+		particles.queue_free()
+
 # 衝撃波リング：ヒット位置で中心から拡大しながらフェードして消えるビルボードのリング。
 # _spawn_hit_sparks と同じ高さ・同じ発火タイミングで並行実行する想定（呼び出し側はawaitしない）
 func _spawn_shockwave_ring(pos: Vector3, is_crit: bool, height: float = _SPARK_SPAWN_Y) -> void:
@@ -1333,6 +1448,53 @@ func _spawn_shockwave_ring(pos: Vector3, is_crit: bool, height: float = _SPARK_S
 				mat.set_shader_parameter("ring_alpha", shockwave_ring_alpha * (1.0 - t)),
 		0.0, 1.0, shockwave_ring_duration).set_ease(Tween.EASE_OUT)
 	await tw.finished
+	if is_instance_valid(mesh_inst):
+		mesh_inst.queue_free()
+
+# 武器の斬撃トレイル：swing_time秒かけて武器ノードのtip/base(疑似ブレード両端)を毎フレーム
+# サンプリングし、ImmediateMeshの三角形ストリップとして都度再構築する。呼び出し側は
+# _spawn_hit_sparks/_spawn_shockwave_ring と同様awaitせず並行実行する想定
+func _play_weapon_trail(unit: BattleUnit, is_crit: bool, swing_time: float) -> void:
+	var weapon: Node3D = _unit_weapons.get(unit) as Node3D
+	if not is_instance_valid(weapon) or swing_time <= 0.0:
+		return
+	var mesh_inst := MeshInstance3D.new()
+	var imesh := ImmediateMesh.new()
+	mesh_inst.mesh = imesh
+	var mat := ShaderMaterial.new()
+	mat.shader = _weapon_trail_shader
+	mesh_inst.material_override = mat
+	_characters.add_child(mesh_inst)
+
+	var color := weapon_trail_crit_color if is_crit else weapon_trail_color
+	var samples: Array[Vector3] = []  # base, tipの順で交互に積む（三角形ストリップ用）
+	var tw := create_tween()
+	tw.tween_method(
+		func(_t: float) -> void:
+			if not is_instance_valid(weapon) or not is_instance_valid(mesh_inst):
+				return
+			var xf := weapon.global_transform
+			samples.append(xf * Vector3(0.0, weapon_trail_base_offset, 0.0))
+			samples.append(xf * Vector3(0.0, weapon_trail_base_offset + weapon_trail_blade_length, 0.0))
+			imesh.clear_surfaces()
+			var pair_count := samples.size() / 2
+			if pair_count >= 2:
+				imesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+				for i: int in samples.size():
+					var age: float = float(i / 2) / float(pair_count - 1)
+					imesh.surface_set_color(Color(color.r, color.g, color.b, color.a * age))
+					imesh.surface_add_vertex(samples[i])
+				imesh.surface_end(),
+		0.0, 1.0, swing_time)
+	await tw.finished
+
+	var fade_tw := create_tween()
+	fade_tw.tween_method(
+		func(a: float) -> void:
+			if is_instance_valid(mat):
+				mat.set_shader_parameter("fade_mult", a),
+		1.0, 0.0, weapon_trail_fade_time)
+	await fade_tw.finished
 	if is_instance_valid(mesh_inst):
 		mesh_inst.queue_free()
 
@@ -1464,6 +1626,8 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 						+ Vector3.UP * melee_approach_arc_height * sin(PI * t),
 				0.0, 1.0, melee_approach_time).set_ease(Tween.EASE_OUT)
 			await approach_tween.finished
+			if ch_a:
+				_spawn_landing_dust(ch_a.position)
 		idle_anim = _resolve_player_anim_clip(attacker, "idle")
 		var atk_anim := _resolve_player_anim_clip(attacker, "attack")
 		var release_anim := _resolve_player_anim_clip(attacker, "release")
@@ -1502,6 +1666,8 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		impact_delay = kaykit_attack_impact_delay
 	else:
 		impact_delay = attack_impact_delay
+	if is_melee_approach and has_atk_anim and impact_delay > 0.0:
+		_play_weapon_trail(attacker, is_crit, impact_delay)
 	if impact_delay > 0.0:
 		await get_tree().create_timer(impact_delay).timeout
 
@@ -1648,6 +1814,10 @@ func _on_rotated() -> void:
 			.set_delay(i * rotate_stagger_delay)
 	await tw.finished
 	AudioManager.play_se(AudioManager.SE_ROTATE_STEP)
+	# 着地の土煙（一斉着地のため③の近接接近版より小さめに抑える）
+	for entry: Dictionary in moves:
+		var ch_landed: Node3D = entry["ch"]
+		_spawn_landing_dust(ch_landed.position, landing_dust_rotate_scale_mult)
 	# 到着フラッシュ（スカッシュと同時に発火）
 	for entry: Dictionary in moves:
 		_do_flash(entry["ch"], arrive_flash_color, arrive_flash_duration)
