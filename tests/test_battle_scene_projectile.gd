@@ -69,3 +69,38 @@ func test_arrow_rot_offset_matches_measured_geometry() -> void:
 	assert_almost_eq(scene.projectile_arrow_rot_offset_deg, 180.0, 0.001,
 		"矢モデルの前方はローカル+Z、look_at()はローカル-Zを目標へ向けるため180°反転が必要")
 	scene.free()
+
+func test_bow_jobs_have_release_clip() -> void:
+	# 旧実装はDrawのみ再生してReleaseを一切使わないまま矢を発射しており、
+	# 「引いている最中に矢が飛ぶ」ズレの原因だった（ユーザー実機報告・2026-07-11）
+	var archer_clips: Dictionary = BattleScene._KAYKIT_CLIPS[CharacterJob.Type.ARCHER]
+	var valkyrie_clips: Dictionary = BattleScene._KAYKIT_CLIPS[CharacterJob.Type.VALKYRIE]
+	assert_eq(archer_clips.get("release", ""), "ranged/Ranged_Bow_Release",
+		"アーチャーはRelease（弦を離す）クリップを持つ")
+	assert_eq(valkyrie_clips.get("release", ""), "ranged/Ranged_Bow_Release",
+		"ヴァルキリーはRelease（弦を離す）クリップを持つ")
+
+func test_bow_release_delay_default() -> void:
+	# Ranged_Bow_Release実測（角速度＝連続フレーム間の回転差）：最大角速度はクリップ冒頭
+	# 0.02〜0.07s付近に集中＝弦を放つ瞬間。旧採用値0.35s（変位ピーク基準）は実機で
+	# 「離す動作が終わるか終わらないかで矢が飛ぶ」違和感の原因だった（2026-07-11）
+	var scene := BattleScene.new()
+	assert_almost_eq(scene.bow_release_delay, 0.08, 0.001,
+		"bow_release_delay のデフォルト値が0.08s（Release冒頭の初速ピークに同期）である")
+	scene.free()
+
+func test_bow_draw_hold_time_default() -> void:
+	# Ranged_Bow_Draw実測：handslot.rが0.8s付近でfull draw姿勢に収束し以降は静止保持。
+	# 旧実装はDrawの全長1.33sを律儀に待ってからReleaseへ切り替えており、
+	# 「攻撃モーションが単純に長すぎる」の一因だった（2026-07-11）
+	var scene := BattleScene.new()
+	assert_almost_eq(scene.bow_draw_hold_time, 0.85, 0.001,
+		"bow_draw_hold_time のデフォルト値が0.85s（Draw実測の収束点＋バッファ）である")
+	scene.free()
+
+func test_bow_release_tail_wait_default() -> void:
+	# 旧実装はReleaseの全長1.33sが終わるまでidleへ切り替えず待っており冗長だった
+	var scene := BattleScene.new()
+	assert_almost_eq(scene.bow_release_tail_wait, 0.2, 0.001,
+		"bow_release_tail_wait のデフォルト値が0.2s（被弾処理後の短い追い見せ）である")
+	scene.free()

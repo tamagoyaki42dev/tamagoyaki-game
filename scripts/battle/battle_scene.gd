@@ -26,14 +26,15 @@ const _KAYKIT_ANIM_LIBS: Dictionary = {
 }
 # 職 → {idle, attack, death} クリップ名（"ライブラリ名/クリップ名"表記）
 const _KAYKIT_CLIPS: Dictionary = {
-	CharacterJob.Type.GLADIATOR: {"idle": "general/Idle_A", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
-	CharacterJob.Type.KNIGHT:    {"idle": "general/Idle_A", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
-	CharacterJob.Type.MAGE:      {"idle": "general/Idle_A", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
-	# 弓職：その場で弓を引く（_is_ranged_or_magic_job 済み＝接近しない）。attackクリップは要目視調整
-	CharacterJob.Type.ARCHER:    {"idle": "general/Idle_A", "attack": "ranged/Ranged_Bow_Draw", "death": "general/Death_A"},
-	CharacterJob.Type.VALKYRIE:  {"idle": "general/Idle_A", "attack": "ranged/Ranged_Bow_Draw", "death": "general/Death_A"},
+	CharacterJob.Type.GLADIATOR: {"idle": "general/Idle_B", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
+	CharacterJob.Type.KNIGHT:    {"idle": "general/Idle_B", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
+	CharacterJob.Type.MAGE:      {"idle": "general/Idle_B", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
+	# 弓職：その場で弓を引く（_is_ranged_or_magic_job 済み＝接近しない）。
+	# Draw（引く）→Release（離す）の2段。矢はReleaseの腕振り抜きに合わせて発射する
+	CharacterJob.Type.ARCHER:    {"idle": "general/Idle_B", "attack": "ranged/Ranged_Bow_Draw", "release": "ranged/Ranged_Bow_Release", "death": "general/Death_A"},
+	CharacterJob.Type.VALKYRIE:  {"idle": "general/Idle_B", "attack": "ranged/Ranged_Bow_Draw", "release": "ranged/Ranged_Bow_Release", "death": "general/Death_A"},
 	# 巫女：御幣を掲げてその場詠唱（後で光の玉projectileを重ねる土台）
-	CharacterJob.Type.SHRINE_MAIDEN: {"idle": "general/Idle_A", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
+	CharacterJob.Type.SHRINE_MAIDEN: {"idle": "general/Idle_B", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
 }
 
 # 職業別キャラモデル（female 6職は1:1ユニーク、male 11職は5種を共有）
@@ -234,6 +235,18 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var spark_amount: int             = 28
 @export var spark_crit_amount: int        = 48
 
+# 衝撃波リング（ヒット時に中心から拡大しながら消えるビルボードのリング。火花と同時発火）
+# 2026-07-11：初版の白っぽい配色・控えめサイズはユーザー実機確認で「地味」と判断。
+# 彩度の高い色＋一回り大きいサイズに変更（濃い金/濃いオレンジ赤）
+@export var shockwave_ring_color: Color        = Color(1.0, 0.8, 0.2, 1.0)  # 通常ヒット（濃い金）
+@export var shockwave_ring_crit_color: Color   = Color(1.0, 0.35, 0.05, 1.0) # クリットヒット（濃いオレンジ赤）
+@export_range(0.05, 0.6, 0.01) var shockwave_ring_band: float = 0.35 # リング帯の太さ（0〜1、大きいほど太い）
+@export var shockwave_ring_start_size: float      = 0.3  # m 発生時の直径
+@export var shockwave_ring_end_size: float        = 2.6  # m 拡大しきった直径（通常ヒット）
+@export var shockwave_ring_crit_end_size: float   = 3.4  # m 拡大しきった直径（クリット・より大きく広がる）
+@export var shockwave_ring_duration: float        = 0.35 # s 拡大〜消滅までの時間
+@export_range(0.0, 1.0, 0.01) var shockwave_ring_alpha: float = 1.0 # 開始時の不透明度（時間とともに0へフェード）
+
 # ヒットストップ（stop長はダメージ量に比例。hitstop_dmg_refのダメージでhitstop_duration通りになる）
 @export_range(0.01, 1.0, 0.01) var hitstop_time_scale: float = 0.05
 @export_range(0.02, 0.3,  0.01) var hitstop_duration: float  = 0.08
@@ -282,6 +295,16 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var attack_impact_delay: float       = 0.2  # s アニメ開始→被弾エフェクト発火までの遅延
 # KayKit採用職用の遅延。handslot.r実測でMelee_1H_Attack_Chopの振り下ろし最下点≈0.64s
 @export var kaykit_attack_impact_delay: float = 0.6
+# 弓職（アーチャー/ヴァルキリー）専用タイミング一式。2026-07-11ユーザー実機確認で
+# 「離す動作が終わるか終わらないかで矢が飛ぶ違和感」「攻撃モーションが単純に長すぎる」の
+# 2点を指摘され、当初値（Drawを全長再生→Release全長再生→0.35s後に発射）を実測ベースで
+# 全面調整。Ranged_Bow_Release実測（角速度＝連続フレーム間の回転差で再計測）：
+# 最大角速度は0.02〜0.07s（クリップ冒頭）に集中＝弦を放つ瞬間はReleaseの「変位ピーク」
+# (0.3〜0.4s、旧採用値)ではなくクリップ冒頭の初速ピークだった。Draw側もhandslot.rが
+# 0.8s付近で「full draw」姿勢に収束し以降は静止保持（=それ以降は見せる意味が無い間）
+@export var bow_draw_hold_time: float = 0.85  # s Drawをここまで再生してからReleaseへ切替（旧：全長1.33s再生）
+@export var bow_release_delay: float = 0.08   # s Release開始から矢を発射するまで（旧0.35s→冒頭の初速ピークに同期）
+@export var bow_release_tail_wait: float = 0.2  # s 被弾処理発火後、Releaseの追加ホールドをどれだけ見せてからidleへ切替るか（旧：Release全長1.33s終わるまで待機）
 @export var unit_action_show_duration: float = 0.9  # s アニメ完了後の見せ時間
 # 敵攻撃突進フォールバック（EnemyData.attack_anim が空のとき使用）
 @export var enemy_lunge_dist: float          = 0.6  # m 突進距離
@@ -451,6 +474,31 @@ void fragment() {
 }
 """
 
+# 衝撃波リング：_ORB_GLOW_CODE と同じ「常にカメラを向くビルボード」頂点シェーダーを流用し、
+# フラグメントだけ中心が空いたリング状の帯に変更（外側/内側の二段smoothstepで帯を作る）
+const _SHOCKWAVE_CODE := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_disabled, depth_draw_never, depth_test_disabled;
+uniform vec4 ring_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform float ring_band : hint_range(0.05, 0.6, 0.01) = 0.35;
+uniform float ring_alpha : hint_range(0.0, 1.0, 0.01) = 1.0;
+void vertex() {
+	mat4 mv = VIEW_MATRIX * MODEL_MATRIX;
+	mv[0] = vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0);
+	mv[1] = vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0);
+	mv[2] = vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0);
+	POSITION = PROJECTION_MATRIX * mv * vec4(VERTEX, 1.0);
+}
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	float outer = smoothstep(0.75 + ring_band, 0.75, d);
+	float inner = smoothstep(0.75 - ring_band, 0.75, d);
+	float band  = outer * inner;
+	ALBEDO = ring_color.rgb;
+	ALPHA  = band * ring_color.a * ring_alpha;
+}
+"""
+
 const _CLAY_CODE := """
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
@@ -506,6 +554,7 @@ var _spark_shader_mat: ShaderMaterial
 var _spark_mesh: QuadMesh
 var _clay_shader: Shader
 var _orb_glow_shader: Shader
+var _shockwave_shader: Shader
 
 @onready var _camera: Camera3D           = $World/Camera3D
 @onready var _env_node: WorldEnvironment = $World/WorldEnvironment
@@ -551,6 +600,8 @@ func _ready() -> void:
 	_spark_mesh.material = _spark_shader_mat
 	_orb_glow_shader = Shader.new()
 	_orb_glow_shader.code = _ORB_GLOW_CODE
+	_shockwave_shader = Shader.new()
+	_shockwave_shader.code = _SHOCKWAVE_CODE
 	if clay_enabled:
 		_clay_shader = Shader.new()
 		_clay_shader.code = _CLAY_CODE
@@ -969,7 +1020,8 @@ static func _resolve_player_anim_clip(unit: BattleUnit, kind: String) -> String:
 	match kind:
 		"attack": return "attack-melee-right"
 		"death":  return "die"
-		_:        return "idle"
+		"idle":   return "idle"
+		_:        return ""  # "release"等の未知kind。Kenney組はreleaseクリップを持たないため空文字を返す
 
 func _tint_char(ch: Node3D, tint: Color) -> void:
 	var meshes: Array[MeshInstance3D] = []
@@ -1254,6 +1306,36 @@ func _spawn_hit_sparks(pos: Vector3, is_crit: bool, height: float = _SPARK_SPAWN
 	if is_instance_valid(particles):
 		particles.queue_free()
 
+# 衝撃波リング：ヒット位置で中心から拡大しながらフェードして消えるビルボードのリング。
+# _spawn_hit_sparks と同じ高さ・同じ発火タイミングで並行実行する想定（呼び出し側はawaitしない）
+func _spawn_shockwave_ring(pos: Vector3, is_crit: bool, height: float = _SPARK_SPAWN_Y) -> void:
+	var mesh_inst := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(shockwave_ring_start_size, shockwave_ring_start_size)
+	mesh_inst.mesh = quad
+	var mat := ShaderMaterial.new()
+	mat.shader = _shockwave_shader
+	var color := shockwave_ring_crit_color if is_crit else shockwave_ring_color
+	mat.set_shader_parameter("ring_color", color)
+	mat.set_shader_parameter("ring_band", shockwave_ring_band)
+	mat.set_shader_parameter("ring_alpha", shockwave_ring_alpha)
+	mesh_inst.material_override = mat
+	mesh_inst.position = pos + Vector3(0.0, height, 0.0)
+	_characters.add_child(mesh_inst)
+
+	var end_size := shockwave_ring_crit_end_size if is_crit else shockwave_ring_end_size
+	var tw := create_tween()
+	tw.tween_method(
+		func(t: float) -> void:
+			if is_instance_valid(mesh_inst):
+				var s: float = lerp(shockwave_ring_start_size, end_size, t)
+				(mesh_inst.mesh as QuadMesh).size = Vector2(s, s)
+				mat.set_shader_parameter("ring_alpha", shockwave_ring_alpha * (1.0 - t)),
+		0.0, 1.0, shockwave_ring_duration).set_ease(Tween.EASE_OUT)
+	await tw.finished
+	if is_instance_valid(mesh_inst):
+		mesh_inst.queue_free()
+
 func _spawn_death_particles(pos: Vector3) -> void:
 	var particles := GPUParticles3D.new()
 	particles.position = pos
@@ -1363,6 +1445,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 	var idle_anim: String = "idle"
 	var has_atk_anim := false
 	var lunge_tween: Tween = null
+	var has_bow_release := false  # 弓職：Draw→Releaseの2段を使ったか（後段のimpact_delay分岐に使用）
 
 	if attacker.side == BattleUnit.Side.PLAYER:
 		if is_melee_approach and melee_hit_index == 1 and ch_t:
@@ -1383,9 +1466,17 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 			await approach_tween.finished
 		idle_anim = _resolve_player_anim_clip(attacker, "idle")
 		var atk_anim := _resolve_player_anim_clip(attacker, "attack")
+		var release_anim := _resolve_player_anim_clip(attacker, "release")
 		if is_instance_valid(anim_a) and anim_a.has_animation(atk_anim):
 			anim_a.play(atk_anim)
 			has_atk_anim = true
+			if not release_anim.is_empty() and anim_a.has_animation(release_anim):
+				# Drawはbow_draw_hold_time（full draw姿勢に収束する時間）まで見せてからReleaseへ。
+				# 矢は後段のbow_release_delayでReleaseの初速ピーク（弦を放つ瞬間）に同期させる
+				has_bow_release = true
+				await get_tree().create_timer(bow_draw_hold_time).timeout
+				if is_instance_valid(anim_a):
+					anim_a.play(release_anim)
 	else:
 		var ed := attacker.source_data as EnemyData
 		idle_anim = ed.idle_anim if ed else "idle"
@@ -1404,7 +1495,13 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 	# 振り下ろしタイミングまで待機してから被弾エフェクトを発火
 	var is_kaykit_attacker := attacker.side == BattleUnit.Side.PLAYER and cd_a != null \
 		and (_JOB_CHAR_PATHS.get(cd_a.job, "") as String).begins_with(_KAYKIT_CHAR_DIR)
-	var impact_delay := kaykit_attack_impact_delay if is_kaykit_attacker else attack_impact_delay
+	var impact_delay: float
+	if has_bow_release:
+		impact_delay = bow_release_delay
+	elif is_kaykit_attacker:
+		impact_delay = kaykit_attack_impact_delay
+	else:
+		impact_delay = attack_impact_delay
 	if impact_delay > 0.0:
 		await get_tree().create_timer(impact_delay).timeout
 
@@ -1430,6 +1527,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 			hit_flash_melee_color, hit_flash_magic_color, hit_flash_ranged_color))
 		_do_hit_effects(is_crit, dmg)
 		_spawn_hit_sparks(ch_t.global_position, is_crit, target_impact_h)
+		_spawn_shockwave_ring(ch_t.global_position, is_crit, target_impact_h)
 		var _se := AudioManager.SE_CRITICAL if is_crit else _resolve_attack_se(attacker)
 		AudioManager.play_se(_se, 10.0 if _se == AudioManager.SE_ARROW else 0.0)
 		var t_origin := ch_t.position
@@ -1448,7 +1546,13 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		return
 	_unit_action_anim_pending = true
 
-	if has_atk_anim and is_instance_valid(anim_a):
+	if has_bow_release and is_instance_valid(anim_a):
+		# Releaseは初速ピーク直後に矢を発射済み。以降の全長（追走・構え直し）を律儀に
+		# 待ちきると攻撃モーションが単純に長すぎるため、被弾処理後は短い追い見せだけで idle へ
+		await get_tree().create_timer(bow_release_tail_wait).timeout
+		if is_instance_valid(anim_a):
+			anim_a.play(idle_anim)
+	elif has_atk_anim and is_instance_valid(anim_a):
 		while is_instance_valid(anim_a) and anim_a.is_playing():
 			await get_tree().process_frame
 		if is_instance_valid(anim_a):
