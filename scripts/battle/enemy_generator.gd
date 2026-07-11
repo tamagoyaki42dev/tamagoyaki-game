@@ -176,6 +176,7 @@ static func make_battle3() -> EnemyData:
 	e.model_scale        = 0.9
 	e.battle_model_scale = 0.56
 	e.model_offset       = Vector3(0.0, -0.6, 0.0)
+	e.impact_height_mult = 2.2  # 要目視調整：巨躯のため被弾エフェクト/着弾を胴体中心付近まで引き上げ
 	e.initial_defense      = 10
 	e.initial_attack_bonus = 0  # ローテ直後の攻撃が溜めの×2と二重取りしスパイクが過剰になるため0（詳細 devlog/2026-07-02）
 	e.notes = "濃い澱みを喰らい、獣の域を踏み越えた飛竜。\nただ荒ぶるのではなく、間合いを計り、息を溜め、\n群れを支える者から先に喰らう狡知を備えている。\n溜めた一撃はそのぶん深く穿ち、時に相手の動きを縛る。\n速く、聡く、この巡りの澱みが生んだ頂き。"

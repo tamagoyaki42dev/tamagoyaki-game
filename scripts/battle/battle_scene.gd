@@ -168,10 +168,12 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var fog_enabled: bool        = true
 @export var fog_density: float       = 0.02             # 奥を暗く沈めて手前キャラを分離
 
-# HP表示バー（キャラ下）
+# HP表示バー（キャラ下）。味方はこのサイズ基準。敵は数が少なく画面上で目立たせたいため
+# hp_bar_enemy_size_mult で別途拡大する（要目視調整）
 @export var hp_bar_y_offset: float     = -0.15
 @export var hp_bar_width: float        = 0.8
-@export var hp_bar_height: float       = 0.06
+@export var hp_bar_height: float       = 0.12
+@export var hp_bar_enemy_size_mult: float = 2.5
 
 # ダメージ数字
 @export var dmg_font_size: int         = 48
@@ -432,8 +434,15 @@ void fragment() { ALBEDO = COLOR.rgb; ALPHA = COLOR.a; }
 # 放射 グラデーションを描く。「くっきりした球」でなく「もやや〜んとした」柔らかい発光の縁を作る
 const _ORB_GLOW_CODE := """
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, billboard, depth_draw_never;
+render_mode unshaded, blend_add, cull_disabled, depth_draw_never;
 uniform vec4 glow_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+void vertex() {
+	mat4 mv = VIEW_MATRIX * MODEL_MATRIX;
+	mv[0] = vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0);
+	mv[1] = vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0);
+	mv[2] = vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0);
+	POSITION = PROJECTION_MATRIX * mv * vec4(VERTEX, 1.0);
+}
 void fragment() {
 	float d = length(UV - vec2(0.5)) * 2.0;
 	float a = smoothstep(1.0, 0.0, d);
@@ -884,13 +893,13 @@ func _spawn_def_support_label(pos: Vector3) -> void:
 	_characters.add_child(lbl)
 	_animate_floating_label(lbl, def_rise, def_duration)
 
-func _make_bg_bar() -> MeshInstance3D:
+func _make_bg_bar(size: Vector2) -> MeshInstance3D:
 	# fg（health_pct シェーダー）と同じ自前ビルボード計算のシェーダーを使う。
 	# 標準billboard_mode（Godot組込み）だとスケール反映の挙動がfgのシェーダーと食い違い、
 	# model_scaleを持つ敵（等身大以外）でbgがfgより短く見えるズレが出るため統一した。
 	var mi := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(hp_bar_width, hp_bar_height)
+	q.size = size
 	mi.mesh = q
 	var mat := ShaderMaterial.new()
 	mat.shader = _hp_bar_bg_shader
@@ -907,14 +916,16 @@ static func _decoration_inv_scale(ch: Node3D) -> Vector3:
 
 func _spawn_hp_bar(ch: Node3D, unit: BattleUnit) -> void:
 	var inv := _decoration_inv_scale(ch)
-	var bg := _make_bg_bar()
+	var size_mult := hp_bar_enemy_size_mult if unit.side == BattleUnit.Side.ENEMY else 1.0
+	var bar_size := Vector2(hp_bar_width, hp_bar_height) * size_mult
+	var bg := _make_bg_bar(bar_size)
 	bg.position = Vector3(0.0, hp_bar_y_offset, 0.0) * inv
 	bg.scale = inv
 	ch.add_child(bg)
 
 	var fg := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(hp_bar_width, hp_bar_height)
+	q.size = bar_size
 	fg.mesh = q
 	var mat := ShaderMaterial.new()
 	mat.shader = _hp_bar_shader
@@ -1209,9 +1220,9 @@ func _spawn_projectile(from: Vector3, to: Vector3, kind: String) -> void:
 	if is_instance_valid(proj):
 		proj.queue_free()
 
-func _spawn_hit_sparks(pos: Vector3, is_crit: bool) -> void:
+func _spawn_hit_sparks(pos: Vector3, is_crit: bool, height: float = _SPARK_SPAWN_Y) -> void:
 	var particles := GPUParticles3D.new()
-	particles.position = pos + Vector3(0.0, _SPARK_SPAWN_Y, 0.0)
+	particles.position = pos + Vector3(0.0, height, 0.0)
 	particles.one_shot = true
 	particles.explosiveness = 0.95
 	particles.lifetime = spark_lifetime
@@ -1319,6 +1330,14 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 			_unit_anims[unit] = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			_spawn_hp_bar(ch, unit)
 
+# 被弾エフェクト/飛翔体着弾の高さ倍率。敵はEnemyData.impact_height_multで個別調整
+# （図体の大きいドラゴン等が0.7m基準だと足元に着弾して見える問題への対処）
+static func _impact_height_mult(unit: BattleUnit) -> float:
+	if unit.side != BattleUnit.Side.ENEMY:
+		return 1.0
+	var ed := unit.source_data as EnemyData
+	return ed.impact_height_mult if ed else 1.0
+
 func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		dmg: int, is_crit: bool) -> void:
 	var ch_a: Node3D = _unit_nodes.get(attacker) as Node3D
@@ -1391,10 +1410,11 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 
 	# 矢/光の玉：実体が着弾するまで被弾処理を遅らせる（アーチャー/ヴァルキリー/巫女のみ。
 	# 未登録の職＝魔術師/魔女等は従来どおりインパクト遅延後に即被弾のまま）
+	var target_impact_h := projectile_spawn_height * _impact_height_mult(target)
 	if attacker.side == BattleUnit.Side.PLAYER and cd_a != null and ch_a and ch_t \
 			and _PROJECTILE_KIND.has(cd_a.job):
 		var spawn_from := ch_a.position + Vector3.UP * projectile_spawn_height
-		var spawn_to := ch_t.position + Vector3.UP * projectile_spawn_height
+		var spawn_to := ch_t.position + Vector3.UP * target_impact_h
 		await _spawn_projectile(spawn_from, spawn_to, _PROJECTILE_KIND[cd_a.job])
 
 	var hit_tween: Tween = null
@@ -1409,7 +1429,7 @@ func _on_unit_acted(attacker: BattleUnit, target: BattleUnit,
 		_do_flash(ch_t, _resolve_hit_flash_color(attacker,
 			hit_flash_melee_color, hit_flash_magic_color, hit_flash_ranged_color))
 		_do_hit_effects(is_crit, dmg)
-		_spawn_hit_sparks(ch_t.global_position, is_crit)
+		_spawn_hit_sparks(ch_t.global_position, is_crit, target_impact_h)
 		var _se := AudioManager.SE_CRITICAL if is_crit else _resolve_attack_se(attacker)
 		AudioManager.play_se(_se, 10.0 if _se == AudioManager.SE_ARROW else 0.0)
 		var t_origin := ch_t.position

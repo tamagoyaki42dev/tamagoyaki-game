@@ -51,6 +51,9 @@ enum ActionType {
 @export var model_scale: float = 1.0
 @export var battle_model_scale: float = 0.0  # 0 = model_scale を使う
 @export var model_offset: Vector3 = Vector3.ZERO
+# 被弾エフェクト(火花/フラッシュ)・飛翔体着弾点の高さ倍率。1.0=標準体格の敵基準。
+# 図体の大きい敵（ドラゴン等）は素の高さ基準だと足元に着弾して見えるため引き上げる（要目視調整）
+@export var impact_height_mult: float = 1.0
 @export var notes: String = ""
 
 func get_label() -> String:
