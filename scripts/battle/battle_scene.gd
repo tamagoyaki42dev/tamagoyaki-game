@@ -169,6 +169,19 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var fog_enabled: bool        = true
 @export var fog_density: float       = 0.02             # 奥を暗く沈めて手前キャラを分離
 
+# 全画面パレットLUT（作風統一・2026-07-11）。CC0素材の"デフォルト発色"を消すため
+# WorldEnvironment.adjustment_color_correctionに通す。暖色パステル方向で_ready()時に
+# ImageTexture3Dを実行時ビルド（事故の教訓：Texture2Dを渡すとGodotは3Dグリッドでなく
+# 「R/G/B独立の1Dカーブ」として読むため、事前生成したPNGグリッドは全画面ノイズ化した。
+# Texture3Dなら本来のクロスチャンネル処理＝脱彩度込みのグレーディングが正しく効く）
+@export var lut_enabled: bool                = true
+@export_range(0.0, 1.0, 0.01) var lut_desaturate: float = 0.18
+@export var lut_warm_mult: Vector3           = Vector3(1.08, 1.03, 0.90)
+@export var lut_warm_add: Vector3            = Vector3(0.02, 0.015, 0.0)
+@export_range(0.0, 1.0, 0.01) var lut_lift_mult: float = 0.92
+@export_range(0.0, 1.0, 0.01) var lut_lift_add: float  = 0.06
+const _LUT_SIZE := 16
+
 # HP表示バー（キャラ下）。味方はこのサイズ基準。敵は数が少なく画面上で目立たせたいため
 # hp_bar_enemy_size_mult で別途拡大する（要目視調整）
 @export var hp_bar_y_offset: float     = -0.15
@@ -205,12 +218,21 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var def_label_color: Color       = Color(0.3, 0.7, 1.0)
 @export var def_label_offset: Vector3    = Vector3(0.0, 1.8, 0.0)
 
-# 回復エフェクト
-@export var heal_flash_color: Color      = Color(0.2, 1.0, 0.4)
-@export var heal_flash_duration: float   = 0.35
+# 回復エフェクト：「緑色のシャワーを浴びる」演出。頭上から緑の粒が降り注ぐGPUParticles3D
 @export var heal_label_color: Color      = Color(0.3, 1.0, 0.55)
 @export var heal_row_stagger: float      = 0.15  # 列回復の各キャラ間ディレイ（秒）
 @export var heal_batch_gap: float        = 0.65  # 列回復ヒーラー間ディレイ（秒）
+@export var heal_shower_color: Color     = Color(0.25, 1.0, 0.45, 1.0)
+@export var heal_shower_amount: int      = 36     # 24→36（視認性強化・②③斬撃/土煙と同じ切り分け方針）
+@export var heal_shower_duration: float  = 0.6    # 発生を継続する時間（シャワーの長さ）
+@export var heal_shower_particle_lifetime: float = 0.5  # 1粒が降り切るまでの寿命
+@export var heal_shower_velocity_min: float = 0.8  # 0.3→0.8（動きが見えるように）
+@export var heal_shower_velocity_max: float = 1.8  # 0.8→1.8
+@export var heal_shower_gravity: float   = 3.0    # 1.5→3.0（ふわっとしすぎて動きが見えなかったため）
+@export var heal_shower_scale_min: float = 1.3    # 0.4→1.3（粒が小さすぎて視認困難だったため大幅拡大）
+@export var heal_shower_scale_max: float = 2.4    # 0.8→2.4
+@export var heal_shower_height: float    = 2.0    # 1.8→2.0 スポーン高さ（頭上）
+@export var heal_shower_area: Vector2    = Vector2(0.5, 0.5)  # 0.35→0.5 発生源のXZ範囲（box extents）
 
 # 被弾
 @export var hit_flash_duration: float  = 0.08
@@ -426,6 +448,10 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export_range(0.0, 1.0, 0.01) var clay_light_threshold: float = 0.45
 @export_range(0.0, 1.0, 0.01) var clay_rim_strength: float = 0.25
 @export var clay_rim_color: Color = Color(0.92, 0.96, 1.0)
+# ハーフトーン/ハッチング影（2026-07-11 追加）：影帯をフラット塗りでなく screen-space
+# 斜線パターンで埋める。UVでなくFRAGCOORD基準＝低ポリのUV歪みに影響されず均一な線幅になる
+@export_range(1.0, 12.0, 0.5) var clay_hatch_spacing: float  = 5.0   # 3.0→7.0で試したところ「変な斜め線」で悪目立ち→5.0に緩和
+@export_range(0.0, 1.0, 0.01) var clay_hatch_strength: float = 0.3   # 0.7は強すぎた→控えめな0.3に。縞の縁もsin波で滑らかに変更済み
 @export var clay_outline_enabled: bool = true
 @export_range(0.5, 4.0, 0.5) var clay_outline_thickness: float = 1.0
 @export_range(0.0, 0.5, 0.01) var clay_outline_threshold: float = 0.15
@@ -490,6 +516,27 @@ void fragment() { ALBEDO = COLOR.rgb; ALPHA = COLOR.a; }
 const _DUST_CODE := """
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never;
+void vertex() {
+	mat4 mv = VIEW_MATRIX * MODEL_MATRIX;
+	mv[0] = vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0);
+	mv[1] = vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0);
+	mv[2] = vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0);
+	POSITION = PROJECTION_MATRIX * mv * vec4(VERTEX, 1.0);
+}
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	float a = smoothstep(1.0, 0.0, d);
+	ALBEDO = COLOR.rgb;
+	ALPHA  = COLOR.a * a;
+}
+"""
+
+# 回復シャワー：_DUST_CODE と同じ「常にカメラを向くビルボード＋中心から柔らかくフェード」だが
+# 加算合成(blend_add)にして光る粒に見せる。①衝撃波リングで踏んだ「体に隠れて見えない」の教訓を
+# 先取りしdepth_test_disabledも付与（頭上から体に向かって降ってくるため埋まりやすい）
+const _HEAL_GLOW_CODE := """
+shader_type spatial;
+render_mode unshaded, blend_add, cull_disabled, depth_draw_never, depth_test_disabled;
 void vertex() {
 	mat4 mv = VIEW_MATRIX * MODEL_MATRIX;
 	mv[0] = vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0);
@@ -572,6 +619,8 @@ uniform vec4  shadow_tint     : source_color               = vec4(0.55, 0.42, 0.
 uniform float light_threshold : hint_range(0.0, 1.0, 0.01) = 0.45;
 uniform float rim_strength    : hint_range(0.0, 1.0, 0.01) = 0.25;
 uniform vec4  rim_color       : source_color               = vec4(0.92, 0.96, 1.0, 1.0);
+uniform float hatch_spacing   : hint_range(1.0, 12.0, 0.5)  = 3.0;
+uniform float hatch_strength  : hint_range(0.0, 1.0, 0.01)  = 0.5;
 void fragment() {
 	vec3 base  = texture(albedo_tex, UV).rgb * albedo_color.rgb;
 	ALBEDO    = base;
@@ -584,7 +633,13 @@ void fragment() {
 void light() {
 	float NdotL  = max(0.0, dot(NORMAL, LIGHT));
 	float in_lit = smoothstep(light_threshold - 0.04, light_threshold + 0.04, NdotL);
-	vec3  surface = mix(ALBEDO * shadow_tint.rgb, ALBEDO, in_lit);
+	// screen-space斜線ハッチング：UVでなくFRAGCOORD基準＝低ポリのUV歪みに影響されない。
+	// 実機確認で「変な斜め線」＝硬い二値stepがスキャンライン的に見えると判明（2026-07-12）
+	// →sin波+smoothstepで縁をぼかしたソフトな縞に変更
+	float hatch_wave = sin((FRAGCOORD.x + FRAGCOORD.y) * (TAU / hatch_spacing));
+	float hatch  = smoothstep(-0.35, 0.35, hatch_wave);
+	vec3  shadow  = ALBEDO * shadow_tint.rgb * mix(1.0, 1.0 - hatch_strength, hatch);
+	vec3  surface = mix(shadow, ALBEDO, in_lit);
 	DIFFUSE_LIGHT += surface * ATTENUATION * LIGHT_COLOR;
 }
 """
@@ -618,6 +673,8 @@ var _spark_shader_mat: ShaderMaterial
 var _spark_mesh: QuadMesh
 var _dust_shader_mat: ShaderMaterial
 var _dust_mesh: QuadMesh
+var _heal_shower_shader_mat: ShaderMaterial
+var _heal_shower_mesh: QuadMesh
 var _clay_shader: Shader
 var _orb_glow_shader: Shader
 var _shockwave_shader: Shader
@@ -673,6 +730,13 @@ func _ready() -> void:
 	_dust_mesh = QuadMesh.new()
 	_dust_mesh.size = Vector2(0.4, 0.4)
 	_dust_mesh.material = _dust_shader_mat
+	var heal_glow_shader := Shader.new()
+	heal_glow_shader.code = _HEAL_GLOW_CODE
+	_heal_shower_shader_mat = ShaderMaterial.new()
+	_heal_shower_shader_mat.shader = heal_glow_shader
+	_heal_shower_mesh = QuadMesh.new()
+	_heal_shower_mesh.size = Vector2(0.35, 0.35)  # 0.15→0.35（scale_min/maxの拡大と合わせて視認性強化）
+	_heal_shower_mesh.material = _heal_shower_shader_mat
 	_orb_glow_shader = Shader.new()
 	_orb_glow_shader.code = _ORB_GLOW_CODE
 	_shockwave_shader = Shader.new()
@@ -719,11 +783,51 @@ func _setup_world() -> void:
 	env.fog_density    = fog_density
 	env.fog_light_color = Color(0.05, 0.04, 0.08)
 	env.tonemap_mode   = Environment.TONE_MAPPER_AGX
+	if lut_enabled:
+		env.adjustment_enabled = true
+		env.adjustment_color_correction = _build_lut_texture()
 	_env_node.environment = env
 
 	_light.look_at_from_position(key_light_from, Vector3.ZERO, Vector3.UP)
 	_light.light_energy = key_light_energy
 	_setup_grid_overlay()
+
+# 全画面パレットLUT用のグレーディング関数（クロスチャンネル＝脱彩度込み）。
+# 純粋関数なのでGUTで直接検証できる
+static func _lut_grade(r: float, g: float, b: float, desaturate: float,
+		warm_mult: Vector3, warm_add: Vector3, lift_mult: float, lift_add: float) -> Color:
+	var lum := 0.299 * r + 0.587 * g + 0.114 * b
+	var r2 := r + (lum - r) * desaturate
+	var g2 := g + (lum - g) * desaturate
+	var b2 := b + (lum - b) * desaturate
+	var r3 := r2 * warm_mult.x + warm_add.x
+	var g3 := g2 * warm_mult.y + warm_add.y
+	var b3 := b2 * warm_mult.z + warm_add.z
+	return Color(
+		clampf(r3 * lift_mult + lift_add, 0.0, 1.0),
+		clampf(g3 * lift_mult + lift_add, 0.0, 1.0),
+		clampf(b3 * lift_mult + lift_add, 0.0, 1.0))
+
+# 全画面パレットLUT本体：16^3のImageTexture3Dを実行時ビルドする。事前生成PNG＋
+# adjustment_color_correctionにTexture2Dを渡す方式は「R/G/B独立1Dカーブ」として誤読され
+# 全画面ノイズ化する事故を起こした（2026-07-11）ため、Texture3Dで正しいクロスチャンネル
+# LUTとして渡す
+func _build_lut_texture() -> ImageTexture3D:
+	var slices: Array[Image] = []
+	for bi: int in _LUT_SIZE:
+		var img := Image.create(_LUT_SIZE, _LUT_SIZE, false, Image.FORMAT_RGBA8)
+		for gi: int in _LUT_SIZE:
+			for ri: int in _LUT_SIZE:
+				var c := _lut_grade(
+					float(ri) / float(_LUT_SIZE - 1),
+					float(gi) / float(_LUT_SIZE - 1),
+					float(bi) / float(_LUT_SIZE - 1),
+					lut_desaturate, lut_warm_mult, lut_warm_add, lut_lift_mult, lut_lift_add)
+				img.set_pixel(ri, gi, c)
+		slices.append(img)
+	var tex := ImageTexture3D.new()
+	tex.create(Image.FORMAT_RGBA8, _LUT_SIZE, _LUT_SIZE, _LUT_SIZE, false, slices)
+	return tex
 
 func _setup_outline() -> void:
 	if not clay_outline_enabled:
@@ -1141,6 +1245,8 @@ func _apply_clay_shader(ch: Node3D) -> void:
 			mat.set_shader_parameter("light_threshold", clay_light_threshold)
 			mat.set_shader_parameter("rim_strength",    clay_rim_strength)
 			mat.set_shader_parameter("rim_color",       clay_rim_color)
+			mat.set_shader_parameter("hatch_spacing",   clay_hatch_spacing)
+			mat.set_shader_parameter("hatch_strength",  clay_hatch_strength)
 			mesh.set_surface_override_material(i, mat)
 
 func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: String,
@@ -1498,6 +1604,46 @@ func _play_weapon_trail(unit: BattleUnit, is_crit: bool, swing_time: float) -> v
 	if is_instance_valid(mesh_inst):
 		mesh_inst.queue_free()
 
+# 回復シャワー：頭上から緑の粒が降り注ぐ「シャワーを浴びる」演出。バースト(one_shot)ではなく
+# heal_shower_duration秒だけ発生を継続させ、雨のように連続して降らせる。呼び出し側は
+# _spawn_hit_sparks等と同様awaitせず並行実行する想定（列回復の1体ずつ流れる演出と両立するため）
+func _spawn_heal_shower(pos: Vector3) -> void:
+	var particles := GPUParticles3D.new()
+	particles.position = pos + Vector3(0.0, heal_shower_height, 0.0)
+	particles.one_shot = false
+	particles.lifetime = heal_shower_particle_lifetime
+	particles.amount = heal_shower_amount
+
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	mat.emission_box_extents = Vector3(heal_shower_area.x, 0.05, heal_shower_area.y)
+	mat.direction = Vector3(0.0, -1.0, 0.0)
+	mat.spread = 8.0
+	mat.initial_velocity_min = heal_shower_velocity_min
+	mat.initial_velocity_max = heal_shower_velocity_max
+	mat.gravity = Vector3(0.0, -heal_shower_gravity, 0.0)
+	mat.scale_min = heal_shower_scale_min
+	mat.scale_max = heal_shower_scale_max
+
+	var gradient := Gradient.new()
+	gradient.set_color(0, heal_shower_color)
+	gradient.set_color(1, Color(heal_shower_color.r, heal_shower_color.g, heal_shower_color.b, 0.0))
+	var ramp := GradientTexture1D.new()
+	ramp.gradient = gradient
+	mat.color_ramp = ramp
+
+	particles.draw_pass_1 = _heal_shower_mesh
+	particles.process_material = mat
+
+	_characters.add_child(particles)
+	particles.emitting = true
+	await get_tree().create_timer(heal_shower_duration).timeout
+	if is_instance_valid(particles):
+		particles.emitting = false
+	await get_tree().create_timer(heal_shower_particle_lifetime + 0.3).timeout
+	if is_instance_valid(particles):
+		particles.queue_free()
+
 func _spawn_death_particles(pos: Vector3) -> void:
 	var particles := GPUParticles3D.new()
 	particles.position = pos
@@ -1774,7 +1920,7 @@ func _on_unit_healed(unit: BattleUnit, amount: int) -> void:
 	if ch:
 		var text := "+%d" % amount if amount > 0 else "MAX"
 		_spawn_floating_label(ch.global_position, text, heal_label_color)
-		_do_flash(ch, heal_flash_color, heal_flash_duration)
+		_spawn_heal_shower(ch.global_position)
 		AudioManager.play_se(AudioManager.SE_HEAL_SELF)
 
 func _on_rotated() -> void:
@@ -1992,7 +2138,7 @@ func _process_row_heal_queue() -> void:
 			if ch:
 				var text := "+%d" % amount if amount > 0 else "MAX"
 				_spawn_floating_label(ch.global_position, text, heal_label_color)
-				_do_flash(ch, heal_flash_color, heal_flash_duration)
+				_spawn_heal_shower(ch.global_position)
 				AudioManager.play_se(AudioManager.SE_HEAL_ROW)
 			await get_tree().create_timer(heal_row_stagger).timeout
 		if not _row_heal_queue.is_empty():
