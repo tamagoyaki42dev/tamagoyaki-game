@@ -5,7 +5,7 @@ extends GutTest
 
 func test_lut_enabled_default() -> void:
 	var scene := BattleScene.new()
-	assert_true(scene.lut_enabled, "lut_enabled のデフォルトが true である")
+	assert_false(scene.lut_enabled, "lut_enabled のデフォルトが false である（2026-07-12・紙グレインと併用でオレンジが強すぎたためOFF）")
 	scene.free()
 
 func test_lut_export_defaults() -> void:

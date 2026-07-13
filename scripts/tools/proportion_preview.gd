@@ -5,7 +5,7 @@ extends Node3D
 ## 調整できるキャラ。数値が決まったら battle_scene.gd 側に手動で反映する想定
 ## （このツール自体はプレビュー専用で戦闘の見た目には一切影響しない）。
 
-const CHAR_PATH := "res://assets/kaykit/characters/Ranger.glb"  # 兜/フードなし＝頭の変化が直接見える
+const CHAR_PATH := "res://assets/kaykit/characters/Witch_final_reference.glb"  # 魔女確定版（2026-07-12）
 
 @export var cam_position: Vector3 = Vector3(0.0, 2.0, 6.5)
 @export var cam_look_at: Vector3 = Vector3(0.0, 1.1, 0.0)
@@ -13,10 +13,13 @@ const CHAR_PATH := "res://assets/kaykit/characters/Ranger.glb"  # 兜/フード�
 @export var char_spacing: float = 1.3
 @export var rotate_speed: float = 0.01
 
+const _HEAD_PART_NAMES := ["Mage_Hat", "CustomHead", "HairMesh"]  # 頭部一式として一緒に拡縮する対象
+
 var _left_root: Node3D   # 素の比較用
 var _right_root: Node3D  # 調整対象
 var _right_skeleton: Skeleton3D
 var _right_head_bone: int = -1
+var _right_head_attach: BoneAttachment3D
 var _body_scale: float = 0.8
 var _head_boost: float = 1.7
 var _dragging: bool = false
@@ -34,8 +37,33 @@ func _ready() -> void:
 		if _right_head_bone < 0:
 			push_warning("headボーンが見つかりません。骨名一覧: %s" %
 				[_bone_names(_right_skeleton)])
+		else:
+			_setup_head_assembly()
 	_build_ui()
 	_apply_squash()
+
+# headボーンにスキンで追従していた帽子と、スキン無しの静止メッシュ（顔・髪）を
+# BoneAttachment3D配下に集め、頭部一式として同じ倍率で拡縮できるようにする
+# （素の骨スケール操作だと静止メッシュに一切効かないため。2026-07-12に発覚）
+func _setup_head_assembly() -> void:
+	var attach := BoneAttachment3D.new()
+	attach.name = "HeadAssembly"
+	attach.bone_name = _right_skeleton.get_bone_name(_right_head_bone)
+	_right_skeleton.add_child(attach)
+	_right_head_attach = attach
+
+	for part_name in _HEAD_PART_NAMES:
+		var node := _right_root.find_child(part_name, true, false) as Node3D
+		if node == null:
+			continue
+		var world_xform := node.global_transform
+		if node is MeshInstance3D:
+			var mi := node as MeshInstance3D
+			mi.skeleton = NodePath()
+			mi.skin = null
+		node.get_parent().remove_child(node)
+		attach.add_child(node)
+		node.global_transform = world_xform
 
 # ── 3Dワールド ─────────────────────────────────────────────
 func _build_world() -> void:
@@ -108,8 +136,8 @@ static func _bone_names(skeleton: Skeleton3D) -> String:
 func _apply_squash() -> void:
 	if _right_root:
 		_right_root.scale = Vector3.ONE * _body_scale
-	if _right_skeleton and _right_head_bone >= 0:
-		_right_skeleton.set_bone_pose_scale(_right_head_bone, Vector3.ONE * _head_boost)
+	if _right_head_attach:
+		_right_head_attach.scale = Vector3.ONE * _head_boost
 	if _body_lbl:
 		_body_lbl.text = "全体スケール %.2f" % _body_scale
 	if _head_lbl:

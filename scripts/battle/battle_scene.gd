@@ -15,7 +15,7 @@ const _ENEMY_CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
 const _CHAR_DIR := "res://assets/kenney-mini-characters/Models/GLB format/"
 const _PORTRAIT_DIR := "res://assets/portraits/"
 
-# KayKit移行済み職（剣闘士/騎士/魔女のみ。他はKenney内蔵アニメ方式のまま）
+# KayKit移行済み職（剣闘士/騎士/魔術師/魔女ほか。他はKenney内蔵アニメ方式のまま）
 const _KAYKIT_CHAR_DIR := "res://assets/kaykit/characters/"
 const _KAYKIT_ANIM_DIR := "res://assets/kaykit/animations/"
 # 合流するアニメライブラリ（ライブラリ名 → 供給元GLB）。KayKit採用キャラ全員で共通
@@ -35,7 +35,15 @@ const _KAYKIT_CLIPS: Dictionary = {
 	CharacterJob.Type.VALKYRIE:  {"idle": "general/Idle_B", "attack": "ranged/Ranged_Bow_Draw", "release": "ranged/Ranged_Bow_Release", "death": "general/Death_A"},
 	# 巫女：御幣を掲げてその場詠唱（後で光の玉projectileを重ねる土台）
 	CharacterJob.Type.SHRINE_MAIDEN: {"idle": "general/Idle_B", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
+	CharacterJob.Type.WITCH:     {"idle": "general/Idle_B", "attack": "ranged/Ranged_Magic_Spellcasting", "death": "general/Death_A"},
 }
+
+# ちびプロポーション適用対象職（2026-07-12・魔女で決定した数値を反映。今後拡大予定）
+const _KAYKIT_CHIBI_JOBS: Array = [CharacterJob.Type.WITCH]
+# 頭部一式としてまとめて拡縮するメッシュ名の末尾パターン（KayKit共通の命名規則）
+const _HEAD_ASSEMBLY_SUFFIXES: PackedStringArray = ["_Head", "_Hat", "_Helmet", "_HelmetVisor", "_BearHat"]
+# スキン無しで差し替えられた素メッシュ（魔女の顔・髪など）。命名規則に依らないので個別列挙
+const _HEAD_ASSEMBLY_EXTRA_NAMES: PackedStringArray = ["CustomHead", "HairMesh"]
 
 # 職業別キャラモデル（female 6職は1:1ユニーク、male 11職は5種を共有）
 const _JOB_CHAR_PATHS: Dictionary = {
@@ -51,7 +59,7 @@ const _JOB_CHAR_PATHS: Dictionary = {
 	CharacterJob.Type.SAMURAI:       _CHAR_DIR + "character-male-f.glb",
 	CharacterJob.Type.SHAMAN:        _CHAR_DIR + "character-male-e.glb",
 	CharacterJob.Type.CLERIC:        _CHAR_DIR + "character-female-a.glb",
-	CharacterJob.Type.WITCH:         _CHAR_DIR + "character-female-b.glb",
+	CharacterJob.Type.WITCH:         _KAYKIT_CHAR_DIR + "Witch_final_reference.glb",
 	CharacterJob.Type.VALKYRIE:      _KAYKIT_CHAR_DIR + "Rogue.glb",
 	CharacterJob.Type.SHRINE_MAIDEN: _KAYKIT_CHAR_DIR + "Rogue_Hooded.glb",
 	CharacterJob.Type.NINJA:         _CHAR_DIR + "character-female-e.glb",
@@ -174,7 +182,7 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 # ImageTexture3Dを実行時ビルド（事故の教訓：Texture2Dを渡すとGodotは3Dグリッドでなく
 # 「R/G/B独立の1Dカーブ」として読むため、事前生成したPNGグリッドは全画面ノイズ化した。
 # Texture3Dなら本来のクロスチャンネル処理＝脱彩度込みのグレーディングが正しく効く）
-@export var lut_enabled: bool                = true
+@export var lut_enabled: bool                = false  # 2026-07-12：紙グレインと合わせるとオレンジが強すぎるとの判断でOFF
 @export_range(0.0, 1.0, 0.01) var lut_desaturate: float = 0.18
 @export var lut_warm_mult: Vector3           = Vector3(1.08, 1.03, 0.90)
 @export var lut_warm_add: Vector3            = Vector3(0.02, 0.015, 0.0)
@@ -397,6 +405,14 @@ const _LUT_SIZE := 16
 # → 平均2.53に対し身長を揃える比率0.66/2.53≈0.26。ユーザー目視確認により0.52へ倍増
 @export var kaykit_char_scale_mult: float = 0.52
 
+# ちびプロポーション（2026-07-12・proportion_preview.tscnで魔女モデルを使い目視決定）。
+# kaykit_char_scale_multはそのまま残し、対象職（_KAYKIT_CHIBI_JOBS）にのみ追加で掛ける
+@export var kaykit_chibi_body_mult: float = 0.80
+# headボーンにBoneAttachment3Dを立て、その中のプレーンNode3Dのローカルスケールとして適用
+# （BoneAttachment3D自身の.scaleはボーン姿勢が変化するたびに1.0へ強制リセットされ、
+# 常時idleアニメ再生中の本番キャラでは効かないと実測で判明。対策として1段Node3Dを挟む）
+@export var kaykit_chibi_head_boost: float = 1.60
+
 # 武器の斬撃トレイル（②：近接攻撃のスイングに合わせ、武器の軌跡へ光る帯を残す。
 # ①衝撃波リングの次に着手。武器ローカルY軸を疑似ブレード方向として実測なしで仮置き＝要目視調整。
 # 2026-07-11：ヘッドレスの実機再現テストでメッシュ自体は正しい位置・サイズ(AABB約0.4×0.66×1.0m)
@@ -454,8 +470,17 @@ const _LUT_SIZE := 16
 @export_range(0.0, 1.0, 0.01) var clay_hatch_strength: float = 0.3   # 0.7は強すぎた→控えめな0.3に。縞の縁もsin波で滑らかに変更済み
 @export var clay_outline_enabled: bool = true
 @export_range(0.5, 4.0, 0.5) var clay_outline_thickness: float = 1.0
-@export_range(0.0, 0.5, 0.01) var clay_outline_threshold: float = 0.15
-@export var clay_outline_color: Color = Color(0.1, 0.06, 0.02, 0.9)
+# 0.15だと体の内部の折り目・装飾の輪郭まで拾いすぎて黒線過多で汚く見えるとの指摘（2026-07-12）
+# → 0.3に上げて弱いエッジ（内部の細部）を無視し、シルエット寄りの強いエッジだけ残す
+@export_range(0.0, 0.5, 0.01) var clay_outline_threshold: float = 0.3
+@export var clay_outline_color: Color = Color(0.1, 0.06, 0.02, 0.7)  # 0.9→0.7で線をやや薄く
+
+# 紙/粘土グレイン＋ポスタライズ（②・proto2_design.md）。輪郭線と同じ全画面postに相乗り。
+# エッジ検出は生の画面（screen_tex）に対して行うため、このグレインが誤って輪郭線として
+# 拾われることはない（グレインは輪郭検出の"後"に色にだけ加算する）
+@export var clay_paper_enabled: bool = true
+@export_range(0.0, 0.3, 0.01) var clay_grain_strength: float   = 0.10  # 0.05は変化なし→0.15→気持ち弱めに0.10
+@export_range(2.0, 32.0, 1.0) var clay_posterize_levels: float = 9.0   # 12は変化なし→7→気持ち弱めに9
 
 const _FLASH_CODE := """
 shader_type spatial;
@@ -644,25 +669,39 @@ void light() {
 }
 """
 
-const _OUTLINE_CODE := """
+const _POST_CODE := """
 shader_type canvas_item;
 render_mode unshaded;
 uniform sampler2D screen_tex : hint_screen_texture, repeat_disable, filter_nearest;
+uniform bool  outline_enabled = true;
 uniform float thickness : hint_range(0.5, 4.0, 0.5) = 1.0;
 uniform float threshold : hint_range(0.0, 0.5, 0.01) = 0.15;
 uniform vec4  line_color : source_color = vec4(0.1, 0.06, 0.02, 0.9);
+uniform bool  paper_enabled = true;
+uniform float grain_strength : hint_range(0.0, 0.3, 0.01) = 0.05;
+uniform float posterize_levels : hint_range(2.0, 32.0, 1.0) = 12.0;
 float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void fragment() {
-	vec2 d   = SCREEN_PIXEL_SIZE * thickness;
 	vec4 src = texture(screen_tex, SCREEN_UV);
-	float c  = luma(src.rgb);
-	float r  = luma(texture(screen_tex, SCREEN_UV + vec2( d.x, 0.0)).rgb);
-	float l  = luma(texture(screen_tex, SCREEN_UV + vec2(-d.x, 0.0)).rgb);
-	float u  = luma(texture(screen_tex, SCREEN_UV + vec2(0.0,  d.y)).rgb);
-	float dn = luma(texture(screen_tex, SCREEN_UV + vec2(0.0, -d.y)).rgb);
-	float edge    = max(max(abs(c-r), abs(c-l)), max(abs(c-u), abs(c-dn)));
-	float outline = step(threshold, edge);
-	COLOR = mix(src, vec4(line_color.rgb, 1.0), outline * line_color.a);
+	vec3 col = src.rgb;
+	if (paper_enabled) {
+		col = floor(col * posterize_levels + 0.5) / posterize_levels;
+		float n = hash(FRAGCOORD.xy);
+		col += (n - 0.5) * grain_strength;
+	}
+	if (outline_enabled) {
+		vec2 d   = SCREEN_PIXEL_SIZE * thickness;
+		float c  = luma(src.rgb);
+		float r  = luma(texture(screen_tex, SCREEN_UV + vec2( d.x, 0.0)).rgb);
+		float l  = luma(texture(screen_tex, SCREEN_UV + vec2(-d.x, 0.0)).rgb);
+		float u  = luma(texture(screen_tex, SCREEN_UV + vec2(0.0,  d.y)).rgb);
+		float dn = luma(texture(screen_tex, SCREEN_UV + vec2(0.0, -d.y)).rgb);
+		float edge    = max(max(abs(c-r), abs(c-l)), max(abs(c-u), abs(c-dn)));
+		float outline = step(threshold, edge);
+		col = mix(col, line_color.rgb, outline * line_color.a);
+	}
+	COLOR = vec4(col, 1.0);
 }
 """
 
@@ -755,7 +794,7 @@ func _ready() -> void:
 		_label_font = jf
 	_setup_world()
 	_setup_background()
-	_setup_outline()
+	_setup_post_effects()
 	_start_battle()
 
 func _setup_background() -> void:
@@ -782,7 +821,7 @@ func _setup_world() -> void:
 	env.fog_enabled    = fog_enabled
 	env.fog_density    = fog_density
 	env.fog_light_color = Color(0.05, 0.04, 0.08)
-	env.tonemap_mode   = Environment.TONE_MAPPER_AGX
+	env.tonemap_mode   = Environment.TONE_MAPPER_REINHARDT  # AGXは陰影コントラストは良いが暖色巻き込みが強く2026-07-12にオレンジ味の主因と判明→変更
 	if lut_enabled:
 		env.adjustment_enabled = true
 		env.adjustment_color_correction = _build_lut_texture()
@@ -829,19 +868,23 @@ func _build_lut_texture() -> ImageTexture3D:
 	tex.create(Image.FORMAT_RGBA8, _LUT_SIZE, _LUT_SIZE, _LUT_SIZE, false, slices)
 	return tex
 
-func _setup_outline() -> void:
-	if not clay_outline_enabled:
+func _setup_post_effects() -> void:
+	if not clay_outline_enabled and not clay_paper_enabled:
 		return
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 全画面オーバーレイが3Dピッキング(Area3Dホバー)を吸収するのを防ぐ
 	var shader := Shader.new()
-	shader.code = _OUTLINE_CODE
+	shader.code = _POST_CODE
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
-	mat.set_shader_parameter("thickness",  clay_outline_thickness)
-	mat.set_shader_parameter("threshold",  clay_outline_threshold)
-	mat.set_shader_parameter("line_color", clay_outline_color)
+	mat.set_shader_parameter("outline_enabled",   clay_outline_enabled)
+	mat.set_shader_parameter("thickness",         clay_outline_thickness)
+	mat.set_shader_parameter("threshold",         clay_outline_threshold)
+	mat.set_shader_parameter("line_color",        clay_outline_color)
+	mat.set_shader_parameter("paper_enabled",     clay_paper_enabled)
+	mat.set_shader_parameter("grain_strength",    clay_grain_strength)
+	mat.set_shader_parameter("posterize_levels",  clay_posterize_levels)
 	rect.material = mat
 	_canvas.add_child(rect)
 	_canvas.move_child(rect, 0)  # UI より前（奥）に描画
@@ -1331,6 +1374,46 @@ func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 		tw.tween_property(weapon, "position:y", start_y - _WEAPON_FLOAT_AMP, _WEAPON_FLOAT_TIME) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
+# 頭部一式（帽子・顔・髪）をheadボーンのBoneAttachment3D配下の専用Node3Dへ集めて
+# kaykit_chibi_head_boost倍にまとめて拡縮する。_attach_weaponと同じくBoneAttachment3D
+# そのものではなく子のNode3D側にスケールを持たせる（理由は上のexport変数コメント参照）
+func _apply_kaykit_chibi_head(ch: Node3D) -> void:
+	var skeleton := ch.find_child("Skeleton3D", true, false) as Skeleton3D
+	if not skeleton or skeleton.find_bone("head") == -1:
+		return
+	var attachment := BoneAttachment3D.new()
+	attachment.bone_name = "head"
+	skeleton.add_child(attachment)
+	var holder := Node3D.new()
+	holder.name = "ChibiHeadScale"
+	attachment.add_child(holder)
+	holder.scale = Vector3.ONE * kaykit_chibi_head_boost
+
+	var parts: Array[Node3D] = []
+	for child in skeleton.get_children():
+		if child is MeshInstance3D and _is_head_assembly_mesh((child as Node3D).name):
+			parts.append(child)
+	for extra_name: String in _HEAD_ASSEMBLY_EXTRA_NAMES:
+		var extra := ch.find_child(extra_name, true, false) as Node3D
+		if extra and not parts.has(extra):
+			parts.append(extra)
+
+	for part in parts:
+		var world_xform := part.global_transform
+		if part is MeshInstance3D:
+			var mi := part as MeshInstance3D
+			mi.skeleton = NodePath()
+			mi.skin = null
+		part.get_parent().remove_child(part)
+		holder.add_child(part)
+		part.global_transform = world_xform
+
+static func _is_head_assembly_mesh(node_name: String) -> bool:
+	for suffix: String in _HEAD_ASSEMBLY_SUFFIXES:
+		if node_name.ends_with(suffix):
+			return true
+	return false
+
 func _spawn_number_badge(ch: Node3D, number: int) -> void:
 	var inv := _decoration_inv_scale(ch)
 	var lbl := _make_label3d(str(number), number_badge_font_size, number_badge_pixel_size, Color.WHITE)
@@ -1688,8 +1771,12 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 		var m: Marker3D = _get_player_marker(unit.row, unit.col)
 		if m:
 			var char_path := _resolve_char_path(unit)
+			var cd := unit.source_data as CharacterData
+			var is_kaykit := char_path.begins_with(_KAYKIT_CHAR_DIR)
+			var is_chibi := is_kaykit and cd and _KAYKIT_CHIBI_JOBS.has(cd.job)
 			var char_scale := player_char_scale * kaykit_char_scale_mult \
-				if char_path.begins_with(_KAYKIT_CHAR_DIR) else player_char_scale
+				* (kaykit_chibi_body_mult if is_chibi else 1.0) \
+				if is_kaykit else player_char_scale
 			var ch := _spawn_char(m, 180.0, char_scale, char_path, _resolve_player_anim_clip(unit, "idle"))
 			if not ch:
 				continue
@@ -1698,7 +1785,8 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 			_unit_base_scale[unit] = char_scale
 			_spawn_hp_bar(ch, unit)
 			_attach_weapon(ch, unit)
-			var cd := unit.source_data as CharacterData
+			if is_chibi:
+				_apply_kaykit_chibi_head(ch)
 			if cd and _JOB_TINTS.has(cd.job):
 				_tint_char(ch, _JOB_TINTS[cd.job] as Color)
 			var accent := accent_color_for(i)
