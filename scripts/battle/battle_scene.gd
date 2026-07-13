@@ -475,6 +475,14 @@ const _LUT_SIZE := 16
 @export_range(0.0, 0.5, 0.01) var clay_outline_threshold: float = 0.3
 @export var clay_outline_color: Color = Color(0.1, 0.06, 0.02, 0.7)  # 0.9→0.7で線をやや薄く
 
+# 頂点ボイル（クレイアニメ風の揺れ・⑤・proto2_design.md「アートで一点だけ全振りするなら」本命）。
+# 数フレームごとに頂点をコマ送りで微小ジッタさせ手作り粘土の"ボイル"感を出す。振り切るとメッシュ
+# 崩壊するため@exportで必ず制御し保守的な初期値にする（proto2_design.md明記のリスク）
+@export var clay_boil_enabled: bool = true
+@export_range(0.0, 0.05, 0.001) var clay_boil_amplitude: float = 0.012
+@export_range(1.0, 24.0, 0.5)   var clay_boil_rate: float      = 8.0   # コマ送りの段階数/秒
+@export_range(0.02, 0.5, 0.01)  var clay_boil_grid: float      = 0.12  # ワールド座標の量子化セル幅（継ぎ目の裂け防止）
+
 # 紙/粘土グレイン＋ポスタライズ（②・proto2_design.md）。輪郭線と同じ全画面postに相乗り。
 # エッジ検出は生の画面（screen_tex）に対して行うため、このグレインが誤って輪郭線として
 # 拾われることはない（グレインは輪郭検出の"後"に色にだけ加算する）
@@ -646,6 +654,20 @@ uniform float rim_strength    : hint_range(0.0, 1.0, 0.01) = 0.25;
 uniform vec4  rim_color       : source_color               = vec4(0.92, 0.96, 1.0, 1.0);
 uniform float hatch_spacing   : hint_range(1.0, 12.0, 0.5)  = 3.0;
 uniform float hatch_strength  : hint_range(0.0, 1.0, 0.01)  = 0.5;
+uniform bool  boil_enabled = true;
+uniform float boil_amplitude : hint_range(0.0, 0.05, 0.001) = 0.012;
+uniform float boil_rate      : hint_range(1.0, 24.0, 0.5)   = 8.0;
+uniform float boil_grid      : hint_range(0.02, 0.5, 0.01)  = 0.12;
+void vertex() {
+	if (boil_enabled) {
+		float step_time = floor(TIME * boil_rate);
+		vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		vec3 cell = floor(world_pos / boil_grid);
+		vec3 seed = vec3(cell.x, cell.y + step_time * 12.9898, cell.z);
+		float n = fract(sin(dot(seed, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+		VERTEX += NORMAL * (n - 0.5) * 2.0 * boil_amplitude;
+	}
+}
 void fragment() {
 	vec3 base  = texture(albedo_tex, UV).rgb * albedo_color.rgb;
 	ALBEDO    = base;
@@ -1290,6 +1312,10 @@ func _apply_clay_shader(ch: Node3D) -> void:
 			mat.set_shader_parameter("rim_color",       clay_rim_color)
 			mat.set_shader_parameter("hatch_spacing",   clay_hatch_spacing)
 			mat.set_shader_parameter("hatch_strength",  clay_hatch_strength)
+			mat.set_shader_parameter("boil_enabled",    clay_boil_enabled)
+			mat.set_shader_parameter("boil_amplitude",  clay_boil_amplitude)
+			mat.set_shader_parameter("boil_rate",       clay_boil_rate)
+			mat.set_shader_parameter("boil_grid",       clay_boil_grid)
 			mesh.set_surface_override_material(i, mat)
 
 func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: String,
