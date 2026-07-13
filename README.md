@@ -53,6 +53,7 @@
 - **3Dキャラクター(一部・KayKit移行中):** KayKit Adventurers / Character Animations by Kay Lousberg (kaylousberg.com) — CC0
 - **モンスター:** Quaternius (quaternius.com) — CC0
 - **武器:** Quaternius RPG Items — CC0
+- **背景（ダンジョン）:** KayKit Dungeon Remastered by Kay Lousberg (kaylousberg.com) — CC0
 
 ---
 

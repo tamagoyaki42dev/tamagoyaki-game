@@ -8,6 +8,7 @@ const _ENEMY_INFO_SCENE := "res://scenes/enemy_info.tscn"
 const _CLEAR_SCENE      := "res://scenes/clear.tscn"
 const _BG_GRASS    := preload("res://scenes/bg_grass.tscn")
 const _BG_DUNGEON  := preload("res://scenes/bg_dungeon.tscn")
+const _BG_DUNGEON_KAYKIT := preload("res://scenes/bg_dungeon_kaykit.tscn")
 
 # 敵は gitignore 外のコミット済みモデルを使用
 const _ENEMY_CHAR_PATH := "res://assets/characters/kenney/character-male-a.glb"
@@ -458,6 +459,10 @@ const _LUT_SIZE := 16
 @export var grid_label_color: Color      = Color(0.85, 0.92, 1.0, 0.9)
 @export var grid_label_offset: Vector3   = Vector3(-1.3, 0.8, 0.0)
 
+# 背景刷新（2026-07-13〜・CLAUDE.md「背景はパック不問」）。既存Kenney版bg_dungeon.gdは無改変のまま残し、
+# このトグルでKayKit版(bg_dungeon_kaykit.gd)と切り替える＝いつでも戻せる
+@export var dungeon_bg_use_kaykit: bool = true
+
 # クレイ（マット粘土）作風シェーダー
 @export var clay_enabled: bool = true
 @export var clay_shadow_tint: Color = Color(0.55, 0.42, 0.32)
@@ -821,7 +826,8 @@ func _ready() -> void:
 
 func _setup_background() -> void:
 	var is_grass: bool = GameState.battle_index < 2
-	var scene: PackedScene = _BG_GRASS if is_grass else _BG_DUNGEON
+	var dungeon_scene: PackedScene = _BG_DUNGEON_KAYKIT if dungeon_bg_use_kaykit else _BG_DUNGEON
+	var scene: PackedScene = _BG_GRASS if is_grass else dungeon_scene
 	_background.add_child(scene.instantiate())
 	if is_grass:
 		var env: Environment = _env_node.environment
