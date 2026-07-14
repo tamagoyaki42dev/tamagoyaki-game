@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://tfqr6a3f7abo"]
+
+[ext_resource type="Script" path="res://tools/face_preview_view.gd" id="1_face"]
+
+[node name="FacePreview" type="Node3D"]
+script = ExtResource("1_face")

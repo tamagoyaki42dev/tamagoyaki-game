@@ -14,7 +14,12 @@ const TARGETS: Array = [
 	"res://assets/kaykit/environment/dungeon/crates_stacked.gltf",
 	"res://assets/kaykit/environment/dungeon/chest.gltf",
 	"res://assets/kaykit/environment/dungeon/candle_triple.gltf",
-	"res://assets/kaykit/environment/dungeon/banner_thin_red.gltf",
+	"res://assets/kaykit/environment/dungeon/box_small.gltf",
+	"res://assets/kaykit/environment/dungeon/pillar.gltf",
+	"res://assets/kaykit/environment/dungeon/rubble_large.gltf",
+	"res://assets/kaykit/environment/dungeon/keg.gltf",
+	"res://assets/kaykit/environment/dungeon/trunk_large_A.gltf",
+	"res://assets/kaykit/environment/dungeon/table_medium.gltf",
 ]
 
 func _initialize() -> void:

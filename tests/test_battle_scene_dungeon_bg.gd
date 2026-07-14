@@ -4,10 +4,10 @@ extends GutTest
 # battle_scene.gd の @export トグルで切り替える構成なので、トグルのデフォルト値とKayKit版シーンの
 # 構造（実測に基づくタイル/壁の並び）を検証する。
 
-func test_dungeon_bg_use_kaykit_defaults_to_false() -> void:
+func test_dungeon_bg_use_kaykit_defaults_to_true() -> void:
 	var scene := BattleScene.new()
-	assert_false(scene.dungeon_bg_use_kaykit,
-		"dungeon_bg_use_kaykit のデフォルトはfalse（Kenney版）。目視確認が済むまでKayKit版を既定にしない")
+	assert_true(scene.dungeon_bg_use_kaykit,
+		"dungeon_bg_use_kaykit のデフォルトはtrue（ユーザー目視確認OK・KayKit版採用済み・2026-07-14）")
 	scene.free()
 
 func test_tile_size_matches_measured_floor_footprint() -> void:
@@ -26,6 +26,10 @@ func test_bg_dungeon_kaykit_scene_instantiates_with_expected_child_count() -> vo
 	var ps: PackedScene = load("res://scenes/bg_dungeon_kaykit.tscn")
 	var root: Node3D = ps.instantiate()
 	add_child_autofree(root)  # _ready()（_build_ground等）はツリーに入って初めて実行される
-	# 地面(1) + 床タイル(6行x10列=60) + 小道具(18) + 壁/コーナー(12) = 91
-	assert_eq(root.get_child_count(), 91,
-		"地面1+床タイル60+小道具18+壁/コーナー12 = 91ノードが生成される")
+	# 地面(1) + 床タイル(6行x10列=60) + 小道具(28・2026-07-14に18→28へ増量) + 壁/コーナー(12) = 101
+	assert_eq(root.get_child_count(), 101,
+		"地面1+床タイル60+小道具28+壁/コーナー12 = 101ノードが生成される")
+
+func test_prop_scenes_include_expanded_variety() -> void:
+	assert_eq(BackgroundDungeonKayKit._PROP_SCENES.size(), 10,
+		"小道具の種類が2026-07-14の見直しで5→10種に増えている")

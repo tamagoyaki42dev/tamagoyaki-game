@@ -10,7 +10,26 @@
 
 ### 開発ツール/デバッグ基盤（設計のみ・2026-07-13）＝着手は個別承認後
 
-アセット化ワークフロー（体リカラー/表情プリセット/敵ツール/背景）＋スライス別デバッグ画面（戦闘直行/継承のみ/イベントシーン）の設計。詳細は `docs/dev_tooling_design.md`。推奨着手順：①体リカラー ②表情プリセット ③敵ツール ④デバッグ画面。**ローグの服=あずき濃色/マント=明るい赤紫が①の初回ユースケース。**（「ボディを増やすか」はA1/A2で職モックアップして見分けが付くか確かめてから判断＝道具を作って決める）
+アセット化ワークフロー（体リカラー/表情プリセット/敵ツール/背景）＋スライス別デバッグ画面（戦闘直行/継承のみ/イベントシーン）の設計。詳細は `docs/dev_tooling_design.md`。推奨着手順：①体リカラー ②表情プリセット ③敵ツール ④デバッグ画面。全ツール共通方針＝**画面UIで全調整完結（エディタ往復ゼロ）**・共通ヘルパー `scripts/tools/dev_controls.gd`（数値→スライダー/bool→チェック/選択→ドロップダウン）をA2以降でも使い回す。
+
+**【フェーズ方針・2026-07-14 ユーザー合意】次のキャラ作業（Rogueに髪+顔）の前にツールを揃える。** 次キャラは顔追従問題でブロック中／ツール群は着手可能なので先にツールを片付ける。**今やるのは A3 敵ツール・A4 背景アセット化・B1 戦闘ダイレクト**（いずれも土台あり）。**B3 イベントシーンはイベント/会話システムが未存在＝ツールでなく本体機能なので proto2 本編と一緒にやる（今は外す）。B2 継承のみは既存 `meta_loop_debug` があるので継承ループ育成時に同時**。次着手＝A3から設計案。
+
+- [x] ~~**A1 体リカラー**~~ **実装完了（2026-07-14）**：`BodyRecolor`(.tres)＝`scripts/data/body_recolor.gd`／専用ツール`scenes/body_recolor_tool.tscn`(+`scripts/tools/body_recolor_tool.gd`)をF6起動。素体GLB共有・色差分のみ.tres。starter=`assets/kaykit/characters/recolors/rogue_recolor.tres`（服=Body#1,#2→あずき／マント=Cape#0→赤紫）。沈み自動接地＋手動高さ＋全アニメ搭載。GUT新規11テスト・フルラン301全通過。**残：目視で色味を詰める（ツールでcape/bodyのColorPicker調整）／緑は腕(ArmL/R #2,#3)・マスクにも回っており全身を揃えるならバンド追加**
+- [ ] **A1後続：実ゲーム消費（P3）**：`battle_scene.gd`に`_JOB_RECOLORS`（job→.tresパス）を足し、spawn時に`recolor_part`を該当メッシュへ適用。`_JOB_TINTS`（全身乗算）は無改変で残し上乗せレイヤーにする。着手時に「detect/recolorのstaticを中立util`scripts/util/recolor.gd`へ移すか（推奨）／char_customizer参照のままか」を決める。まずツールで rogue_recolor を目視確定させてから
+- [x] ~~**A2 表情プリセット**~~ **実装完了（2026-07-14）**：`FaceExpression`(.tres)＝`scripts/data/face_expression.gd`（目/まつ毛/眉/口の全パラメータ）。既存`tools/face_editor.gd`を`@tool`廃止・A1と同じ画面UI完結（`dev_controls.gd`流用）へ全面移行、保存/読込もLineEdit+Button+OptionButtonに刷新。`dev_controls.gd`に`add_color`ヘルパー追加。GUT新規6テスト・フルラン302全通過。**残：実際に「ジト目/怒/悲/笑」4プリセットをF6でツールを開いて人が調整・保存する（数値はここでは決め打ちしていない）**
+- [ ] **face_editor.gd：キャラの向きが逆**（2026-07-14 ユーザーF6実機確認で発見）。旧`@tool`時代はGodotエディタの自由カメラで見ていたため気づかなかったが、今回F6実行が必須になったことで、ツール自前のCamera3D（`_build_env_and_cam()`・`cam_side`/`cam_height`/`cam_distance`固定位置）から見ると顔でなく後頭部側が見えている可能性が高い。`view_yaw_deg`のデフォルト(23.0)か、カメラの固定位置いずれかの調整で直る見込み
+- [ ] A3 敵ツール（dev_controls.gd 流用）
+
+### 【新規・2026-07-14 実測判明】自作キャラGLBの品質問題（顔/髪がアニメで動かない）
+
+体リカラーツールでWitchを見た際に発覚。`Witch_final_reference.glb` は自作書き出しが不完全＝(1)`CustomHead`/`HairMesh`が**skin=false（Skinバインド無し）で骨に追従しない**＝歩行/攻撃で顔・髪がその場に残る (2)共有アニメ再生時にリグrest不整合で**約1.5m沈む**（ツール側は自動接地で回避済みだが**実ゲームでも沈む疑い＝要確認**）。
+
+- [ ] **顔/髪をアニメ追従させる方針決め**（設計案先）：候補 (a)`BoneAttachment3D`で頭ボーンに剛体追従（Godot標準・再書き出し不要・推奨） (b)Blenderでアーマチュアにスキンバインド（変形追従・手作業） (c)自作顔をやめKayKit純正頭(Rogue_Head)＋髪だけ。**「Rogueにピンク髪+顔を乗せて色調整」はこれの解決が前提**（同じ作り方だと同じ壁）
+- [ ] 実ゲームのWitchも沈んでいないか確認（`battle_scene`で目視。沈んでいれば同じ接地補正 or アセット修正）
+
+### 【新規・2026-07-14 ユーザー要望】全職ちびキャラ化
+
+Witchのちびプロポーションを全KayKit職へ拡大したい。現状 `_KAYKIT_CHIBI_JOBS=[WITCH]` のみ。`_apply_kaykit_chibi_head`＋`kaykit_chibi_body_mult` を全職に広げ、各モデルが頭スケールで破綻しないか要確認（設計/目視）。
 
 ### 継承の中身（個体値→継承式）
 
@@ -23,7 +42,6 @@
 
 - [ ] **表情差分プリセット**（怒り/悲しみ/笑い/ジト目）＝`face_editor`の眉/目パラメータで出せる。dev-tooling A2で切り出す
 - [ ] 塗り髪は帽子キャラのハゲ感解消の保険として維持（3Dメッシュの被覆が甘い箇所を下地の髪色で隠す）
-- [ ] ポートレートPNG再ベイク：`tools/portrait_baker.tscn`をF6（新職Ranger/Rogue/Rogue_Hooded＋Witch分の未ベイクで既知テスト赤が1件残っている）
 - [ ] 弓職のSE分割：引く/離す/着弾で別SE（`audio_manager.gd`）
 - [ ] 巫女の赤紫チント濃度：濃すぎ/薄すぎなら`_JOB_TINTS`調整、服だけにするなら`rogue_texture.png`編集
 - [ ] 顔の不満への対処：(a)別キャラHead差し替え (b)Quaternius頭をBoneAttachment (c)Blender形状編集。方針決め要
@@ -40,7 +58,8 @@
 
 **診断**：コード側ジュース（flash/shake/hitstop/knockback/glow/火花）は出し切り済み。不足は"音（迫力SE）と派手さ（リッチVFX）"＝アセットの格。**理想＝初代スマブラ64のヒット音・エフェクト**（地味な動きの上にspectacleを被せる）。
 
-- [x] ~~**背景を刷新（ダンジョン/B3）**~~ **実装完了・ユーザー確認OK（2026-07-14）**。`KayKit_DungeonRemastered`から床/壁/コーナー/小道具をキュレーションし`assets/kaykit/environment/dungeon/`へ配置、新規`bg_dungeon_kaykit.gd`（既存`bg_dungeon.gd`は無改変）＋`battle_scene.gd`の`dungeon_bg_use_kaykit`トグルで切替。CLAUDE.md方針を「背景・敵はパック不問」に変更。詳細devlog/2026-07-14参照。GUT新規5テスト・全285中284 PASS
+- [x] ~~**背景を刷新（ダンジョン/B3）**~~ **実装完了・ユーザー確認OK（2026-07-14）**。`KayKit_DungeonRemastered`から床/壁/コーナー/小道具をキュレーションし`assets/kaykit/environment/dungeon/`へ配置、新規`bg_dungeon_kaykit.gd`（既存`bg_dungeon.gd`は無改変）＋`battle_scene.gd`の`dungeon_bg_use_kaykit`トグルで切替。CLAUDE.md方針を「背景・敵はパック不問」に変更。小道具は5→10種・18→28個に増量済み。詳細devlog/2026-07-14参照。GUT新規6テスト・全286中285 PASS
+- [ ] **ダンジョン背景（B3）をいずれ見直す**：ユーザー最終確認「とりあえずOK、また見直す」＝確定ではなく暫定採用。小道具の密度/種類選定/配置の再検討候補（次回着手時はF5でB3を通して見て気になる点があるか確認するところから）
 - [ ] **背景を刷新（草原B1/B2・アリーナ新規ステージ）**：ダンジョンと同じ手順（KayKit_Forest_Nature_Pack／Medieval_Hexagon_Pack）で継続。既存bg_grass.gdは無改変のまま新規ファイル＋トグル方式を踏襲
 - [ ] **敵グラを刷新**（派手に動いて攻撃＝満たすアセット探索 or モーション作成。現状の敵はQuaternius/Kenneyで攻撃クリップ無し＝Tween突進で代用中）
 - [ ] **回復発動者にモーション**（列/自己回復とも「誰が発動か分からない」。仮＝アイテム使用モーション。await/Signal触る＝設計案先）

@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://dr2kmyd7pmv2w"]
+
+[ext_resource type="Script" uid="uid://ws7468xp6svw" path="res://tools/face_editor.gd" id="1_fed"]
+
+[node name="FaceEditor" type="Node3D" unique_id=654039583]
+script = ExtResource("1_fed")
+character = "Rogue"
+custom_head_glb = "uid://bgjlttmmjp4o6"
+view_yaw_deg = -169.0
+view_pitch_deg = -11.0
+lash_color = Color(0.07058824, 0.05882353, 0.09019608, 1)
+hair_enabled = false
+hair_mesh_glb = "uid://c80en528fuoy3"
+hair_mesh_name = ""
+hair_mesh_tint = Color(0.99215686, 0.654902, 0.69411767, 1)

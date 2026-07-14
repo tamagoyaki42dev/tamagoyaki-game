@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BodyRecolor" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/body_recolor.gd" id="1_yl710"]
+
+[resource]
+script = ExtResource("1_yl710")
+source_model = "res://assets/kaykit/characters/Rogue.glb"
+slots = PackedStringArray("Body", "Body", "Cape")
+band_indices = PackedInt32Array(1, 2, 0)
+override_colors = PackedColorArray(0.478, 0.204, 0.216, 1, 0.478, 0.204, 0.216, 1, 0.784, 0.353, 0.69, 1)
+reference_colors = PackedColorArray(0.03982379, 0.3310251, 0.29374528, 1, 0.009435356, 0.524871, 0.34484765, 1, 0, 0.53557414, 0.33270308, 1)

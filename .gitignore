@@ -39,6 +39,22 @@ assets/quaternius-ultimate-characters/
 # ※統合済みの characters/ animations/ は追跡対象。ここは packs/ の未整理ストックのみ除外
 assets/kaykit/packs/
 
+# ライセンス制約アセット（Booth等・再配布禁止）＝公開リポジトリに載せない
+# 原本(FelizHair/)も改変派生(Mage_hair_final.glb等)も felisshoppe のメッシュそのもの＝単体配布に当たるため除外。
+# 詳細・利用条件は CREDITS.md。ビルドは作業ツリーから焼き込むためゲーム本体には含まれる（.pck）。ローカル原本は各自バックアップすること。
+assets/kaykit/parts/
+
+# VRoid顔移植の実験（撤退済み・未使用）。.vrm は VRoid標準アセットを含み公開再配布は避けたいため除外。フォルダごと削除予定。
+assets/vroidTest/
+
+# Blender 自動バックアップ（次回保存で再生成される）
+*.blend1
+
+# VRoid由来の作業用blend（ライセンス制約＝再配布回避＋60MB級で大容量）。
+# ビルドはローカル作業ツリーから焼く（assets/kaykit/_source/build_furou_hair.py）。
+# 新しいVRoid髪の作業blendもここに追記していく。
+assets/kaykit/characters/pink.blend
+
 # Kenney アセットパック（大容量のため除外・各自ダウンロード）
 assets/kenney-dungeon-kit/
 assets/kenney-hexagon-kit/
@@ -46,3 +62,13 @@ assets/kenney-mini-characters/
 assets/kenney-nature-kit/
 assets/kenney-platformer-kit/
 assets/kenney-survival-kit/
+
+# KayKit生zip展開（キュレーション元。統合済みファイルは各追跡フォルダへコピー済みのため不要・大容量）
+assets/kaykit/_source/
+
+# Quaternius候補プレビュー一式（基本不採用・保管判断だがリポジトリには載せない・100MB級）
+assets/quaternius_preview/
+
+# 開発ツールの生成プレビュー画像（実行のたびに再生成される・スクラッチ扱い）
+tools/_*.png
+tools/_*.png.import

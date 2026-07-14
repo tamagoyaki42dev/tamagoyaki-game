@@ -17,6 +17,11 @@ const _PROP_SCENES: Array = [
 	preload("res://assets/kaykit/environment/dungeon/chest.gltf"),
 	preload("res://assets/kaykit/environment/dungeon/candle_triple.gltf"),
 	preload("res://assets/kaykit/environment/dungeon/box_small.gltf"),
+	preload("res://assets/kaykit/environment/dungeon/pillar.gltf"),
+	preload("res://assets/kaykit/environment/dungeon/rubble_large.gltf"),
+	preload("res://assets/kaykit/environment/dungeon/keg.gltf"),
+	preload("res://assets/kaykit/environment/dungeon/trunk_large_A.gltf"),
+	preload("res://assets/kaykit/environment/dungeon/table_medium.gltf"),
 ]
 
 # tools/dungeon_kaykit_probe.gd で実測して確定（当てずっぽう禁止）。
@@ -37,7 +42,9 @@ const _TILE_PATTERN: Array = [
 	[0, 0, 0, 0, 2, 0, 1, 0, 0, 0],
 ]
 
-# [scene_idx, x, z, scale, rot_y_deg]  — bg_dungeon.gdの_PROPS座標をそのまま流用しつつ種類を巡回で割当（単調な同一プロップ反復を解消）
+# [scene_idx, x, z, scale, rot_y_deg]  — bg_dungeon.gdの_PROPS座標をそのまま流用しつつ種類を巡回で割当（単調な同一プロップ反復を解消）。
+# 2026-07-14「全体的に見直したい」を受け10種類に拡張・密度も18→28に増量（scene_idx 5〜9が追加分）。
+# rubble_largeのみ実測フットプリントが8.1x3.5x3.2mと他プロップより大きいため、scaleを0.18〜0.22の小さめ値で使用
 const _PROPS: Array = [
 	[0, -13.0, -4.0, 1.3,   0.0],
 	[1,  19.0, -4.0, 1.3,   0.0],
@@ -57,6 +64,16 @@ const _PROPS: Array = [
 	[0, -11.0,  13.0, 1.0,  60.0],
 	[1,  17.0,  14.0, 1.1, -60.0],
 	[2,   4.0,   5.0, 0.9,  30.0],
+	[5, -16.0,  -8.0, 1.0,   0.0],
+	[5,  20.0,  -8.0, 1.0,   0.0],
+	[6,   8.0,  -6.0, 0.2,  20.0],
+	[6,  -6.0,  10.0, 0.18, -50.0],
+	[7,  15.0,   4.0, 1.0,  30.0],
+	[7,  -7.0,  -6.0, 1.0, -20.0],
+	[8,   1.0,  11.0, 1.0,  90.0],
+	[8,  12.0,  12.0, 1.0, -30.0],
+	[9,  -2.0,  -6.0, 1.0,   0.0],
+	[9,   9.0,   8.0, 1.0,  45.0],
 ]
 
 # back wall at z=-12 — bg_dungeon.gdと同じ壁配置
