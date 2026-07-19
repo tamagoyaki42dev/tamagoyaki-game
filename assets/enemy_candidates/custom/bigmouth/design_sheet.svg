@@ -1,0 +1,273 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1000" viewBox="0 0 1800 1000">
+  <defs>
+    <style>
+      text { font-family: "Meiryo", "Yu Gothic", sans-serif; fill: #3a2a22; }
+      .guide { stroke: #b0a090; stroke-width: 2; stroke-dasharray: 10 8; fill: none; }
+      .dim { font-size: 22px; fill: #6a5a4c; paint-order: stroke; stroke: #f6f1e7; stroke-width: 8; stroke-linejoin: round; }
+      .jawlabel { font-size: 22px; fill: #c03030; font-weight: bold; paint-order: stroke; stroke: #f6f1e7; stroke-width: 8; stroke-linejoin: round; }
+      .outline { stroke: #43201a; stroke-width: 6; stroke-linejoin: round; stroke-linecap: round; }
+      .teeth { stroke: #43201a; stroke-width: 5; stroke-linejoin: round; fill: #e8dcc0; }
+      .toothline { stroke: #43201a; stroke-width: 4; stroke-linecap: round; fill: none; }
+      .thin { stroke: #43201a; stroke-width: 3.5; stroke-linecap: round; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1000" fill="#f6f1e7"/>
+  <text x="40" y="60" font-size="34" font-weight="bold">ビッグマウス（仮）三面図 v10</text>
+  <text x="40" y="100" font-size="24" fill="#6a5a4c">正面図(左)／側面図(右・左向き)　開閉下顎対応</text>
+
+  <!-- horizontal guides -->
+  <line class="guide" x1="120" y1="250" x2="1560" y2="250"/>
+  <line class="guide" x1="120" y1="356" x2="1560" y2="356"/>
+  <line class="guide" x1="120" y1="410" x2="1560" y2="410"/>
+  <line class="guide" x1="120" y1="850" x2="1560" y2="850"/>
+
+  <!-- unit ruler -->
+  <g stroke="#8a7a68" stroke-width="3">
+    <line x1="90" y1="250" x2="90" y2="850"/>
+    <line x1="75" y1="250" x2="105" y2="250"/>
+    <line x1="75" y1="370" x2="105" y2="370"/>
+    <line x1="75" y1="490" x2="105" y2="490"/>
+    <line x1="75" y1="610" x2="105" y2="610"/>
+    <line x1="75" y1="730" x2="105" y2="730"/>
+    <line x1="75" y1="850" x2="105" y2="850"/>
+  </g>
+
+  <!-- ================= FRONT VIEW ================= -->
+  <g>
+    <!-- horns: thicker crescents, drawn behind body -->
+    <path class="outline" fill="#ddc9a4" d="M 610,356
+      C 670,372 732,352 772,304
+      C 800,272 810,218 806,166
+      L 790,160
+      C 772,214 748,252 710,278
+      C 676,300 640,306 600,298
+      C 598,320 602,340 610,356 Z"/>
+    <path class="outline" fill="#ddc9a4" d="M 350,356
+      C 290,372 228,352 188,304
+      C 160,272 150,218 154,166
+      L 170,160
+      C 188,214 212,252 250,278
+      C 284,300 320,306 360,298
+      C 362,320 358,340 350,356 Z"/>
+    <path class="thin" d="M 716,296 C 736,306 758,300 774,282"/>
+    <path class="thin" d="M 772,236 C 786,244 798,240 806,230"/>
+    <path class="thin" d="M 244,296 C 224,306 202,300 186,282"/>
+    <path class="thin" d="M 188,236 C 174,244 162,240 154,230"/>
+
+    <!-- arms: thick, root spans the whole flank (matches the side view) -->
+    <path class="outline" fill="#8a3f30" d="M 374,426
+      C 358,388 300,364 252,392
+      C 206,418 186,502 188,602
+      C 190,698 200,758 210,792
+      L 348,792
+      C 338,722 332,642 334,558
+      C 336,488 352,448 378,428 Z"/>
+    <path class="outline" fill="#8a3f30" d="M 586,426
+      C 602,388 660,364 708,392
+      C 754,418 774,502 772,602
+      C 770,698 760,758 750,792
+      L 612,792
+      C 622,722 628,642 626,558
+      C 624,488 608,448 582,428 Z"/>
+
+    <!-- body (head + torso, pear: narrow face / wide body) -->
+    <path class="outline" fill="#8a3f30" d="M 480,250
+      C 552,250 600,284 616,340
+      C 632,394 644,430 656,476
+      C 676,540 688,606 690,668
+      C 692,726 676,766 652,782
+      C 612,800 548,808 480,808
+      C 412,808 348,800 308,782
+      C 284,766 268,726 270,668
+      C 272,606 284,540 304,476
+      C 316,430 328,394 344,340
+      C 360,284 408,250 480,250 Z"/>
+
+    <!-- feet: bigger -->
+    <rect class="outline" x="374" y="776" width="102" height="74" rx="26" fill="#7a3628"/>
+    <rect class="outline" x="484" y="776" width="102" height="74" rx="26" fill="#7a3628"/>
+    <path class="thin" d="M 406,850 L 406,816"/>
+    <path class="thin" d="M 438,850 L 438,816"/>
+    <path class="thin" d="M 524,850 L 524,816"/>
+    <path class="thin" d="M 556,850 L 556,816"/>
+
+    <!-- hands -->
+    <ellipse class="outline" cx="258" cy="806" rx="76" ry="44" fill="#7a3628"/>
+    <ellipse class="outline" cx="702" cy="806" rx="76" ry="44" fill="#7a3628"/>
+    <path class="thin" d="M 220,782 C 226,772 238,772 244,782"/>
+    <path class="thin" d="M 256,782 C 262,772 274,772 280,782"/>
+    <path class="thin" d="M 680,782 C 686,772 698,772 704,782"/>
+    <path class="thin" d="M 716,782 C 722,772 734,772 740,782"/>
+
+    <!-- belly patch -->
+    <ellipse cx="480" cy="726" rx="134" ry="62" fill="#b5714f"/>
+    <path class="thin" d="M 472,752 C 476,760 484,760 488,752"/>
+
+    <!-- mouth opening -->
+    <path class="outline" fill="#521c22" d="M 366,468
+      C 402,444 558,444 594,468
+      C 618,498 622,556 604,596
+      C 582,636 532,650 480,650
+      C 428,650 378,636 356,596
+      C 338,556 342,498 366,468 Z"/>
+
+    <!-- upper teeth: wide blocks packed edge to edge (no gaps) -->
+    <path class="teeth" d="M 366,478
+      C 386,458 428,448 480,446
+      C 532,448 574,458 594,478
+      L 594,516
+      L 556,544
+      L 518,526
+      L 480,550
+      L 442,528
+      L 404,542
+      L 366,520
+      Z"/>
+    <path class="toothline" d="M 404,456 L 404,542"/>
+    <path class="toothline" d="M 442,450 L 442,528"/>
+    <path class="toothline" d="M 480,446 L 480,550"/>
+    <path class="toothline" d="M 518,450 L 518,526"/>
+    <path class="toothline" d="M 556,456 L 556,544"/>
+
+    <!-- lower teeth: wide blocks packed edge to edge (no gaps) -->
+    <path class="teeth" d="M 372,600
+      C 392,632 432,646 480,650
+      C 528,646 568,632 588,600
+      L 588,596
+      L 550,582
+      L 512,602
+      L 474,580
+      L 436,600
+      L 398,584
+      Z"/>
+    <path class="toothline" d="M 436,600 L 436,644"/>
+    <path class="toothline" d="M 474,580 L 474,650"/>
+    <path class="toothline" d="M 512,602 L 512,648"/>
+    <path class="toothline" d="M 550,582 L 550,640"/>
+
+    <!-- eye: bigger -->
+    <circle class="outline" cx="480" cy="356" r="58" fill="#f4efe4"/>
+    <circle cx="480" cy="356" r="24" fill="#c23a30"/>
+    <circle cx="480" cy="356" r="11" fill="#2a0d0d"/>
+    <circle cx="464" cy="341" r="7" fill="#ffffff"/>
+    <ellipse class="outline" cx="480" cy="266" rx="40" ry="14" fill="#5a2a20"/>
+  </g>
+
+  <!-- jaw split line: front -->
+  <line x1="135" y1="586" x2="700" y2="586" stroke="#d84040" stroke-width="4" stroke-dasharray="14 10"/>
+  <circle cx="352" cy="586" r="8" fill="#d84040"/>
+  <circle cx="608" cy="586" r="8" fill="#d84040"/>
+
+  <!-- ================= SIDE VIEW ================= -->
+  <g>
+    <!-- horn (near side, thicker) -->
+    <path class="outline" fill="#ddc9a4" d="M 1248,320
+      C 1300,340 1356,322 1386,274
+      C 1412,232 1418,178 1406,132
+      L 1390,128
+      C 1378,180 1358,222 1326,252
+      C 1298,278 1268,292 1238,294
+      C 1238,306 1242,314 1248,320 Z"/>
+    <path class="thin" d="M 1338,276 C 1352,286 1370,280 1382,264"/>
+    <path class="thin" d="M 1380,212 C 1392,218 1404,212 1410,200"/>
+
+    <!-- body: smooth front profile, mouth is an INWARD wedge (no snout) -->
+    <path class="outline" fill="#8a3f30" d="M 1150,335
+      C 1168,278 1240,250 1302,254
+      C 1398,260 1454,320 1472,404
+      C 1490,490 1488,594 1464,680
+      C 1442,758 1406,802 1352,814
+      L 1182,814
+      C 1150,778 1134,730 1130,690
+      L 1138,646
+      L 1210,556
+      L 1132,462
+      C 1136,424 1142,378 1150,335 Z"/>
+
+    <!-- mouth interior wedge + packed teeth -->
+    <polygon points="1132,462 1210,556 1138,646" fill="#521c22"/>
+    <path class="teeth" d="M 1133,468 L 1202,550 L 1180,554 L 1160,528 L 1140,516 Z"/>
+    <path class="toothline" d="M 1160,528 L 1176,510"/>
+    <path class="toothline" d="M 1180,554 L 1188,532"/>
+    <path class="teeth" d="M 1137,640 L 1202,562 L 1180,560 L 1160,586 L 1140,600 Z"/>
+    <path class="toothline" d="M 1160,586 L 1176,602"/>
+    <path class="toothline" d="M 1180,560 L 1188,580"/>
+
+    <!-- belly patch -->
+    <ellipse cx="1198" cy="720" rx="62" ry="50" fill="#b5714f"/>
+
+    <!-- leg / foot (drawn first: the arm hangs in front of it) -->
+    <rect class="outline" x="1186" y="776" width="126" height="74" rx="26" fill="#7a3628"/>
+    <path class="thin" d="M 1222,850 L 1222,816"/>
+    <path class="thin" d="M 1258,850 L 1258,816"/>
+
+    <!-- arm: the ROOT spans nearly the whole flank (front of the mouth wedge
+         to the back edge), then tapers down. Not a narrow pillar. -->
+    <path class="outline" fill="#8a3f30" d="M 1204,430
+      C 1212,382 1256,356 1332,356
+      C 1404,356 1452,384 1460,430
+      C 1468,520 1462,620 1448,700
+      C 1438,758 1424,788 1410,796
+      L 1262,796
+      C 1248,780 1240,720 1234,620
+      C 1228,530 1216,470 1204,430 Z"/>
+    <ellipse class="outline" cx="1348" cy="810" rx="70" ry="42" fill="#7a3628"/>
+    <path class="thin" d="M 1316,786 C 1322,776 1334,776 1340,786"/>
+    <path class="thin" d="M 1352,786 C 1358,776 1370,776 1376,786"/>
+
+    <!-- eye: bigger -->
+    <circle class="outline" cx="1186" cy="356" r="48" fill="#f4efe4"/>
+    <circle cx="1170" cy="356" r="19" fill="#c23a30"/>
+    <circle cx="1164" cy="356" r="10" fill="#2a0d0d"/>
+    <ellipse class="outline" cx="1232" cy="264" rx="30" ry="12" fill="#5a2a20"/>
+  </g>
+
+  <!-- jaw split line: side -->
+  <line x1="1000" y1="586" x2="1240" y2="586" stroke="#d84040" stroke-width="4" stroke-dasharray="14 10"/>
+  <circle cx="1210" cy="586" r="8" fill="#d84040"/>
+
+  <!-- shoulder callout on side view -->
+  <g>
+    <line x1="1204" y1="410" x2="1460" y2="410" stroke="#2f6fd8" stroke-width="4"/>
+    <line x1="1204" y1="396" x2="1204" y2="424" stroke="#2f6fd8" stroke-width="4"/>
+    <line x1="1460" y1="396" x2="1460" y2="424" stroke="#2f6fd8" stroke-width="4"/>
+    <line x1="1332" y1="410" x2="1470" y2="300" stroke="#2f6fd8" stroke-width="3" stroke-dasharray="8 6"/>
+    <text x="1420" y="272" font-size="20" fill="#2f6fd8" font-weight="bold" paint-order="stroke" stroke="#f6f1e7" stroke-width="8" stroke-linejoin="round">腕の付け根＝側面をほぼ全部覆う</text>
+    <text x="1420" y="296" font-size="20" fill="#2f6fd8" font-weight="bold" paint-order="stroke" stroke="#f6f1e7" stroke-width="8" stroke-linejoin="round">（口のクサビの直後〜背面まで）</text>
+  </g>
+
+  <!-- parts legend -->
+  <g>
+    <rect x="1502" y="500" width="276" height="372" rx="14" fill="#ffffff" stroke="#c8b8a4" stroke-width="2"/>
+    <text x="1518" y="538" font-size="22" font-weight="bold">パーツ分割（開閉対応）</text>
+    <text x="1518" y="576" font-size="19">① 本体：頭＋胴＋腕＋足</text>
+    <text x="1518" y="608" font-size="19">② 下顎：下歯つき・ヒンジ回転</text>
+    <text x="1518" y="640" font-size="19">③ 角 ×2（左右対称・太め）</text>
+    <text x="1518" y="672" font-size="19">④ 目玉（球＋虹彩）</text>
+    <text x="1518" y="704" font-size="19">⑤ 上歯：密着一連（本体側）</text>
+    <text x="1518" y="736" font-size="19">⑥ 下歯：密着一連（下顎側）</text>
+    <text x="1518" y="768" font-size="19">⑦ 腹パッチ＝マテリアル</text>
+    <g font-size="18">
+      <rect x="1518" y="792" width="32" height="24" fill="#8a3f30"/><text x="1558" y="810">体</text>
+      <rect x="1624" y="792" width="32" height="24" fill="#b5714f"/><text x="1664" y="810">腹</text>
+      <rect x="1518" y="828" width="32" height="24" fill="#ddc9a4"/><text x="1558" y="846">角・歯</text>
+      <rect x="1624" y="828" width="32" height="24" fill="#521c22"/><text x="1664" y="846">口内</text>
+    </g>
+  </g>
+
+  <!-- label layer (halo, painted last) -->
+  <g>
+    <text class="dim" x="125" y="242">頭頂 5u</text>
+    <text class="dim" x="125" y="348">目の中心 ≈4.12u</text>
+    <text class="dim" x="125" y="402">肩 ≈3.67u</text>
+    <text class="dim" x="125" y="878">接地 0u</text>
+    <text class="dim" x="30" y="558" transform="rotate(-90 30 558)">全高 5u（1u=120px）</text>
+    <text class="dim" x="828" y="200">角スパン（先端間）≈5.4u</text>
+    <text class="dim" x="828" y="232">肩幅（腕込み）≈4.85u</text>
+    <text class="dim" x="828" y="264">目の直径 ≈0.97u</text>
+    <text class="dim" x="1000" y="892">側面：口は前に出ない（内側への切り込み）</text>
+    <text class="jawlabel" x="137" y="576">下顎分割線（●＝ヒンジ）</text>
+    <text class="jawlabel" x="1002" y="576">ヒンジ軸（奥）</text>
+  </g>
+</svg>

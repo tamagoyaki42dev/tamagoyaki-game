@@ -25,6 +25,43 @@ const _KAYKIT_ANIM_LIBS: Dictionary = {
 	"melee":   _KAYKIT_ANIM_DIR + "Rig_Medium_CombatMelee.glb",
 	"ranged":  _KAYKIT_ANIM_DIR + "Rig_Medium_CombatRanged.glb",
 }
+# dungeon_masonのドラゴン：元のメッシュ専用FBX＋アニメFBX(1クリップ1本)を実行時に合流する。
+# GLB本体はアニメ0本＆GLBとFBXでボーン名が29/83不一致（重複名の流儀違い）だったが、
+# メッシュFBXとアニメFBXは同じ配布物由来でボーン名が完全一致するためこの問題が起きない
+# （2026-07-19実測：親子83/83・rest位置82/83・rest回転82/83一致、Rootのみ90度差＝軸系の違い）。
+#
+# 縮小は .import の nodes/root_scale=0.01 で焼く（メッシュのrest姿勢を1/100に）。
+# 素のFBX（cm単位）のままNode3D.scaleだけで極小倍率（0.002前後）まで縮めると、実機のGPU
+# スキニングでメッシュが描画されなくなる不具合を2026-07-19に実測した（ヘッドレスでは
+# ボーン姿勢・トラック解決・AABBすべて正常に見えるのに実描画でだけ消える＝ダミーレンダラーの
+# ヘッドレステストでは再現できない領域）。静止GLB版（Node.scale 0.16〜0.28程度の通常範囲）が
+# 問題なく描画できていたことから、Node.scaleを同程度の通常範囲に戻すことで回避する。
+#
+# ただし.importでrest姿勢だけ縮めると、外部合流するアニメFBXの位置トラック（cm単位のまま・
+# 原寸）との間に単位不一致が生じ、Rootボーンが100倍の距離まで飛んで全身が視界外に四散する
+# （2026-07-19に実際に踏んだ事故。rest=(0, 0.0246, -0.0206) に対しアニメの位置トラック値=
+# (0, 2.4577, -2.0629)）。これを避けるため、_build_dragon_anim_player側で合流する位置トラック
+# の値に _DRAGON_ANIM_POS_SCALE を掛けて同じ比率だけ縮め、メッシュ側と単位を合わせている
+# （回転トラックは単位に依存しないので無変換でよい）。
+#
+# アニメフォルダのパスはこのファイルにハードコードせず、enemy_preview_anim_dir(@export)経由で
+# stage_composer側から渡す（候補ごとの設定は差し替えツール側に集約する設計・4体目以降を
+# 追加してもこのファイルを触らずに済む）
+const _DRAGON_MODEL_DIR := "res://assets/enemy_candidates/dungeon_mason_fbx/"
+# 合流するアニメFBXの位置トラックに掛ける縮小率。各ドラゴンFBXの.importのnodes/root_scale
+# と必ず同じ値にすること（違うとRoot四散事故が再発する）
+const _DRAGON_ANIM_POS_SCALE := 0.01
+# FBX元来のスキンは一様に1/100で描画される（.importのroot_scale=0.01がスケルトンの
+# rest側にだけ乗り、スキンのバインド姿勢には乗らないため）。スキンを作り直すと形が壊れる
+# ので、ノードスケールでこの倍率を打ち消す。root_scale を変えたらこの値も必ず追随させる
+const _DRAGON_SKIN_SCALE_FIX := 100.0
+# 竜名 → 差し替え用テクスチャ（enemy_candidates配下にコピー済みの色バリアント）
+const _DRAGON_ALBEDO: Dictionary = {
+	"dragon_terror_bringer": "res://assets/enemy_candidates/dungeon_mason_fbx/dragon_terror_bringer_albedo.png",
+	"dragon_soul_eater":     "res://assets/enemy_candidates/dungeon_mason_fbx/dragon_soul_eater_albedo.png",
+	"dragon_nightmare":      "res://assets/enemy_candidates/dungeon_mason_fbx/dragon_nightmare_albedo.png",
+	"dragon_usurper":        "res://assets/enemy_candidates/dungeon_mason_fbx/dragon_usurper_albedo.png",
+}
 # 職 → {idle, attack, death} クリップ名（"ライブラリ名/クリップ名"表記）
 const _KAYKIT_CLIPS: Dictionary = {
 	CharacterJob.Type.GLADIATOR: {"idle": "general/Idle_B", "attack": "melee/Melee_1H_Attack_Chop", "death": "general/Death_A"},
@@ -143,6 +180,10 @@ const ACCENT_PALETTE: Array = [
 static func accent_color_for(index: int) -> Color:
 	return ACCENT_PALETTE[index % ACCENT_PALETTE.size()] as Color
 
+# 画風プリセット（dev_tooling_design.md「A/B画風プリセット」2026-07-16・フェーズ1）。
+# A=なめらか（トイ/ミニチュア）／B=絵本イラスト／CURRENT=既存@export既定（比較基準線）
+enum StylePreset { A, B, CURRENT }
+
 # プレイヤー職のキャラモデルをファイル単位で重複排除した一覧
 # （ポートレート・ベイクツールとパネル/テストが参照する単一ソース）
 static func unique_player_model_paths() -> Array[String]:
@@ -178,13 +219,30 @@ static func job_tint_or_white(job: CharacterJob.Type) -> Color:
 @export var fog_enabled: bool        = true
 @export var fog_density: float       = 0.02             # 奥を暗く沈めて手前キャラを分離
 
+# 画風プリセット新規効果（層③：Environment/DirectionalLight/Viewport・2026-07-16）。
+# GL Compatibility維持のためSSAO/真のDOF/CompositorEffect/TAAは不使用（dev_tooling_design.md参照）
+@export var shadow_soft_enabled: bool = false            # DirectionalLight3Dのリアルタイム影
+@export_range(0.0, 3.0, 0.05) var shadow_blur: float = 1.0  # Light3D.shadow_blur＝柔らかさ
+# シャドウマップ解像度対策（2026-07-17・「マイクラ状のカクつき」修正）。固定アイソメ＋狭い
+# アリーナなので遠距離の影は不要＝directional_shadow_max_distanceを縮めて同じ解像度を
+# 近くへ集中させ、テクセル単位のジャギーを抑える（shadow_blurのボケでのごまかしは不採用）。
+# 実ゲームにも効かせるため@export既定として持つ（shadow_soft_enabledのON/OFFに関わらず
+# 常に_lightへ書き込む＝いつ影を有効化しても以後この距離が効く）
+@export_range(5.0, 60.0, 0.5) var shadow_distance: float = 20.0
+@export var glow_enabled: bool = false                   # 弱ブルーム（Compatibilityで動作）
+@export_range(0.0, 1.0, 0.01) var glow_intensity: float = 0.25
+@export var msaa_enabled: bool = false                   # 戦場ビューポートの MSAA 4x（TAAは使わない）
+@export var tonemap_filmic: bool = false                 # false=Reinhardt（既定・2026-07-12踏襲）/ true=Filmic（Aプリセット用）
+
 # 全画面パレットLUT（作風統一・2026-07-11）。CC0素材の"デフォルト発色"を消すため
 # WorldEnvironment.adjustment_color_correctionに通す。暖色パステル方向で_ready()時に
 # ImageTexture3Dを実行時ビルド（事故の教訓：Texture2Dを渡すとGodotは3Dグリッドでなく
 # 「R/G/B独立の1Dカーブ」として読むため、事前生成したPNGグリッドは全画面ノイズ化した。
 # Texture3Dなら本来のクロスチャンネル処理＝脱彩度込みのグレーディングが正しく効く）
 @export var lut_enabled: bool                = false  # 2026-07-12：紙グレインと合わせるとオレンジが強すぎるとの判断でOFF
-@export_range(0.0, 1.0, 0.01) var lut_desaturate: float = 0.18
+# 負値許容（2026-07-16・Aプリセット用）：desaturateが負だとlumaから外挿し彩度を上げる方向になる
+# （_lut_gradeの式がそのまま対応。GUTで彩度増をテスト可）
+@export_range(-0.3, 1.0, 0.01) var lut_desaturate: float = 0.18
 @export var lut_warm_mult: Vector3           = Vector3(1.08, 1.03, 0.90)
 @export var lut_warm_add: Vector3            = Vector3(0.02, 0.015, 0.0)
 @export_range(0.0, 1.0, 0.01) var lut_lift_mult: float = 0.92
@@ -463,10 +521,29 @@ const _LUT_SIZE := 16
 # このトグルでKayKit版(bg_dungeon_kaykit.gd)と切り替える＝いつでも戻せる
 @export var dungeon_bg_use_kaykit: bool = true
 
+# 開発ツール（stage_composer）用。-1=自動（battle_index<2で草原／それ以外はKayKitトグル従属）／
+# 0=草原 1=ダンジョンKenney 2=ダンジョンKayKit。実ゲームは既定の-1で従来通り動く
+@export var background_variant_override: int = -1
+# プレビュー用途。trueだと戦闘終了時にシーン遷移せずその場に留まる（stage_composerが土台に使う）
+@export var preview_mode: bool = false
+# 開発ツール（stage_composer）用。空以外なら敵の見た目モデルをこのパスへ差し替える（EnemyDataの
+# model_pathは無視・ステータス/AIは通常通り）。候補アセットの見た目確認専用、実ゲームは既定の空で従来通り
+@export var enemy_preview_path: String = ""
+@export var enemy_preview_scale: float = 1.0
+# 差し替えモデルの待機クリップ名（空＝EnemyData.idle_anim）。内蔵アニメを持つモデルで
+# 地上待機⇔飛行待機を切り替えるのに使う
+@export var enemy_preview_idle: String = ""
+# dungeon_masonドラゴン（FBX直接方式）の外部アニメフォルダ（res://.../Animations/<竜名>）。
+# 空＝そのモデルはアニメ合流しない（従来の内蔵アニメ/静止のまま）
+@export var enemy_preview_anim_dir: String = ""
+
 # クレイ（マット粘土）作風シェーダー
 @export var clay_enabled: bool = true
 @export var clay_shadow_tint: Color = Color(0.55, 0.42, 0.32)
 @export_range(0.0, 1.0, 0.01) var clay_light_threshold: float = 0.45
+# トゥーン境界の柔らかさ（2026-07-16追加）。旧実装はシェーダー内に0.04を直書きしていた
+# （smoothstep(light_threshold-0.04, light_threshold+0.04, NdotL)）値をexport化したもの
+@export_range(0.04, 0.25, 0.01) var clay_light_softness: float = 0.04
 @export_range(0.0, 1.0, 0.01) var clay_rim_strength: float = 0.25
 @export var clay_rim_color: Color = Color(0.92, 0.96, 1.0)
 # ハーフトーン/ハッチング影（2026-07-11 追加）：影帯をフラット塗りでなく screen-space
@@ -479,6 +556,8 @@ const _LUT_SIZE := 16
 # → 0.3に上げて弱いエッジ（内部の細部）を無視し、シルエット寄りの強いエッジだけ残す
 @export_range(0.0, 0.5, 0.01) var clay_outline_threshold: float = 0.3
 @export var clay_outline_color: Color = Color(0.1, 0.06, 0.02, 0.7)  # 0.9→0.7で線をやや薄く
+# 輪郭線ソフト化（2026-07-16追加）。0＝旧来のハードstep相当。Bプリセットの太く柔らかい線用
+@export_range(0.0, 0.3, 0.01) var clay_outline_softness: float = 0.0
 
 # 頂点ボイル（クレイアニメ風の揺れ・⑤・proto2_design.md「アートで一点だけ全振りするなら」本命）。
 # 数フレームごとに頂点をコマ送りで微小ジッタさせ手作り粘土の"ボイル"感を出す。振り切るとメッシュ
@@ -494,6 +573,43 @@ const _LUT_SIZE := 16
 @export var clay_paper_enabled: bool = true
 @export_range(0.0, 0.3, 0.01) var clay_grain_strength: float   = 0.10  # 0.05は変化なし→0.15→気持ち弱めに0.10
 @export_range(2.0, 32.0, 1.0) var clay_posterize_levels: float = 9.0   # 12は変化なし→7→気持ち弱めに9
+
+# tilt-shift（②・2026-07-16）。GL CompatibilityではDOF/CompositorEffectが使えないため
+# 深度不要な上下グラデぼかしでミニチュア感を代替する（dev_tooling_design.md「DOF代替」）
+@export var tilt_enabled: bool = false
+@export_range(0.0, 1.0, 0.01) var tilt_center: float = 0.5        # 鮮明帯の中心（画面高比）
+@export_range(0.05, 0.45, 0.01) var tilt_sharp_band: float = 0.18 # 鮮明帯の半幅（画面高比）
+@export_range(0.0, 6.0, 0.1) var tilt_blur: float = 2.5           # 帯の外側で掛かる最大ぼかし量(px)
+
+# 接地ブロブ影（新ノード・2026-07-16）。SSAO代替。Decalは非Compatibilityのため
+# 床に寝かせた無光沢の放射状半透明QuadMeshをキャラroot直下に子として持たせる
+@export var contact_shadow_enabled: bool = false
+@export_range(0.3, 1.5, 0.01) var contact_shadow_radius: float = 0.6
+@export_range(0.0, 1.0, 0.01) var contact_shadow_opacity: float = 0.4
+@export var contact_shadow_color: Color = Color(0.0, 0.0, 0.0, 1.0)
+
+# 絵具/紙テクスチャ注入（B後者=塗り極め・2026-07-16 ユーザーGO・2-1のみ）。フラット塗りが
+# A/Bを別物には見えても劇的でない天井の原因と実機確認済み＝伸びしろは塗り。
+# 手続きノイズ2系統（広い筆致むらfbm＋紙の繊維目grain）を_CLAY_CODEのalbedoへ合成する。
+# CC0タイリング紙テクスチャへの格上げは今回スコープ外（doc「まず手続き」の次段階）
+@export var paint_tex_enabled: bool = false
+@export_range(0.0, 1.0, 0.01) var paint_tex_strength: float = 0.35
+@export_range(1.0, 20.0, 0.5) var paint_tex_scale: float = 6.0
+
+# Kuwahara筆致フィルタ（B後者=塗り極め 2-2・2026-07-16 ユーザーGO）。2-1で塗りムラを
+# 入れた後にのみ効く（フラット塗りにはKuwaharaが効かない）。全画面2パス目として
+# 既存_POST_CODEポストより手前（描画順で先）に挟む＝_setup_post_effects()側で構築。
+# 重いシェーダ（radius^2×4象限のテクスチャサンプル）のためradiusは控えめ既定
+@export var kuwahara_enabled: bool = false
+@export_range(1.0, 6.0, 1.0) var kuwahara_radius: float = 3.0
+
+# 輪郭の完全化＝inverted-hull outline（2026-07-17 着手GO）。既存_POST_CODEのluma差
+# エッジ検出は明るさが近いと拾えない（魔女の帽子×暗背景等のカバー漏れ）＝ジオメトリ方式で
+# 完全カバーする。クレイ材質のnext_passに cull_front/法線膨張の殻を足すだけ（多パス中継不要）。
+# 既存スクリーン輪郭（内部ディテール線）とは役割分担で共存させる
+@export var hull_outline_enabled: bool = false
+@export_range(0.0, 0.05, 0.001) var hull_outline_width: float = 0.015
+@export var hull_outline_color: Color = Color(0.1, 0.06, 0.02, 1.0)
 
 const _FLASH_CODE := """
 shader_type spatial;
@@ -648,6 +764,21 @@ void fragment() {
 }
 """
 
+# 接地ブロブ影：床に寝かせた平面(X-90°回転)なのでビルボード頂点シェーダーは不要。
+# UVから中心→縁へ滑らかにフェードする無光沢の放射状半透明円を描くだけ
+const _CONTACT_SHADOW_CODE := """
+shader_type spatial;
+render_mode unshaded, cull_disabled, depth_draw_never, blend_mix;
+uniform vec4 shadow_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);
+uniform float shadow_opacity : hint_range(0.0, 1.0, 0.01) = 0.4;
+void fragment() {
+	float d = length(UV - vec2(0.5)) * 2.0;
+	float a = smoothstep(1.0, 0.0, d);
+	ALBEDO = shadow_color.rgb;
+	ALPHA  = a * shadow_opacity * shadow_color.a;
+}
+"""
+
 const _CLAY_CODE := """
 shader_type spatial;
 render_mode diffuse_lambert, specular_disabled;
@@ -655,6 +786,7 @@ uniform sampler2D albedo_tex   : source_color, hint_default_white;
 uniform vec4  albedo_color    : source_color               = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4  shadow_tint     : source_color               = vec4(0.55, 0.42, 0.32, 1.0);
 uniform float light_threshold : hint_range(0.0, 1.0, 0.01) = 0.45;
+uniform float light_softness  : hint_range(0.01, 0.3, 0.01) = 0.04;
 uniform float rim_strength    : hint_range(0.0, 1.0, 0.01) = 0.25;
 uniform vec4  rim_color       : source_color               = vec4(0.92, 0.96, 1.0, 1.0);
 uniform float hatch_spacing   : hint_range(1.0, 12.0, 0.5)  = 3.0;
@@ -663,6 +795,32 @@ uniform bool  boil_enabled = true;
 uniform float boil_amplitude : hint_range(0.0, 0.05, 0.001) = 0.012;
 uniform float boil_rate      : hint_range(1.0, 24.0, 0.5)   = 8.0;
 uniform float boil_grid      : hint_range(0.02, 0.5, 0.01)  = 0.12;
+uniform bool  paint_tex_enabled = false;
+uniform float paint_tex_strength : hint_range(0.0, 1.0, 0.01)  = 0.35;
+uniform float paint_tex_scale    : hint_range(1.0, 20.0, 0.5)  = 6.0;
+// 絵具/紙テクスチャ注入（B後者=塗り極め 2-1）：手続きノイズ2系統をUV空間で合成する。
+// 系統1=fbm（低周波の広い筆致むら）／系統2=value_noiseの高周波サンプル（紙の繊維目）
+float _paint_hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float _paint_value_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float a = _paint_hash(i);
+	float b = _paint_hash(i + vec2(1.0, 0.0));
+	float c = _paint_hash(i + vec2(0.0, 1.0));
+	float d = _paint_hash(i + vec2(1.0, 1.0));
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+float _paint_fbm(vec2 p) {
+	float v = 0.0;
+	float amp = 0.5;
+	for (int i = 0; i < 3; i++) {
+		v += amp * _paint_value_noise(p);
+		p *= 2.03;
+		amp *= 0.5;
+	}
+	return v;
+}
 void vertex() {
 	if (boil_enabled) {
 		float step_time = floor(TIME * boil_rate);
@@ -675,6 +833,14 @@ void vertex() {
 }
 void fragment() {
 	vec3 base  = texture(albedo_tex, UV).rgb * albedo_color.rgb;
+	if (paint_tex_enabled) {
+		vec2 p    = UV * paint_tex_scale;
+		float wash  = _paint_fbm(p);                    // 系統1：広い筆致むら
+		float grain = _paint_value_noise(p * 5.0);       // 系統2：紙の繊維目（高周波）
+		float paint = mix(wash, grain, 0.4);
+		float lum_mod = 0.82 + paint * 0.36;             // 0.82〜1.18で明暗を揺らす
+		base = mix(base, base * lum_mod, paint_tex_strength);
+	}
 	ALBEDO    = base;
 	ROUGHNESS = 1.0;
 	METALLIC  = 0.0;
@@ -684,7 +850,7 @@ void fragment() {
 }
 void light() {
 	float NdotL  = max(0.0, dot(NORMAL, LIGHT));
-	float in_lit = smoothstep(light_threshold - 0.04, light_threshold + 0.04, NdotL);
+	float in_lit = smoothstep(light_threshold - light_softness, light_threshold + light_softness, NdotL);
 	// screen-space斜線ハッチング：UVでなくFRAGCOORD基準＝低ポリのUV歪みに影響されない。
 	// 実機確認で「変な斜め線」＝硬い二値stepがスキャンライン的に見えると判明（2026-07-12）
 	// →sin波+smoothstepで縁をぼかしたソフトな縞に変更
@@ -696,6 +862,73 @@ void light() {
 }
 """
 
+# inverted-hull outline：クレイ材質のnext_passに刺すジオメトリ輪郭。cull_frontで表面を
+# 消し裏面だけ残す＝法線方向へ微膨張させた"殻"が元メッシュのシルエット外側にはみ出て見える。
+# スクリーン検出でないため色/背景に非依存で全シルエットに必ず線が乗る（GL Compatibilityで動作）
+const _HULL_OUTLINE_CODE := """
+shader_type spatial;
+render_mode cull_front, unshaded;
+uniform float hull_outline_width : hint_range(0.0, 0.05, 0.001) = 0.015;
+uniform vec4  hull_outline_color : source_color = vec4(0.1, 0.06, 0.02, 1.0);
+void vertex() {
+	VERTEX += NORMAL * hull_outline_width;
+}
+void fragment() {
+	ALBEDO = hull_outline_color.rgb;
+}
+"""
+
+# Kuwahara筆致フィルタ（古典4象限＝各象限(r+1)x(r+1)の平均色/輝度分散を求め、分散最小の
+# 象限の平均色を採用）。4象限は中心画素を共有して重なる（古典アルゴリズムの定義どおり）。
+# _POST_CODEより前段（描画順で先）に置かれ、この出力をBackBufferCopy経由で_POST_CODEが
+# 読む（battle_scene.gd _setup_post_effects()側の構築順）
+const _KUWAHARA_CODE := """
+shader_type canvas_item;
+render_mode unshaded;
+uniform sampler2D screen_tex : hint_screen_texture, repeat_disable, filter_nearest;
+uniform bool  kuwahara_enabled = false;
+uniform float kuwahara_radius : hint_range(1.0, 6.0, 1.0) = 3.0;
+float _kw_luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+void fragment() {
+	vec4 src = texture(screen_tex, SCREEN_UV);
+	// Godotのshader_type canvas_itemはfragment()内でreturnできないため、
+	// if/elseで全体を分岐する（早期returnにしない）
+	if (kuwahara_enabled) {
+		int r = int(kuwahara_radius);
+		vec2 texel = SCREEN_PIXEL_SIZE;
+		vec3 sum0 = vec3(0.0); float sq0 = 0.0; float n0 = 0.0;
+		vec3 sum1 = vec3(0.0); float sq1 = 0.0; float n1 = 0.0;
+		vec3 sum2 = vec3(0.0); float sq2 = 0.0; float n2 = 0.0;
+		vec3 sum3 = vec3(0.0); float sq3 = 0.0; float n3 = 0.0;
+		for (int iy = 0; iy <= r; iy++) {
+			for (int ix = 0; ix <= r; ix++) {
+				vec2 d = vec2(float(ix), float(iy)) * texel;
+				vec3 c0 = texture(screen_tex, SCREEN_UV - d).rgb;                  // 左上
+				float l0 = _kw_luma(c0); sum0 += c0; sq0 += l0 * l0; n0 += 1.0;
+				vec3 c1 = texture(screen_tex, SCREEN_UV + vec2(d.x, -d.y)).rgb;    // 右上
+				float l1 = _kw_luma(c1); sum1 += c1; sq1 += l1 * l1; n1 += 1.0;
+				vec3 c2 = texture(screen_tex, SCREEN_UV + vec2(-d.x, d.y)).rgb;    // 左下
+				float l2 = _kw_luma(c2); sum2 += c2; sq2 += l2 * l2; n2 += 1.0;
+				vec3 c3 = texture(screen_tex, SCREEN_UV + d).rgb;                  // 右下
+				float l3 = _kw_luma(c3); sum3 += c3; sq3 += l3 * l3; n3 += 1.0;
+			}
+		}
+		vec3 avg0 = sum0 / n0; float var0 = sq0 / n0 - _kw_luma(avg0) * _kw_luma(avg0);
+		vec3 avg1 = sum1 / n1; float var1 = sq1 / n1 - _kw_luma(avg1) * _kw_luma(avg1);
+		vec3 avg2 = sum2 / n2; float var2 = sq2 / n2 - _kw_luma(avg2) * _kw_luma(avg2);
+		vec3 avg3 = sum3 / n3; float var3 = sq3 / n3 - _kw_luma(avg3) * _kw_luma(avg3);
+		vec3 best = avg0;
+		float best_var = var0;
+		if (var1 < best_var) { best = avg1; best_var = var1; }
+		if (var2 < best_var) { best = avg2; best_var = var2; }
+		if (var3 < best_var) { best = avg3; best_var = var3; }
+		COLOR = vec4(best, src.a);
+	} else {
+		COLOR = src;
+	}
+}
+"""
+
 const _POST_CODE := """
 shader_type canvas_item;
 render_mode unshaded;
@@ -703,15 +936,35 @@ uniform sampler2D screen_tex : hint_screen_texture, repeat_disable, filter_neare
 uniform bool  outline_enabled = true;
 uniform float thickness : hint_range(0.5, 4.0, 0.5) = 1.0;
 uniform float threshold : hint_range(0.0, 0.5, 0.01) = 0.15;
+uniform float outline_softness : hint_range(0.0, 0.3, 0.01) = 0.0;
 uniform vec4  line_color : source_color = vec4(0.1, 0.06, 0.02, 0.9);
 uniform bool  paper_enabled = true;
 uniform float grain_strength : hint_range(0.0, 0.3, 0.01) = 0.05;
 uniform float posterize_levels : hint_range(2.0, 32.0, 1.0) = 12.0;
+uniform bool  tilt_enabled = false;
+uniform float tilt_center : hint_range(0.0, 1.0, 0.01) = 0.5;
+uniform float tilt_sharp_band : hint_range(0.05, 0.45, 0.01) = 0.18;
+uniform float tilt_blur : hint_range(0.0, 6.0, 0.1) = 2.5;
 float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void fragment() {
 	vec4 src = texture(screen_tex, SCREEN_UV);
 	vec3 col = src.rgb;
+	if (tilt_enabled) {
+		float dist = abs(SCREEN_UV.y - tilt_center);
+		float blur_amt = smoothstep(tilt_sharp_band, tilt_sharp_band + 0.25, dist) * tilt_blur;
+		if (blur_amt > 0.05) {
+			vec3 blurred = vec3(0.0);
+			float wsum = 0.0;
+			for (int i = -2; i <= 2; i++) {
+				float w = 1.0 - abs(float(i)) * 0.2;
+				vec2 offs = vec2(0.0, float(i)) * blur_amt * SCREEN_PIXEL_SIZE;
+				blurred += texture(screen_tex, SCREEN_UV + offs).rgb * w;
+				wsum += w;
+			}
+			col = blurred / wsum;
+		}
+	}
 	if (paper_enabled) {
 		col = floor(col * posterize_levels + 0.5) / posterize_levels;
 		float n = hash(FRAGCOORD.xy);
@@ -725,7 +978,7 @@ void fragment() {
 		float u  = luma(texture(screen_tex, SCREEN_UV + vec2(0.0,  d.y)).rgb);
 		float dn = luma(texture(screen_tex, SCREEN_UV + vec2(0.0, -d.y)).rgb);
 		float edge    = max(max(abs(c-r), abs(c-l)), max(abs(c-u), abs(c-dn)));
-		float outline = step(threshold, edge);
+		float outline = smoothstep(threshold, threshold + outline_softness + 0.001, edge);
 		col = mix(col, line_color.rgb, outline * line_color.a);
 	}
 	COLOR = vec4(col, 1.0);
@@ -742,9 +995,14 @@ var _dust_mesh: QuadMesh
 var _heal_shower_shader_mat: ShaderMaterial
 var _heal_shower_mesh: QuadMesh
 var _clay_shader: Shader
+var _post_rect: ColorRect = null   # 全画面ポスト効果矩形（輪郭線/紙グレイン）。stage_composerの再組み立て用に保持
+var _kuwahara_rect: ColorRect = null      # Kuwahara筆致フィルタ矩形（_post_rectより前段）
+var _backbuffer_copy: BackBufferCopy = null  # Kuwahara出力を_post_rectのhint_screen_textureへ渡す中継
 var _orb_glow_shader: Shader
 var _shockwave_shader: Shader
 var _weapon_trail_shader: Shader
+var _contact_shadow_shader: Shader
+var _hull_outline_shader: Shader
 
 @onready var _camera: Camera3D           = $World/Camera3D
 @onready var _env_node: WorldEnvironment = $World/WorldEnvironment
@@ -759,6 +1017,9 @@ var _weapon_trail_shader: Shader
 var _manager: BattleManager
 var _unit_nodes: Dictionary = {}    # BattleUnit → Node3D
 var _unit_anims: Dictionary = {}    # BattleUnit → AnimationPlayer
+# 開発ツール（stage_composer）が差し替え中の敵のクリップを直接操作するための参照
+var _preview_enemy_anim: AnimationPlayer = null
+var _preview_enemy_idle: String = ""
 var _unit_weapons: Dictionary = {}  # BattleUnit → Node3D（_attach_weapon済みの武器。斬撃トレイルのサンプリング元）
 var _unit_base_scale: Dictionary = {}  # BattleUnit → Vector3（spawn時の実スケール。KayKit職はkaykit_char_scale_mult込み）
 var _hp_bars: Dictionary = {}       # BattleUnit → ShaderMaterial (fg)
@@ -809,6 +1070,10 @@ func _ready() -> void:
 	_shockwave_shader.code = _SHOCKWAVE_CODE
 	_weapon_trail_shader = Shader.new()
 	_weapon_trail_shader.code = _WEAPON_TRAIL_CODE
+	_contact_shadow_shader = Shader.new()
+	_contact_shadow_shader.code = _CONTACT_SHADOW_CODE
+	_hull_outline_shader = Shader.new()
+	_hull_outline_shader.code = _HULL_OUTLINE_CODE
 	if clay_enabled:
 		_clay_shader = Shader.new()
 		_clay_shader.code = _CLAY_CODE
@@ -824,14 +1089,34 @@ func _ready() -> void:
 	_setup_post_effects()
 	_start_battle()
 
+const _SKY_GRASS   := Color(0.45, 0.68, 0.92)
+const _SKY_DUNGEON := Color(0.08, 0.06, 0.12)
+
+# 背景種別の解決。background_variant_override（stage_composer用）が優先、-1なら従来通り
+# battle_index と dungeon_bg_use_kaykit から決める。0=草原 1=ダンジョンKenney 2=ダンジョンKayKit
+func _resolve_bg_variant() -> int:
+	if background_variant_override >= 0:
+		return background_variant_override
+	if GameState.battle_index < 2:
+		return 0
+	return 2 if dungeon_bg_use_kaykit else 1
+
 func _setup_background() -> void:
-	var is_grass: bool = GameState.battle_index < 2
-	var dungeon_scene: PackedScene = _BG_DUNGEON_KAYKIT if dungeon_bg_use_kaykit else _BG_DUNGEON
-	var scene: PackedScene = _BG_GRASS if is_grass else dungeon_scene
+	# 再実行（stage_composerの背景切替）に備え、既存の背景を除去してから組み直す
+	for child: Node in _background.get_children():
+		_background.remove_child(child)
+		child.free()
+	var variant: int = _resolve_bg_variant()
+	var scene: PackedScene = _BG_GRASS if variant == 0 else (_BG_DUNGEON if variant == 1 else _BG_DUNGEON_KAYKIT)
 	_background.add_child(scene.instantiate())
-	if is_grass:
-		var env: Environment = _env_node.environment
-		env.background_color = Color(0.45, 0.68, 0.92)
+	var env: Environment = _env_node.environment
+	if env:
+		env.background_color = _SKY_GRASS if variant == 0 else _SKY_DUNGEON
+
+# 実行中に背景を差し替える（stage_composer用）。variant: 0=草原 1=ダンジョンKenney 2=ダンジョンKayKit
+func rebuild_background(variant: int) -> void:
+	background_variant_override = variant
+	_setup_background()
 
 func _setup_world() -> void:
 	get_viewport().physics_object_picking = true
@@ -849,7 +1134,11 @@ func _setup_world() -> void:
 	env.fog_enabled    = fog_enabled
 	env.fog_density    = fog_density
 	env.fog_light_color = Color(0.05, 0.04, 0.08)
-	env.tonemap_mode   = Environment.TONE_MAPPER_REINHARDT  # AGXは陰影コントラストは良いが暖色巻き込みが強く2026-07-12にオレンジ味の主因と判明→変更
+	# AGXは陰影コントラストは良いが暖色巻き込みが強く2026-07-12にオレンジ味の主因と判明→Reinhardtへ変更。
+	# tonemap_filmic（2026-07-16・Aプリセット用）でFilmicへ切替可能
+	env.tonemap_mode   = Environment.TONE_MAPPER_FILMIC if tonemap_filmic else Environment.TONE_MAPPER_REINHARDT
+	env.glow_enabled   = glow_enabled
+	env.glow_intensity = glow_intensity
 	if lut_enabled:
 		env.adjustment_enabled = true
 		env.adjustment_color_correction = _build_lut_texture()
@@ -857,6 +1146,10 @@ func _setup_world() -> void:
 
 	_light.look_at_from_position(key_light_from, Vector3.ZERO, Vector3.UP)
 	_light.light_energy = key_light_energy
+	_light.shadow_enabled = shadow_soft_enabled
+	_light.shadow_blur = shadow_blur
+	_light.directional_shadow_max_distance = shadow_distance
+	get_viewport().msaa_3d = Viewport.MSAA_4X if msaa_enabled else Viewport.MSAA_DISABLED
 	_setup_grid_overlay()
 
 # 全画面パレットLUT用のグレーディング関数（クロスチャンネル＝脱彩度込み）。
@@ -897,7 +1190,48 @@ func _build_lut_texture() -> ImageTexture3D:
 	return tex
 
 func _setup_post_effects() -> void:
-	if not clay_outline_enabled and not clay_paper_enabled:
+	# 再実行（stage_composerの効果ON/OFF）に備え、既存の効果ノードを除去してから組み直す
+	if _kuwahara_rect and is_instance_valid(_kuwahara_rect):
+		_kuwahara_rect.free()
+		_kuwahara_rect = null
+	if _backbuffer_copy and is_instance_valid(_backbuffer_copy):
+		_backbuffer_copy.free()
+		_backbuffer_copy = null
+	if _post_rect and is_instance_valid(_post_rect):
+		_post_rect.free()
+		_post_rect = null
+	if not _canvas:  # ツリー未接続（GUTのBattleScene.new()単体テスト等）では何もしない
+		return
+
+	# 描画順：[Kuwahara矩形 → BackBufferCopy → 既存ポスト矩形 → ...UI]。
+	# Kuwaharaが先に絵を筆致化し、BackBufferCopyでバックバッファへ焼き込むことで、
+	# 次の既存ポスト矩形のhint_screen_textureが筆致化"後"の色を読む
+	# （kuwahara_enabled=falseなら両方スキップ＝既存の描画順のまま・回帰なし）
+	var insert_idx := 0
+	if kuwahara_enabled:
+		var kw_rect := ColorRect.new()
+		kw_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		kw_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var kw_shader := Shader.new()
+		kw_shader.code = _KUWAHARA_CODE
+		var kw_mat := ShaderMaterial.new()
+		kw_mat.shader = kw_shader
+		kw_mat.set_shader_parameter("kuwahara_enabled", true)
+		kw_mat.set_shader_parameter("kuwahara_radius",  kuwahara_radius)
+		kw_rect.material = kw_mat
+		_canvas.add_child(kw_rect)
+		_canvas.move_child(kw_rect, insert_idx)
+		insert_idx += 1
+		_kuwahara_rect = kw_rect
+
+		var bbc := BackBufferCopy.new()
+		bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+		_canvas.add_child(bbc)
+		_canvas.move_child(bbc, insert_idx)
+		insert_idx += 1
+		_backbuffer_copy = bbc
+
+	if not clay_outline_enabled and not clay_paper_enabled and not tilt_enabled:
 		return
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -909,13 +1243,373 @@ func _setup_post_effects() -> void:
 	mat.set_shader_parameter("outline_enabled",   clay_outline_enabled)
 	mat.set_shader_parameter("thickness",         clay_outline_thickness)
 	mat.set_shader_parameter("threshold",         clay_outline_threshold)
+	mat.set_shader_parameter("outline_softness",  clay_outline_softness)
 	mat.set_shader_parameter("line_color",        clay_outline_color)
 	mat.set_shader_parameter("paper_enabled",     clay_paper_enabled)
 	mat.set_shader_parameter("grain_strength",    clay_grain_strength)
 	mat.set_shader_parameter("posterize_levels",  clay_posterize_levels)
+	mat.set_shader_parameter("tilt_enabled",      tilt_enabled)
+	mat.set_shader_parameter("tilt_center",       tilt_center)
+	mat.set_shader_parameter("tilt_sharp_band",   tilt_sharp_band)
+	mat.set_shader_parameter("tilt_blur",         tilt_blur)
 	rect.material = mat
 	_canvas.add_child(rect)
-	_canvas.move_child(rect, 0)  # UI より前（奥）に描画
+	_canvas.move_child(rect, insert_idx)  # kuwahara/backbuffer(あれば)の直後、UIより前（奥）に描画
+	_post_rect = rect
+
+# ── 開発ツール（stage_composer）用：実行中の画面効果ON/OFF切替 ──
+# clay（粘土ベース）はキャラ生成時にマテリアルを差し替え、その後 _tint_char が職チントを
+# clayシェーダーのパラメータへ載せる順序のため、実行中OFF→元マテリアル復元が職チントと絡む。
+# stage_composer側は clay の切替だけリスタート（戦闘再生成）で反映する。ここは軽い効果のみ即時。
+# 以下の setter は @export の書き戻しを常に先に行い、ツリー未接続時（GUTの.new()単体テスト）は
+# onready ノードへのアクセスだけ安全にスキップする（呼び出し自体はクラッシュしない）。
+
+func set_outline_enabled(on: bool) -> void:
+	clay_outline_enabled = on
+	_setup_post_effects()
+
+func set_clay_outline_softness(v: float) -> void:
+	clay_outline_softness = v
+	_setup_post_effects()
+
+func set_paper_enabled(on: bool) -> void:
+	clay_paper_enabled = on
+	_setup_post_effects()
+
+func set_tilt_enabled(on: bool) -> void:
+	tilt_enabled = on
+	_setup_post_effects()
+
+func set_tilt_sharp_band(v: float) -> void:
+	tilt_sharp_band = v
+	_setup_post_effects()
+
+func set_tilt_blur(v: float) -> void:
+	tilt_blur = v
+	_setup_post_effects()
+
+func set_kuwahara_enabled(on: bool) -> void:
+	kuwahara_enabled = on
+	_setup_post_effects()
+
+func set_kuwahara_radius(v: float) -> void:
+	kuwahara_radius = v
+	_setup_post_effects()
+
+func set_fog_enabled(on: bool) -> void:
+	fog_enabled = on
+	var env: Environment = _env_node.environment if _env_node else null
+	if env:
+		env.fog_enabled = on
+
+func set_lut_enabled(on: bool) -> void:
+	lut_enabled = on
+	var env: Environment = _env_node.environment if _env_node else null
+	if not env:
+		return
+	env.adjustment_enabled = on
+	if on:
+		env.adjustment_color_correction = _build_lut_texture()
+
+func set_lut_desaturate(v: float) -> void:
+	lut_desaturate = v
+	if lut_enabled and _env_node and _env_node.environment:
+		_env_node.environment.adjustment_color_correction = _build_lut_texture()
+
+func set_glow_enabled(on: bool) -> void:
+	glow_enabled = on
+	var env: Environment = _env_node.environment if _env_node else null
+	if env:
+		env.glow_enabled = on
+
+func set_glow_intensity(v: float) -> void:
+	glow_intensity = v
+	var env: Environment = _env_node.environment if _env_node else null
+	if env:
+		env.glow_intensity = v
+
+func set_tonemap_filmic(on: bool) -> void:
+	tonemap_filmic = on
+	var env: Environment = _env_node.environment if _env_node else null
+	if env:
+		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC if on else Environment.TONE_MAPPER_REINHARDT
+
+func set_shadow_soft_enabled(on: bool) -> void:
+	shadow_soft_enabled = on
+	if _light:
+		_light.shadow_enabled = on
+
+func set_shadow_blur(v: float) -> void:
+	shadow_blur = v
+	if _light:
+		_light.shadow_blur = v
+
+func set_shadow_distance(v: float) -> void:
+	shadow_distance = v
+	if _light:
+		_light.directional_shadow_max_distance = v
+
+func set_msaa_enabled(on: bool) -> void:
+	msaa_enabled = on
+	if is_inside_tree():
+		get_viewport().msaa_3d = Viewport.MSAA_4X if on else Viewport.MSAA_DISABLED
+
+func set_boil_enabled(on: bool) -> void:
+	clay_boil_enabled = on
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("boil_enabled", on))
+
+func set_clay_hatch_strength(v: float) -> void:
+	clay_hatch_strength = v
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("hatch_strength", v))
+
+func set_clay_rim_strength(v: float) -> void:
+	clay_rim_strength = v
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("rim_strength", v))
+
+func set_clay_light_softness(v: float) -> void:
+	clay_light_softness = v
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("light_softness", v))
+
+func set_clay_light_threshold(v: float) -> void:
+	clay_light_threshold = v
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("light_threshold", v))
+
+func set_clay_shadow_tint(c: Color) -> void:
+	clay_shadow_tint = c
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("shadow_tint", c))
+
+func set_paint_tex_enabled(on: bool) -> void:
+	paint_tex_enabled = on
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("paint_tex_enabled", on))
+
+func set_paint_tex_strength(v: float) -> void:
+	paint_tex_strength = v
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("paint_tex_strength", v))
+
+func set_paint_tex_scale(v: float) -> void:
+	paint_tex_scale = v
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.set_shader_parameter("paint_tex_scale", v))
+
+# inverted-hull outline：既存クレイ材質へnext_passを足す/外す（無ければ生成・有れば除去）。
+# next_passの有無そのものがON/OFF＝シェーダ側にenabledフラグを持たせない設計
+func set_hull_outline_enabled(on: bool) -> void:
+	hull_outline_enabled = on
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		mat.next_pass = _make_hull_outline_material() if on else null)
+
+func set_hull_outline_width(v: float) -> void:
+	hull_outline_width = v
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		var np := mat.next_pass as ShaderMaterial
+		if np:
+			np.set_shader_parameter("hull_outline_width", v))
+
+func set_hull_outline_color(c: Color) -> void:
+	hull_outline_color = c
+	_for_each_clay_material(func(mat: ShaderMaterial) -> void:
+		var np := mat.next_pass as ShaderMaterial
+		if np:
+			np.set_shader_parameter("hull_outline_color", c))
+
+# 接地ブロブ影：既存スポーン済みキャラへのON/OFF切替（無ければ生成・有れば除去）
+func set_contact_shadow_enabled(on: bool) -> void:
+	contact_shadow_enabled = on
+	for ch: Node3D in _unit_nodes.values():
+		var existing := ch.find_child("ContactShadow", false, false) as Node3D
+		if on:
+			if not existing:
+				_spawn_contact_shadow(ch)
+		elif existing:
+			existing.free()  # 即時解放（GUTからの検証もawait不要で同期的に確認できる）
+
+func set_contact_shadow_radius(v: float) -> void:
+	contact_shadow_radius = v
+	for ch: Node3D in _unit_nodes.values():
+		var node := ch.find_child("ContactShadow", false, false) as MeshInstance3D
+		if node and node.mesh is QuadMesh:
+			(node.mesh as QuadMesh).size = Vector2.ONE * (v * 2.0)
+
+func set_contact_shadow_opacity(v: float) -> void:
+	contact_shadow_opacity = v
+	for ch: Node3D in _unit_nodes.values():
+		var node := ch.find_child("ContactShadow", false, false) as MeshInstance3D
+		if node and node.material_override is ShaderMaterial:
+			(node.material_override as ShaderMaterial).set_shader_parameter("shadow_opacity", v)
+
+func set_contact_shadow_color(c: Color) -> void:
+	contact_shadow_color = c
+	for ch: Node3D in _unit_nodes.values():
+		var node := ch.find_child("ContactShadow", false, false) as MeshInstance3D
+		if node and node.material_override is ShaderMaterial:
+			(node.material_override as ShaderMaterial).set_shader_parameter("shadow_color", c)
+
+# 画風プリセット定義テーブル（唯一の真実の源・2026-07-16 doc改訂）。A=なめらか／B=絵本イラスト／
+# CURRENT=既存@export既定＝比較基準線。プリセット適用も「初期値に戻す」も必ずこのテーブルを
+# 経由する（dev_tooling_design.md「実装順2」：プリセット定義は1箇所のDictionaryを真実の源にする）。
+# 参照画像docs/image/（marioRPG=A方向・Yoshi=B方向）はどちらも高彩度＝A/Bとも彩度を落とさない
+# 方向へ改訂（当初の「低コントラスト・くすませ暖色」指示は参照と逆のため不採用）
+const _STYLE_PRESET_TABLE: Dictionary = {
+	StylePreset.A: {
+		"clay_hatch_strength": 0.0, "clay_rim_strength": 0.15, "clay_light_softness": 0.2,
+		"clay_light_threshold": 0.45, "clay_shadow_tint": Color(0.75, 0.68, 0.60),
+		"clay_boil_enabled": false,
+		"clay_outline_enabled": false, "clay_outline_thickness": 1.0, "clay_outline_softness": 0.0,
+		"clay_outline_color": Color(0.1, 0.06, 0.02, 0.7),
+		"clay_paper_enabled": false, "clay_grain_strength": 0.10, "clay_posterize_levels": 9.0,
+		"tilt_enabled": true, "tilt_center": 0.5, "tilt_sharp_band": 0.18, "tilt_blur": 2.5,
+		"tonemap_filmic": true, "glow_enabled": true, "glow_intensity": 0.25,
+		"fog_enabled": true, "fog_density": 0.015,
+		# 彩度up・鮮やか（コントラストは別パラメータ＝lift/warmは共通のまま据え置き＝「残す」）
+		"lut_enabled": true, "lut_desaturate": -0.18,
+		"shadow_soft_enabled": true, "shadow_blur": 2.0, "shadow_distance": 20.0,
+		"msaa_enabled": true,
+		"contact_shadow_enabled": true, "contact_shadow_radius": 0.6, "contact_shadow_opacity": 0.4,
+		"contact_shadow_color": Color(0.0, 0.0, 0.0, 1.0),
+		# Aはクリーン開始のまま（塗り極めはB専用・2026-07-16「B後者」節）
+		"paint_tex_enabled": false, "paint_tex_strength": 0.35, "paint_tex_scale": 6.0,
+		"kuwahara_enabled": false, "kuwahara_radius": 3.0,
+		# Aはinverted-hull無し（クリーン開始のまま・2026-07-17「輪郭の完全化」節）
+		"hull_outline_enabled": false, "hull_outline_width": 0.015,
+		"hull_outline_color": Color(0.1, 0.06, 0.02, 1.0),
+	},
+	StylePreset.B: {
+		"clay_hatch_strength": 0.3, "clay_rim_strength": 0.25, "clay_light_softness": 0.06,
+		"clay_light_threshold": 0.45, "clay_shadow_tint": Color(0.45, 0.33, 0.24),
+		"clay_boil_enabled": false,
+		"clay_outline_enabled": true, "clay_outline_thickness": 2.0, "clay_outline_softness": 0.05,
+		"clay_outline_color": Color(0.1, 0.06, 0.02, 0.85),
+		"clay_paper_enabled": true, "clay_grain_strength": 0.08, "clay_posterize_levels": 7.0,
+		"tilt_enabled": false, "tilt_center": 0.5, "tilt_sharp_band": 0.18, "tilt_blur": 2.5,
+		"tonemap_filmic": false, "glow_enabled": false, "glow_intensity": 0.25,
+		"fog_enabled": true, "fog_density": 0.02,
+		# 鮮やか維持（参照Yoshiは高彩度）。当初の「くすませ」正値指示は参照と逆のため不採用
+		"lut_enabled": true, "lut_desaturate": -0.03,
+		"shadow_soft_enabled": true, "shadow_blur": 0.5, "shadow_distance": 20.0,
+		"msaa_enabled": true,
+		"contact_shadow_enabled": false, "contact_shadow_radius": 0.6, "contact_shadow_opacity": 0.4,
+		"contact_shadow_color": Color(0.0, 0.0, 0.0, 1.0),
+		# B後者=塗り極め（2026-07-16 GO・2-1のみ）：手続きfbm+grainをONで既定投入
+		"paint_tex_enabled": true, "paint_tex_strength": 0.35, "paint_tex_scale": 6.0,
+		# 2-2 Kuwahara（2026-07-16 GO・2-1のムラ視認OK後）：控えめradiusで筆致を足す
+		"kuwahara_enabled": true, "kuwahara_radius": 3.0,
+		# 輪郭の完全化（2026-07-17 GO）：スクリーン検出の漏れ（帽子×暗背景等）をジオメトリで完全カバー。
+		# 既存スクリーン輪郭（内部ディテール線）とは共存＝両方ON
+		"hull_outline_enabled": true, "hull_outline_width": 0.015,
+		"hull_outline_color": Color(0.1, 0.06, 0.02, 1.0),
+	},
+	StylePreset.CURRENT: {
+		"clay_hatch_strength": 0.3, "clay_rim_strength": 0.25, "clay_light_softness": 0.04,
+		"clay_light_threshold": 0.45, "clay_shadow_tint": Color(0.55, 0.42, 0.32),
+		"clay_boil_enabled": true,
+		"clay_outline_enabled": true, "clay_outline_thickness": 1.0, "clay_outline_softness": 0.0,
+		"clay_outline_color": Color(0.1, 0.06, 0.02, 0.7),
+		"clay_paper_enabled": true, "clay_grain_strength": 0.10, "clay_posterize_levels": 9.0,
+		"tilt_enabled": false, "tilt_center": 0.5, "tilt_sharp_band": 0.18, "tilt_blur": 2.5,
+		"tonemap_filmic": false, "glow_enabled": false, "glow_intensity": 0.25,
+		"fog_enabled": true, "fog_density": 0.02,
+		"lut_enabled": false, "lut_desaturate": 0.18,
+		"shadow_soft_enabled": false, "shadow_blur": 1.0, "shadow_distance": 20.0,
+		"msaa_enabled": false,
+		"contact_shadow_enabled": false, "contact_shadow_radius": 0.6, "contact_shadow_opacity": 0.4,
+		"contact_shadow_color": Color(0.0, 0.0, 0.0, 1.0),
+		"paint_tex_enabled": false, "paint_tex_strength": 0.35, "paint_tex_scale": 6.0,
+		"kuwahara_enabled": false, "kuwahara_radius": 3.0,
+		"hull_outline_enabled": false, "hull_outline_width": 0.015,
+		"hull_outline_color": Color(0.1, 0.06, 0.02, 1.0),
+	},
+}
+
+# 画風プリセット適用（＝「初期値に戻す」と完全に同じ経路）。3層（①クレイ材質 ②全画面ポスト
+# ③Environment/Light/Viewport）すべてへ _STYLE_PRESET_TABLE の値を流し込む
+# （dev_tooling_design.md「A/B画風プリセット」実装順2）。2段構成：
+#   1) テーブルの全キーを@exportへ直接書き戻す（副作用なし。thickness/grain等setterの無い項目もこれで反映）
+#   2) ライブ更新を伴うsetterを固定順で呼ぶ（値→有効化の順を保証。例：outline_thicknessを
+#      書き込んでからset_outline_enabled()で_setup_post_effects()を再構築させる）
+# ライブ更新（_for_each_clay_material/_setup_post_effects/env・light・viewportアクセス）は
+# 各setter内のnullガードによりツリー未接続時は安全にスキップする＝GUTで@export値のみ検証できる
+func apply_style_preset(preset: int) -> void:
+	if not _STYLE_PRESET_TABLE.has(preset):
+		return
+	var table: Dictionary = _STYLE_PRESET_TABLE[preset]
+	for key: String in table:
+		set(key, table[key])
+	set_boil_enabled(clay_boil_enabled)
+	set_clay_hatch_strength(clay_hatch_strength)
+	set_clay_rim_strength(clay_rim_strength)
+	set_clay_light_softness(clay_light_softness)
+	set_clay_light_threshold(clay_light_threshold)
+	set_clay_shadow_tint(clay_shadow_tint)
+	set_outline_enabled(clay_outline_enabled)
+	set_clay_outline_softness(clay_outline_softness)
+	set_paper_enabled(clay_paper_enabled)
+	set_tilt_enabled(tilt_enabled)
+	set_tilt_sharp_band(tilt_sharp_band)
+	set_tilt_blur(tilt_blur)
+	set_tonemap_filmic(tonemap_filmic)
+	set_glow_enabled(glow_enabled)
+	set_glow_intensity(glow_intensity)
+	set_fog_enabled(fog_enabled)
+	set_lut_enabled(lut_enabled)
+	set_lut_desaturate(lut_desaturate)
+	set_shadow_soft_enabled(shadow_soft_enabled)
+	set_shadow_blur(shadow_blur)
+	set_shadow_distance(shadow_distance)
+	set_msaa_enabled(msaa_enabled)
+	set_contact_shadow_enabled(contact_shadow_enabled)
+	set_contact_shadow_radius(contact_shadow_radius)
+	set_contact_shadow_opacity(contact_shadow_opacity)
+	set_paint_tex_enabled(paint_tex_enabled)
+	set_paint_tex_strength(paint_tex_strength)
+	set_paint_tex_scale(paint_tex_scale)
+	set_kuwahara_enabled(kuwahara_enabled)
+	set_kuwahara_radius(kuwahara_radius)
+	set_hull_outline_enabled(hull_outline_enabled)
+	set_hull_outline_width(hull_outline_width)
+	set_hull_outline_color(hull_outline_color)
+
+# キャラroot直下に固定ローカル位置の子として接地影ブロブを生やす（追従は親子関係で自動＝
+# _process/await/Signal不使用。床が非平坦だと浮くのでdev_tooling_design.md目視手順で確認）
+func _spawn_contact_shadow(ch: Node3D) -> void:
+	if not _contact_shadow_shader:
+		_contact_shadow_shader = Shader.new()
+		_contact_shadow_shader.code = _CONTACT_SHADOW_CODE
+	var mesh_inst := MeshInstance3D.new()
+	mesh_inst.name = "ContactShadow"
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * (contact_shadow_radius * 2.0)
+	mesh_inst.mesh = quad
+	var mat := ShaderMaterial.new()
+	mat.shader = _contact_shadow_shader
+	mat.set_shader_parameter("shadow_color",   contact_shadow_color)
+	mat.set_shader_parameter("shadow_opacity", contact_shadow_opacity)
+	mesh_inst.material_override = mat
+	mesh_inst.rotation_degrees.x = -90.0
+	mesh_inst.position = Vector3(0.0, 0.01, 0.0)
+	ch.add_child(mesh_inst)
+
+# _characters配下の全メッシュを走査し、clayシェーダーのShaderMaterialにだけ cb を適用する
+func _for_each_clay_material(cb: Callable) -> void:
+	if not _characters:  # ツリー未接続（GUTのBattleScene.new()単体テスト等）では何もしない
+		return
+	for ch: Node in _characters.get_children():
+		var meshes: Array[MeshInstance3D] = []
+		_collect_meshes(ch, meshes)
+		for mesh: MeshInstance3D in meshes:
+			if not mesh.mesh:
+				continue
+			for i: int in range(mesh.mesh.get_surface_count()):
+				var m: Material = mesh.get_surface_override_material(i)
+				if m is ShaderMaterial and (m as ShaderMaterial).shader == _clay_shader:
+					cb.call(m as ShaderMaterial)
 
 func _setup_grid_overlay() -> void:
 	for row: int in RotationGrid.ROW_COUNT:
@@ -1314,18 +2008,38 @@ func _apply_clay_shader(ch: Node3D) -> void:
 			mat.set_shader_parameter("albedo_color",    base_color)
 			mat.set_shader_parameter("shadow_tint",     clay_shadow_tint)
 			mat.set_shader_parameter("light_threshold", clay_light_threshold)
+			mat.set_shader_parameter("light_softness",  clay_light_softness)
 			mat.set_shader_parameter("rim_strength",    clay_rim_strength)
 			mat.set_shader_parameter("rim_color",       clay_rim_color)
 			mat.set_shader_parameter("hatch_spacing",   clay_hatch_spacing)
 			mat.set_shader_parameter("hatch_strength",  clay_hatch_strength)
 			mat.set_shader_parameter("boil_enabled",    clay_boil_enabled)
-			mat.set_shader_parameter("boil_amplitude",  clay_boil_amplitude)
+			# ノードスケールを補正しているモデル（ドラゴン）はローカル空間が縮んでいるので
+			# 同じ倍率で振幅を割り戻す。メタが無い＝従来どおりのモデルは 1.0 で無変化
+			mat.set_shader_parameter("boil_amplitude",
+				clay_boil_amplitude / maxf(0.0001, ch.get_meta("boil_amp_div", 1.0) as float))
 			mat.set_shader_parameter("boil_rate",       clay_boil_rate)
 			mat.set_shader_parameter("boil_grid",       clay_boil_grid)
+			mat.set_shader_parameter("paint_tex_enabled",  paint_tex_enabled)
+			mat.set_shader_parameter("paint_tex_strength", paint_tex_strength)
+			mat.set_shader_parameter("paint_tex_scale",    paint_tex_scale)
+			if hull_outline_enabled:
+				mat.next_pass = _make_hull_outline_material()
 			mesh.set_surface_override_material(i, mat)
 
+# inverted-hull outline用のnext_passマテリアルを作る（現在のexport値を反映）
+func _make_hull_outline_material() -> ShaderMaterial:
+	if not _hull_outline_shader:
+		_hull_outline_shader = Shader.new()
+		_hull_outline_shader.code = _HULL_OUTLINE_CODE
+	var hull_mat := ShaderMaterial.new()
+	hull_mat.shader = _hull_outline_shader
+	hull_mat.set_shader_parameter("hull_outline_width", hull_outline_width)
+	hull_mat.set_shader_parameter("hull_outline_color", hull_outline_color)
+	return hull_mat
+
 func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: String,
-		idle_anim_name: String = "idle") -> Node3D:
+		idle_anim_name: String = "idle", anim_dir: String = "") -> Node3D:
 	var res: PackedScene = load(char_path)
 	if not res:
 		return null
@@ -1337,6 +2051,24 @@ func _spawn_char(marker: Marker3D, y_rot: float, scale: Vector3, char_path: Stri
 	var anim: AnimationPlayer
 	if char_path.begins_with(_KAYKIT_CHAR_DIR):
 		anim = _build_kaykit_anim_player(ch)
+	elif char_path.begins_with(_DRAGON_MODEL_DIR):
+		_apply_dragon_texture(ch, char_path)
+		# FBX元来のバインド姿勢は「形は完全に正しく、一様に1/100スケールなだけ」。
+		# 2026-07-19実測（tools/diag_dragon_origbind.gd）：元来バインドでの形の破綻辺は
+		# Basic Attack 1.3% / FlyIdle 1.4%（正常なKayKitキャラの0.5%と同水準＝ノイズ床）。
+		# 対してスキンを作り直すと 17.1% / 18.2% まで跳ね上がり、翼と頭部が破裂する。
+		# したがってスキンには一切触れず、縮んだ分をノードスケールで戻すのが正しい。
+		ch.scale *= _DRAGON_SKIN_SCALE_FIX
+		# ノードを100倍した分、メッシュのローカル座標系は1/100になる。クレイシェーダーの
+		# 頂点ボイルは boil_amplitude をローカル空間で足すため、そのままだと振れ幅が
+		# 相対的に100倍になり全身が毛糸状にほどける（2026-07-19に実機で確認）。
+		# ここで同じ倍率を割り戻し、ワールド上の揺れ幅を他キャラと揃える
+		ch.set_meta("boil_amp_div", _DRAGON_SKIN_SCALE_FIX)
+		# Skin差し替え直後はGPU側のバッファ更新が追いつかず、スポーン直後の数フレームだけ
+		# テクスチャが崩れて見える不具合を2026-07-19に実機スクリーンショットで確認した
+		# （5〜8フレーム程度で自然に解消するが、更新を即時反映させて短縮する）
+		RenderingServer.force_sync()
+		anim = _build_dragon_anim_player(ch, anim_dir)
 	else:
 		anim = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if anim and anim.has_animation(idle_anim_name):
@@ -1368,6 +2100,122 @@ static func _build_kaykit_anim_player(ch: Node3D) -> AnimationPlayer:
 				anim.add_animation_library(lib_name, src_ap.get_animation_library(libs[0]))
 		src.queue_free()
 	return anim
+
+## 差し替えモデルが持つクリップ名一覧（アニメFBXのファイル名＝クリップ名）。anim_dirが空、
+## または存在しないパスなら空。開発ツールのクリップ選択UIが使う。
+## ソースFBXを直接見るため実行はエディタ/デバッグ限定
+static func dragon_clip_names(anim_dir: String) -> PackedStringArray:
+	if anim_dir.is_empty():
+		return PackedStringArray()
+	var dir := DirAccess.open(anim_dir)
+	if not dir:
+		return PackedStringArray()
+	var out: PackedStringArray = []
+	for f: String in dir.get_files():
+		if f.ends_with(".fbx"):
+			out.append(f.get_basename())
+	out.sort()
+	return out
+
+# メッシュFBXにはテクスチャが入っていない（albedo=none）ので、enemy_candidates配下に
+# 用意した赤テクスチャをマテリアルへ直接割り当てる
+static func _apply_dragon_texture(ch: Node3D, model_path: String) -> void:
+	var key := model_path.get_file().get_basename()
+	var tex_path: String = _DRAGON_ALBEDO.get(key, "") as String
+	if tex_path.is_empty():
+		return
+	var tex: Texture2D = load(tex_path)
+	if not tex:
+		return
+	var found: Array = ch.find_children("*", "MeshInstance3D", true, false)
+	if found.is_empty():
+		return
+	var mi := found[0] as MeshInstance3D
+	if not mi or not mi.mesh:
+		return
+	for i: int in range(mi.mesh.get_surface_count()):
+		var mat: Material = mi.mesh.surface_get_material(i)
+		var sm: StandardMaterial3D = mat as StandardMaterial3D
+		if sm == null:
+			sm = StandardMaterial3D.new()
+		else:
+			sm = sm.duplicate() as StandardMaterial3D
+		sm.albedo_texture = tex
+		mi.set_surface_override_material(i, sm)
+
+# ドラゴンのメッシュFBXが持つSkin（頂点↔ボーンの逆バインド行列）は、Skeleton3Dが実際に
+# 報告するrest姿勢と恒常的に一致していない（2026-07-19実測：root_scaleの値に関係なく常に、
+# 全83ボーンで「rest姿勢×逆バインド行列」がscale=0.01だけズレる＝インポータがSkinをボーンの
+# スケール成分抜きで計算しているとみられる）。restのままなら影響しない（Godotはボーン姿勢が
+# 一度も変更されていないメッシュはGPUスキニング計算自体をスキップするとみられる）が、
+# アニメーションでボーン姿勢に触れた瞬間にスキニング計算が実際に走り、このズレがそのまま
+# 反映されて全身が1/100サイズまで縮んで事実上不可視になる（＝「アニメ再生すると消える」の真因。
+# Node3D.scaleの大小やroot_scaleの有無では直らない）。Skeleton3Dの実際のrest姿勢からSkinを
+# 作り直すことでこの不整合を解消する
+static func _fix_dragon_skin(ch: Node3D) -> void:
+	var sk: Skeleton3D = ch.find_child("Skeleton3D", true, false) as Skeleton3D
+	if not sk:
+		return
+	for mi: MeshInstance3D in ch.find_children("*", "MeshInstance3D", true, false):
+		var old_skin: Skin = mi.skin
+		if not old_skin:
+			continue
+		var new_skin := Skin.new()
+		for i: int in range(old_skin.get_bind_count()):
+			var bone_idx := old_skin.get_bind_bone(i)
+			if bone_idx == -1:
+				bone_idx = sk.find_bone(old_skin.get_bind_name(i))
+			if bone_idx == -1:
+				continue
+			# 基準は global_pose（rest ではない）。このFBXの頂点は rest 姿勢ではなく
+			# 「既定ポーズ」の空間で作られているため、rest 基準にすると 2814辺中491本
+			# （17.4%）が半分以下/2倍以上に伸縮しメッシュが壊れる（2026-07-19に
+			# tools/diag_dragon_deform.gd で実測。pose基準なら辺長比は全て1.0000）。
+			# 「rest×逆バインド＝単位行列」で検算しても基準を自分で打ち消すだけなので
+			# 正否は判定できない。判定は必ず頂点変形量（辺長比）で行うこと
+			new_skin.add_bind(bone_idx, sk.get_bone_global_pose(bone_idx).affine_inverse())
+		mi.skin = new_skin
+
+# ドラゴン：メッシュ専用FBXへアニメFBX(1クリップ1本)を合流する。メッシュFBXとアニメFBXは
+# ボーン名が一致する（GLBとの不一致問題はここでは起きない）ので名前ベースの合流で足りる。
+# FBX側トラックは "Skeleton3D:<Bone>"、本体側は Armature/Skeleton3D と一段深いため
+# root_node を Armature に向けて解決させる（KayKitの_build_kaykit_anim_playerと同じ手当て）
+static func _build_dragon_anim_player(ch: Node3D, anim_dir: String) -> AnimationPlayer:
+	if anim_dir.is_empty():
+		return null
+	var anim := AnimationPlayer.new()
+	anim.name = "AnimationPlayer"  # 省略時の内部名だとfind_childで見失う（_build_kaykit_anim_player同様）
+	ch.add_child(anim)
+	var armature: Node3D = ch.find_child("Armature", true, false) as Node3D
+	anim.root_node = anim.get_path_to(armature if armature else ch)
+	var lib := AnimationLibrary.new()
+	for clip: String in dragon_clip_names(anim_dir):
+		var src_scene: PackedScene = load(anim_dir + "/" + clip + ".fbx")
+		if not src_scene:
+			continue
+		var src: Node3D = src_scene.instantiate()
+		var src_ap: AnimationPlayer = src.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if src_ap:
+			var names: PackedStringArray = src_ap.get_animation_list()
+			if not names.is_empty():
+				# FBXのクリップ名は全部 "Take 001"（無名トラックの既定名）なのでファイル名を採る
+				var a: Animation = src_ap.get_animation(names[0]).duplicate()
+				_scale_dragon_anim_positions(a, _DRAGON_ANIM_POS_SCALE)
+				lib.add_animation(clip, a)
+		src.queue_free()
+	anim.add_animation_library("", lib)
+	return anim
+
+# メッシュ側は.importのroot_scaleで縮めるが、外部合流するアニメFBXの位置トラックは原寸
+# （cm単位）のまま読み込まれるため、同じ比率を掛けて単位を合わせる（合わせないとRootボーンが
+# 100倍の距離まで飛んで四散する）。回転トラックはスケールに依存しないため無変換のままでよい
+static func _scale_dragon_anim_positions(a: Animation, factor: float) -> void:
+	for i: int in range(a.get_track_count()):
+		if a.track_get_type(i) != Animation.TYPE_POSITION_3D:
+			continue
+		for k: int in range(a.track_get_key_count(i)):
+			var v: Vector3 = a.track_get_key_value(i, k)
+			a.track_set_key_value(i, k, v * factor)
 
 func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 	var cd := unit.source_data as CharacterData
@@ -1406,29 +2254,36 @@ func _attach_weapon(ch: Node3D, unit: BattleUnit) -> void:
 		tw.tween_property(weapon, "position:y", start_y - _WEAPON_FLOAT_AMP, _WEAPON_FLOAT_TIME) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
-# 頭部一式（帽子・顔・髪）をheadボーンのBoneAttachment3D配下の専用Node3Dへ集めて
-# kaykit_chibi_head_boost倍にまとめて拡縮する。_attach_weaponと同じくBoneAttachment3D
-# そのものではなく子のNode3D側にスケールを持たせる（理由は上のexport変数コメント参照）
-func _apply_kaykit_chibi_head(ch: Node3D) -> void:
+# CustomHead/HairMesh（face_editor.gd由来の自作パーツ・skin無しで骨に追従しない＝2026-07-14判明）を
+# headボーンのBoneAttachment3D配下へ載せ替えて剛体追従させる。常時実行（chibi/非chibi問わず）＝
+# 該当パーツが無い職は早期returnで無変化。chibiのときだけ、ネイティブの頭/帽子/兜メッシュ
+# （_HEAD_ASSEMBLY_SUFFIXES）も同じholderへ巻き込み、kaykit_chibi_head_boost倍で拡縮する
+# （_attach_weaponと同じくBoneAttachment3Dそのものではなく子のNode3D側にスケールを持たせる。
+# 理由は上のexport変数コメント参照）。
+func _apply_kaykit_head_assembly(ch: Node3D, is_chibi: bool) -> void:
 	var skeleton := ch.find_child("Skeleton3D", true, false) as Skeleton3D
 	if not skeleton or skeleton.find_bone("head") == -1:
 		return
-	var attachment := BoneAttachment3D.new()
-	attachment.bone_name = "head"
-	skeleton.add_child(attachment)
-	var holder := Node3D.new()
-	holder.name = "ChibiHeadScale"
-	attachment.add_child(holder)
-	holder.scale = Vector3.ONE * kaykit_chibi_head_boost
-
 	var parts: Array[Node3D] = []
-	for child in skeleton.get_children():
-		if child is MeshInstance3D and _is_head_assembly_mesh((child as Node3D).name):
-			parts.append(child)
 	for extra_name: String in _HEAD_ASSEMBLY_EXTRA_NAMES:
 		var extra := ch.find_child(extra_name, true, false) as Node3D
 		if extra and not parts.has(extra):
 			parts.append(extra)
+	if parts.is_empty() and not is_chibi:
+		return  # 自作パーツも無くchibiでもない＝ネイティブ頭はスキンで正しく追従するため何もしない
+
+	var attachment := BoneAttachment3D.new()
+	attachment.bone_name = "head"
+	skeleton.add_child(attachment)
+	var holder := Node3D.new()
+	holder.name = "HeadAssembly"
+	attachment.add_child(holder)
+	holder.scale = Vector3.ONE * (kaykit_chibi_head_boost if is_chibi else 1.0)
+
+	if is_chibi:
+		for child in skeleton.get_children():
+			if child is MeshInstance3D and _is_head_assembly_mesh((child as Node3D).name):
+				parts.append(child)
 
 	for part in parts:
 		var world_xform := part.global_transform
@@ -1816,9 +2671,10 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 			_unit_anims[unit] = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
 			_unit_base_scale[unit] = char_scale
 			_spawn_hp_bar(ch, unit)
+			if contact_shadow_enabled:
+				_spawn_contact_shadow(ch)
 			_attach_weapon(ch, unit)
-			if is_chibi:
-				_apply_kaykit_chibi_head(ch)
+			_apply_kaykit_head_assembly(ch, is_chibi)
 			if cd and _JOB_TINTS.has(cd.job):
 				_tint_char(ch, _JOB_TINTS[cd.job] as Color)
 			var accent := accent_color_for(i)
@@ -1829,16 +2685,53 @@ func _on_battle_started(pg: RotationGrid, eg: RotationGrid) -> void:
 		var m: Marker3D = _get_enemy_marker(0)
 		if m:
 			var ed := unit.source_data as EnemyData
-			var e_path  := ed.model_path if ed and not ed.model_path.is_empty() else _ENEMY_CHAR_PATH
-			var e_idle  := ed.idle_anim  if ed else "idle"
-			var _ms := ed.battle_model_scale if (ed and ed.battle_model_scale > 0.0) else (ed.model_scale if ed else 1.0)
+			var e_path  := enemy_preview_path if not enemy_preview_path.is_empty() else \
+				(ed.model_path if ed and not ed.model_path.is_empty() else _ENEMY_CHAR_PATH)
+			var e_idle: String = ed.idle_anim if ed else "idle"
+			if not enemy_preview_idle.is_empty():
+				e_idle = enemy_preview_idle
+			var _ms := enemy_preview_scale if not enemy_preview_path.is_empty() else \
+				(ed.battle_model_scale if (ed and ed.battle_model_scale > 0.0) else (ed.model_scale if ed else 1.0))
 			var e_scale := enemy_char_scale * _ms
-			var ch := _spawn_char(m, 0.0, e_scale, e_path, e_idle)
+			var ch := _spawn_char(m, 0.0, e_scale, e_path, e_idle, enemy_preview_anim_dir)
 			if not ch:
 				continue
 			_unit_nodes[unit] = ch
 			_unit_anims[unit] = ch.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if not enemy_preview_path.is_empty():
+				_preview_enemy_anim = _unit_anims[unit] as AnimationPlayer
+				_preview_enemy_idle = e_idle
 			_spawn_hp_bar(ch, unit)
+			if contact_shadow_enabled:
+				_spawn_contact_shadow(ch)
+
+## 開発ツール用。差し替え中の敵が持つクリップ一覧（内蔵アニメの無いモデルなら空）
+func preview_enemy_clip_list() -> PackedStringArray:
+	if not _preview_enemy_anim or not is_instance_valid(_preview_enemy_anim):
+		return PackedStringArray()
+	return _preview_enemy_anim.get_animation_list()
+
+## 開発ツール用。クリップを1回再生し、終わったら待機へ戻す（AnimationPlayer.queueで繋ぐ）
+func preview_play_enemy_clip(clip: String) -> void:
+	if not _preview_enemy_anim or not is_instance_valid(_preview_enemy_anim):
+		return
+	if not _preview_enemy_anim.has_animation(clip):
+		return
+	_preview_enemy_anim.get_animation(clip).loop_mode = Animation.LOOP_NONE
+	_preview_enemy_anim.play(clip)
+	if _preview_enemy_anim.has_animation(_preview_enemy_idle):
+		_preview_enemy_anim.queue(_preview_enemy_idle)
+
+## 開発ツール用。待機クリップを差し替えて即反映する（地上待機⇔飛行待機）
+func preview_set_enemy_idle(clip: String) -> void:
+	enemy_preview_idle = clip
+	if not _preview_enemy_anim or not is_instance_valid(_preview_enemy_anim):
+		return
+	if not _preview_enemy_anim.has_animation(clip):
+		return
+	_preview_enemy_idle = clip
+	_preview_enemy_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+	_preview_enemy_anim.play(clip)
 
 # 被弾エフェクト/飛翔体着弾の高さ倍率。敵はEnemyData.impact_height_multで個別調整
 # （図体の大きいドラゴン等が0.7m基準だと足元に着弾して見える問題への対処）
@@ -2271,6 +3164,8 @@ func _process_row_heal_queue() -> void:
 
 func _on_battle_ended(won: bool, _loot: Array) -> void:
 	await get_tree().create_timer(battle_end_delay).timeout
+	if preview_mode:
+		return  # stage_composerの土台。遷移せずその場に留まる（もう一度見るならツールのリスタート）
 	if won:
 		GameState.advance_battle()
 		if GameState.battle_index >= 3:

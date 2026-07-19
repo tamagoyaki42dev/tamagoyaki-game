@@ -43,3 +43,4 @@ theme/custom_font="res://assets/fonts/default_font.tres"
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+lights_and_shadows/directional_shadow/size.mobile=4096

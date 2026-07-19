@@ -450,7 +450,11 @@
       "Bash(/d/dev/blender/blender.exe --background --python \"C:/Users/djbsh/AppData/Local/Temp/claude/d--dev-tamagoyaki-game/c0014251-f565-4855-92ee-7fd1b84a8f85/scratchpad/build_furou_v2.py\")",
       "Bash(grep -vE \"\\\\.import$|\\\\.uid$\")",
       "Bash(awk 'NR>1{printf \"%8.0fKB  %s\\\\n\", $5/1024, $NF}')",
-      "Bash(sort -k2)"
+      "Bash(sort -k2)",
+      "Bash([ -f \"$GODOT\" ])",
+      "Bash(ls /c/Users/djbsh/Downloads/ 2>/dev/null | grep -i godot)",
+      "Bash(\"/c/Users/djbsh/Downloads/Godot_v4.6.3-stable_win64.exe/Godot_v4.6.3-stable_win64_console.exe\" --headless --path . -s addons/gut/gut_cmdln.gd -gtest=res://tests/test_battle_scene_head_assembly.gd -gexit)",
+      "Bash(ls \"/c/Users/djbsh/Downloads/\" 2>/dev/null | grep -i godot)"
     ],
     "additionalDirectories": [
       "C:\\Users\\djbsh\\Downloads\\extracted\\kenney_interface-sounds\\Audio",

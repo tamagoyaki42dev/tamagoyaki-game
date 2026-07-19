@@ -35,6 +35,16 @@ parts.append(
     + "\n".join(f"- {d}" for d in _duty)
 )
 
+# 水・土は「投稿日リマインド」を最優先でコンテキスト先頭に立てる（ユーザー要望・2026-07-16）。
+# フックが動くのはその日にセッションを開いたときだが、動画/note は Claude と一緒に作る作業なので実質必ず引っかかる。
+if _today_duty:
+    parts.insert(0,
+        "# ⚠️ 投稿日リマインド（この応答の冒頭で必ずユーザーに知らせること）\n\n"
+        f"今日は投稿日です → **{_today_duty}**。\n"
+        "作業に入る前に、まず第一声でこの投稿予定をユーザーにリマインドすること"
+        "（すでに投稿済みなら「対応済みならOK」と添える）。"
+    )
+
 print(json.dumps({
     "hookSpecificOutput": {
         "hookEventName": "SessionStart",

@@ -33,6 +33,17 @@ func test_lut_grade_reduces_blue_with_default_warm_mult() -> void:
 	assert_true(c.b < 0.5, "暖色寄りシフトでB成分が入力より下がる")
 	assert_true(c.r > 0.5, "暖色寄りシフトでR成分が入力より上がる")
 
+func test_lut_grade_negative_desaturate_increases_chroma() -> void:
+	# 負値許容（2026-07-16・Aプリセット用）：lumaから外挿する方向＝彩度が上がる
+	var r := 0.6
+	var g := 0.5
+	var b := 0.5
+	var chroma_before := maxf(r, maxf(g, b)) - minf(r, minf(g, b))
+	var c := BattleScene._lut_grade(r, g, b, -0.3, Vector3.ONE, Vector3.ZERO, 1.0, 0.0)
+	var chroma_after := maxf(c.r, maxf(c.g, c.b)) - minf(c.r, minf(c.g, c.b))
+	assert_true(chroma_after > chroma_before,
+		"負のdesaturateを渡すと出力の彩度(クロマ)が入力より上がる")
+
 func test_lut_grade_clamps_to_valid_range() -> void:
 	var c := BattleScene._lut_grade(1.0, 1.0, 1.0, 0.18,
 		Vector3(1.08, 1.03, 0.90), Vector3(0.02, 0.015, 0.0), 0.92, 0.06)

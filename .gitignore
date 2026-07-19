@@ -72,3 +72,19 @@ assets/quaternius_preview/
 # 開発ツールの生成プレビュー画像（実行のたびに再生成される・スクラッチ扱い）
 tools/_*.png
 tools/_*.png.import
+
+# 非人型モンスター手続き生成の検証中スクリプト（A3敵ツール化するか未決・backlog参照）
+tools/_dragon_gen/
+
+# 外部調達アセット（ローカル保管のみ・2026-07-19 ユーザー判断）
+# 理由は2つ：①計735MBと大容量 ②本リポジトリは公開設定であり、Unity Asset Store系は
+# 無償・有償を問わずEULAが再配布を禁じている（素のFBX/PNGを公開リポジトリに置くと
+# 誰でも取り出せる＝再配布に当たる）。購入元から再取得できるためローカル保管で運用する。
+# 自作分（assets/enemy_candidates/custom/）は追跡対象として残す。
+assets/dungeon-mason-dragons/
+assets/enemy_candidates/dungeon_mason/
+assets/enemy_candidates/dungeon_mason_baked/
+assets/enemy_candidates/dungeon_mason_fbx/
+assets/enemy_candidates/sketchfab/
+assets/enemy_candidates/unity/
+assets/FabLib/
